@@ -1,0 +1,97 @@
+/* ── Offline / network-failure full-screen view ─────── */
+.offline-page {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--u-background-primary);
+}
+
+/* ── Scrollable body (centers the empty state) ──────── */
+.offline-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px var(--u-page-gutter);
+  overflow-y: auto;
+}
+
+/* ── Empty state card ───────────────────────────────── */
+.offline-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 36px;
+  width: 100%;
+  max-width: 358px;
+}
+
+/* ── Icon ────────────────────────────────────────────── */
+.offline-icon {
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+/* ── Heading ─────────────────────────────────────────── */
+.offline-heading {
+  font-family: var(--u-font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.4;
+  letter-spacing: 0.016em;
+  text-align: center;
+  margin: 0 0 12px;
+}
+
+/* ── Body text ───────────────────────────────────────── */
+.offline-body-text {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--u-content-primary);
+  line-height: 1.5;
+  text-align: center;
+  margin: 0;
+}
+
+/* ── Footer ──────────────────────────────────────────── */
+.offline-footer {
+  flex-shrink: 0;
+  padding: 12px var(--u-page-gutter) 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--u-background-primary);
+}
+
+.offline-footer__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 16px 20px;
+  background: var(--u-background-always-dark);
+  color: var(--u-content-on-color);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.33;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.offline-footer__btn:hover,
+.offline-footer__btn:focus-visible {
+  opacity: 0.85;
+}
+
+.offline-footer__btn:active {
+  opacity: 0.7;
+}
+
+.offline-footer__btn:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}

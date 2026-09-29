@@ -1,0 +1,57 @@
+/* Uber Move is proprietary, self-hosted woff2.
+   In production the woff2 files are served from /static/fonts/ by the container.
+   local() fallbacks are used here so webpack does not try to bundle the files. */
+@font-face {
+  font-family: 'Uber Move';
+  src: local('Uber Move Bold'), local('UberMove-Bold'), local('system-ui');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Uber Move Text';
+  src: local('Uber Move Text'), local('UberMoveText-Regular'), local('system-ui');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Uber Move Text';
+  src: local('Uber Move Text Medium'), local('UberMoveText-Medium'), local('system-ui');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Surfaces */
+  --u-background-primary:        #ffffff;
+  --u-background-always-dark:    #000000;   /* RULE-001: primary button ALWAYS black */
+  --u-background-state-disabled: #f3f3f3;
+  --u-background-accent:         #276ef1;   /* progress bar fill */
+
+  /* Content */
+  --u-content-primary:           #000000;
+  --u-content-secondary:         #4b4b4b;
+  --u-content-on-color:          #ffffff;
+
+  /* Borders */
+  --u-border-opaque:             #e8e8e8;
+
+  /* Semantic — RULE-002: mastery green ONLY for completion checkmarks */
+  --u-mastery:                   #15803d;
+  --u-mastery-light:             #e8f6ee;
+
+  /* Typography */
+  --u-font-display:              'Uber Move', system-ui, sans-serif;
+  --u-font-body:                 'Uber Move Text', system-ui, sans-serif;
+
+  /* Layout */
+  --u-page-gutter:               1rem;
+  --u-button-dock-height:        4.5rem;
+
+  /* Motion */
+  --u-duration-fast:             150ms;
+  --u-duration-normal:           300ms;
+  --u-ease-out:                  cubic-bezier(0.16, 1, 0.3, 1);
+}

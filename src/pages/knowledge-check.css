@@ -1,0 +1,385 @@
+/* ── Knowledge Check Page Shell ──────────────────────────────────────────── */
+.kc-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--u-background-primary);
+}
+
+/* ── Scrollable content ───────────────────────────────────────────────────── */
+.kc-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+/* ── Progress bar ─────────────────────────────────────────────────────────── */
+.kc-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.kc-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.kc-progress-label {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.14;
+}
+
+.kc-progress-position {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.14;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.kc-progress-track {
+  width: 100%;
+  height: 4px;
+  background: var(--u-border-opaque);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.kc-progress-fill {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  background: var(--u-background-accent);
+  border-radius: 2px;
+  transition: width 0.3s var(--u-ease-out);
+  min-width: 4px;
+}
+
+/* ── Kicker ───────────────────────────────────────────────────────────────── */
+.kc-kicker {
+  font-family: var(--u-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--u-content-secondary);
+  line-height: 1.33;
+  margin: 0;
+}
+
+/* ── Question text ────────────────────────────────────────────────────────── */
+.kc-question {
+  font-family: var(--u-font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.29;
+  margin: 0;
+  text-wrap: balance;
+}
+
+/* ── Lead text ────────────────────────────────────────────────────────────── */
+.kc-lead {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Options list ─────────────────────────────────────────────────────────── */
+.kc-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+/* ── Single answer option ─────────────────────────────────────────────────── */
+.kc-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 16px;
+  background: var(--u-background-primary);
+  border: 1px solid var(--u-border-opaque);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color var(--u-duration-fast) var(--u-ease-out),
+    border-width var(--u-duration-fast) var(--u-ease-out);
+}
+
+.kc-option--selected {
+  border: 2px solid var(--u-content-primary);
+}
+
+.kc-option:focus-visible {
+  outline: 2px solid var(--u-background-accent);
+  outline-offset: 2px;
+}
+
+/* ── Key badge (A / B / C) ────────────────────────────────────────────────── */
+.kc-option__key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: var(--u-background-state-disabled);
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1;
+}
+
+.kc-option__key--selected {
+  background: var(--u-background-always-dark);
+  color: var(--u-content-on-color);
+}
+
+/* ── Option label ─────────────────────────────────────────────────────────── */
+.kc-option__label {
+  flex: 1;
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--u-content-primary);
+  line-height: 1.5;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+.kc-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 12px 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--u-background-primary);
+}
+
+.kc-footer__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 16px 20px;
+  background: var(--u-background-always-dark);
+  color: var(--u-content-on-color);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.33;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.kc-footer__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.kc-footer__btn:not(:disabled):hover,
+.kc-footer__btn:not(:disabled):focus-visible {
+  opacity: 0.85;
+}
+
+.kc-footer__btn:not(:disabled):active {
+  opacity: 0.7;
+}
+
+.kc-footer__btn:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
+
+.kc-footer__secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 16px 20px;
+  background: transparent;
+  color: var(--u-content-primary);
+  border: none;
+  cursor: pointer;
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.33;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.kc-footer__secondary:hover,
+.kc-footer__secondary:focus-visible {
+  opacity: 0.7;
+}
+
+.kc-footer__secondary:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────── */
+/* Check Result screen                                                          */
+/* ──────────────────────────────────────────────────────────────────────────── */
+
+/* ── Result card ──────────────────────────────────────────────────────────── */
+.kcr-result-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border-radius: 12px;
+  width: 100%;
+}
+
+.kcr-result-card--positive {
+  background: #eaf6ed;
+}
+
+.kcr-result-card--neutral {
+  background: var(--u-background-state-disabled);
+}
+
+.kcr-kicker {
+  font-family: var(--u-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #5e5e5e;
+  line-height: 1.33;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.kcr-score {
+  font-family: var(--u-font-body);
+  font-size: 1.75rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.29;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.kcr-score--positive {
+  color: #0e8345;
+}
+
+.kcr-title {
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.33;
+  margin: 0;
+}
+
+.kcr-body {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+/* ── Before / Now learning gain ───────────────────────────────────────────── */
+.kcr-gain {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.kcr-gain__tile {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  background: var(--u-background-state-disabled);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.kcr-gain__label {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--u-content-secondary);
+  line-height: 1.14;
+  margin: 0;
+}
+
+.kcr-gain__score {
+  font-family: var(--u-font-body);
+  font-size: 1.75rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.29;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* ── Measurement note ─────────────────────────────────────────────────────── */
+.kcr-note {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+/* ── Care note card ───────────────────────────────────────────────────────── */
+.kcr-care-note {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  background: var(--u-background-state-disabled);
+  border-radius: 12px;
+}
+
+.kcr-care-note__title {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.25;
+  margin: 0;
+}
+
+.kcr-care-note__body {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}

@@ -1,13 +1,28 @@
 const { createConfig } = require('@openedx/frontend-build');
 
-module.exports = createConfig('jest', {
-  // setupFilesAfterEnv is used after the jest environment has been loaded.  In general this is what you want.  
-  // If you want to add config BEFORE jest loads, use setupFiles instead.  
+const mergedConfig = createConfig('jest', {
   setupFilesAfterEnv: [
-    '<rootDir>/src/setupTest.js',
+    '<rootDir>/src/setupTest.ts',
   ],
   coveragePathIgnorePatterns: [
-    'src/setupTest.js',
+    'src/setupTest.ts',
     'src/i18n',
   ],
+  testTimeout: 30000,
+  testEnvironment: 'jsdom',
+  moduleNameMapper: {
+    '\\.css$': 'identity-obj-proxy',
+  },
 });
+
+// Allow ts-jest to transform TypeScript files
+mergedConfig.transform['^.+\\.[tj]sx?$'] = [
+  'ts-jest',
+  {
+    diagnostics: {
+      exclude: ['!**/*.test.*'],
+    },
+  },
+];
+
+module.exports = mergedConfig;

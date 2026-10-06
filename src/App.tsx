@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CourseCatalog } from './pages/CourseCatalog';
 import { CourseLibrary } from './pages/CourseLibrary';
@@ -70,6 +70,11 @@ class AppErrorBoundary extends Component<{ children: React.ReactNode }, ErrorBou
   }
 }
 
+const CourseHomeRedirect = () => {
+  const { courseId } = useParams<{ courseId: string }>();
+  return <Navigate to={`/course/${courseId}`} replace />;
+};
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -100,6 +105,9 @@ export const App = () => (
         <Route path="/course/:courseId/check/:type" element={<KnowledgeCheckPage />} />
         <Route path="/course/:courseId/check-result/:type" element={<KnowledgeCheckResultPage />} />
         <Route path="/badge/:type" element={<BadgeEarned />} />
+        {/* LMS-generated deep links */}
+        <Route path="/course/:courseId/home" element={<CourseHomeRedirect />} />
+        <Route path="/course/:courseId/progress" element={<Navigate to="/progress" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </QueryClientProvider>

@@ -6,6 +6,9 @@ import { useProgress } from '../hooks/useProgress';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
 import { getStoredResumeIdx } from '../lib/resume-storage';
+import { useGamification, type GamificationSummary } from '../hooks/useGamification';
+import { useLeaderboard, type LeaderboardData } from '../hooks/useLeaderboard';
+import type { GamificationDay, WeekdayKey } from '../api/gamification';
 
 import iconCircleInfo from '../assets/icons/icon-circle-info.svg';
 import courseArtBlue from '../assets/icons/course-art-blue2.svg';
@@ -50,16 +53,19 @@ interface CourseRowProps {
   course: EnrolledCourse;
   artSrc: string;
   tintClass: string;
+  gamificationPoints?: number;
 }
 
-const PointsCourseRow = ({ course, artSrc, tintClass }: CourseRowProps) => {
+const PointsCourseRow = ({
+  course, artSrc, tintClass, gamificationPoints,
+}: CourseRowProps) => {
   const outlineQuery = useCourseOutline(course.courseId);
   const { data: progressData } = useProgress(course.courseId);
   const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
   const totalLessons = allLessons.length;
   const storedIdx = totalLessons > 0 ? getStoredResumeIdx(course.courseId, allLessons) : -1;
   const completedLessons = storedIdx > 0 ? storedIdx : 0;
-  const pointsEarned = progressData?.points?.earned ?? 0;
+  const pointsEarned = gamificationPoints ?? progressData?.points?.earned ?? 0;
 
   const statusText = totalLessons > 0
     ? `${completedLessons} of ${totalLessons} lessons complete`
@@ -89,17 +95,21 @@ const COURSE_ART = [
 interface PointsTabProps {
   courses: EnrolledCourse[];
   totalPoints: number;
+  monthPoints?: number;
+  coursePointsByKey?: Record<string, number>;
   onContinue: () => void;
 }
 
-const PointsTab = ({ courses, totalPoints, onContinue }: PointsTabProps) => (
+const PointsTab = ({
+  courses, totalPoints, monthPoints, coursePointsByKey, onContinue,
+}: PointsTabProps) => (
   <div className="lp-tab-content">
     {/* Hero card */}
     <div className="lp-points-hero">
       <div className="lp-points-hero__figure">
         <span className="lp-points-hero__label">Total points</span>
         <span className="lp-points-hero__value">{totalPoints}</span>
-        <span className="lp-points-hero__sub">{totalPoints} this month</span>
+        <span className="lp-points-hero__sub">{monthPoints ?? totalPoints} this month</span>
       </div>
       <div className="lp-points-hero__art">
         <img src={iconLightningLarge} alt="" className="lp-points-hero__icon" aria-hidden="true" />
@@ -115,6 +125,7 @@ const PointsTab = ({ courses, totalPoints, onContinue }: PointsTabProps) => (
           course={course}
           artSrc={COURSE_ART[i % COURSE_ART.length].artSrc}
           tintClass={COURSE_ART[i % COURSE_ART.length].tintClass}
+          gamificationPoints={coursePointsByKey?.[course.courseId]}
         />
       ))}
     </div>
@@ -146,6 +157,41 @@ interface WeekCellData {
   monthLabel: string;
   dateLabel: string;
   state: WeekCellState;
+}
+
+const LP_WEEKDAY_LABEL: Record<WeekdayKey, string> = {
+  mon: 'M', tue: 'T', wed: 'W', thu: 'T', fri: 'F', sat: 'S', sun: 'S',
+};
+
+function mapApiDaysToLp(apiDays: GamificationDay[]): Array<{ label: string; state: LpDayState }> {
+  const todayIdx = apiDays.findIndex((d) => d.is_today);
+  return apiDays.map((day, idx) => {
+    const label = LP_WEEKDAY_LABEL[day.weekday];
+    if (day.learned) { return { label, state: 'learned' }; }
+    if (day.is_today) { return { label, state: 'today' }; }
+    if (todayIdx >= 0 && idx > todayIdx) { return { label, state: 'upcoming' }; }
+    return { label, state: 'missed' };
+  });
+}
+
+function mapApiRecentWeeks(summary: GamificationSummary): WeekCellData[] {
+  const result: WeekCellData[] = summary.recent_weeks.map((week, idx) => {
+    const state: WeekCellState = (
+      week.status === 'streak' ? 'met'
+        : week.status === 'forgiven' ? 'forgiven'
+          : week.status === 'missed' ? 'missed'
+            : 'empty'
+    );
+    const d = new Date(week.week_start);
+    const day = String(d.getUTCDate());
+    const prevMonth = idx > 0 ? new Date(summary.recent_weeks[idx - 1].week_start).getUTCMonth() : -1;
+    const monthLabel = d.getUTCMonth() !== prevMonth
+      ? d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
+      : '';
+    return { monthLabel, dateLabel: day, state };
+  });
+  result.push({ monthLabel: '', dateLabel: 'Now', state: 'current' });
+  return result;
 }
 
 const STREAK_NONE_WEEKS: WeekCellData[] = [
@@ -191,7 +237,8 @@ const LpDay = ({ state, label }: LpDayProps) => (
 );
 
 interface StreakThisWeekProps {
-  streakState: StreakState;
+  streakState?: StreakState;
+  apiSummary?: GamificationSummary;
 }
 
 const STREAK_THIS_WEEK_DAYS: Record<StreakState, Array<{ label: string; state: LpDayState }>> = {
@@ -228,24 +275,54 @@ const STREAK_THIS_WEEK_CONFIG: Record<StreakState, { completed: number; heading:
   },
 };
 
-const StreakThisWeek = ({ streakState }: StreakThisWeekProps) => {
-  const cfg = STREAK_THIS_WEEK_CONFIG[streakState];
-  const days = STREAK_THIS_WEEK_DAYS[streakState];
-  const showProgress = cfg.completed > 0;
+const StreakThisWeek = ({ streakState = 'none', apiSummary }: StreakThisWeekProps) => {
+  const apiWeek = apiSummary?.this_week;
+  const days = apiWeek ? mapApiDaysToLp(apiWeek.days) : STREAK_THIS_WEEK_DAYS[streakState];
+  const daysCompleted = apiWeek ? apiWeek.learning_days : STREAK_THIS_WEEK_CONFIG[streakState].completed;
+  const goal = apiWeek ? apiWeek.goal : 2;
+  const showProgress = daysCompleted > 0;
+  const currentStreak = apiSummary?.current_streak_weeks ?? 0;
+
+  let heading: string;
+  let desc: string;
+
+  if (apiWeek) {
+    if (apiWeek.status === 'paused') {
+      heading = 'Streak paused';
+      desc = 'Nothing required is left, so your streak is safe.';
+    } else if (apiWeek.status === 'goal_met') {
+      heading = 'Goal met this week';
+      desc = apiWeek.projected_streak_weeks > currentStreak
+        ? `Your streak grows to ${apiWeek.projected_streak_weeks} weeks when the week ends.`
+        : 'Keep learning — your streak is already growing.';
+    } else if (daysCompleted === 0) {
+      heading = 'Two days to go';
+      desc = 'Learn on 2 days this week to start a week streak.';
+    } else {
+      heading = 'One more day to go';
+      desc = currentStreak > 0
+        ? `Learn on one more day this week to keep your ${currentStreak}-week streak.`
+        : 'Learn on one more day this week to start your first streak.';
+    }
+  } else {
+    const cfg = STREAK_THIS_WEEK_CONFIG[streakState];
+    heading = cfg.heading;
+    desc = cfg.desc;
+  }
 
   return (
     <div className="lp-streak-this-week">
       <div className="lp-streak-this-week__goal">
-        <div className="lp-streak-this-week__ring" aria-label={`${cfg.completed} of 2 days done`}>
+        <div className="lp-streak-this-week__ring" aria-label={`${daysCompleted} of ${goal} days done`}>
           <img src={ringTrack} alt="" className="lp-streak-this-week__ring-track" aria-hidden="true" />
           {showProgress && (
             <img src={ringProgress} alt="" className="lp-streak-this-week__ring-progress" aria-hidden="true" />
           )}
-          <span className="lp-streak-this-week__ring-label">{cfg.completed}/2</span>
+          <span className="lp-streak-this-week__ring-label">{daysCompleted}/{goal}</span>
         </div>
         <div className="lp-streak-this-week__words">
-          <span className="lp-streak-this-week__heading">{cfg.heading}</span>
-          <span className="lp-streak-this-week__desc">{cfg.desc}</span>
+          <span className="lp-streak-this-week__heading">{heading}</span>
+          <span className="lp-streak-this-week__desc">{desc}</span>
         </div>
       </div>
       <div className="lp-streak-this-week__days">
@@ -260,14 +337,15 @@ const StreakThisWeek = ({ streakState }: StreakThisWeekProps) => {
 
 interface StreakTabProps {
   streakState?: StreakState;
+  apiSummary?: GamificationSummary;
   onContinue: () => void;
 }
 
-const StreakTab = ({ streakState = 'none', onContinue }: StreakTabProps) => {
-  const weeks = streakState === 'reset' ? STREAK_RESET_WEEKS : STREAK_NONE_WEEKS;
-  const streakCount = streakState === 'reset' ? 0 : 0;
-  const longestStreak = streakState === 'reset' ? 4 : 0;
-  const subLine = streakState === 'reset'
+const StreakTab = ({ streakState = 'none', apiSummary, onContinue }: StreakTabProps) => {
+  const streakCount = apiSummary?.current_streak_weeks ?? (streakState === 'reset' ? 0 : 0);
+  const longestStreak = apiSummary?.longest_streak_weeks ?? (streakState === 'reset' ? 4 : 0);
+  const weeks = apiSummary ? mapApiRecentWeeks(apiSummary) : (streakState === 'reset' ? STREAK_RESET_WEEKS : STREAK_NONE_WEEKS);
+  const subLine = longestStreak > streakCount
     ? `weeks in a row · longest ${longestStreak}`
     : 'weeks in a row';
 
@@ -304,7 +382,7 @@ const StreakTab = ({ streakState = 'none', onContinue }: StreakTabProps) => {
       </div>
 
       {/* This week */}
-      <StreakThisWeek streakState={streakState} />
+      <StreakThisWeek streakState={streakState} apiSummary={apiSummary} />
 
       <div className="lp-rules-wrap">
         <button type="button" className="lp-rules-pill">
@@ -421,43 +499,40 @@ const PersonIcon = () => (
 );
 
 interface LeaderboardTabProps {
-  ranked?: boolean;
+  apiData?: LeaderboardData;
   onContinue: () => void;
 }
 
-const LeaderboardTab = ({ ranked = false, onContinue }: LeaderboardTabProps) => {
-  const notRankedRows = [
-    { rank: 1, name: 'Driver 4821', points: 45 },
-    { rank: 2, name: 'Driver 2210', points: 40 },
-    { rank: 3, name: 'Driver 1307', points: 40 },
-  ];
+const LeaderboardTab = ({ apiData, onContinue }: LeaderboardTabProps) => {
+  const isRanked = apiData?.status === 'ranked';
+  const myRank = apiData?.my_rank ?? null;
+  const totalDrivers = apiData?.total_drivers ?? 0;
+  const topPct = myRank && totalDrivers > 0
+    ? Math.round((myRank / totalDrivers) * 100)
+    : null;
 
-  const rankedRows = [
-    { rank: 1, name: 'Alex M.', points: 240, isYou: false },
-    { rank: 2, name: 'Jordan T.', points: 195, isYou: false },
-    { rank: 3, name: 'You', points: 95, isYou: true },
-    { rank: 4, name: 'Sam R.', points: 80, isYou: false },
-    { rank: 5, name: 'Casey L.', points: 70, isYou: false },
-  ];
+  const displayRows = apiData?.rows ?? [];
 
   return (
     <div className="lp-tab-content">
-      {ranked ? (
+      {isRanked ? (
         <>
           <div className="lp-leaderboard-hero">
             <span className="lp-points-hero__label">Your rank</span>
-            <span className="lp-points-hero__value">#3</span>
-            <span className="lp-points-hero__sub">Top 30% this month</span>
+            <span className="lp-points-hero__value">#{myRank}</span>
+            {topPct !== null && (
+              <span className="lp-points-hero__sub">Top {topPct}% this month</span>
+            )}
           </div>
           <h2 className="lp-section-heading">This month</h2>
           <div className="lp-leaderboard-list">
-            {rankedRows.map((row) => (
+            {displayRows.map((row) => (
               <div
                 key={row.rank}
-                className={`lp-leaderboard-row${row.isYou ? ' lp-leaderboard-row--you' : ''}`}
+                className={`lp-leaderboard-row${row.is_me ? ' lp-leaderboard-row--you' : ''}`}
               >
                 <span className="lp-leaderboard-row__rank">{row.rank}</span>
-                <span className="lp-leaderboard-row__name">{row.name}</span>
+                <span className="lp-leaderboard-row__name">{row.is_me ? 'You' : (row.display_name ?? '')}</span>
                 <span className="lp-leaderboard-row__points">{row.points}</span>
               </div>
             ))}
@@ -480,13 +555,13 @@ const LeaderboardTab = ({ ranked = false, onContinue }: LeaderboardTabProps) => 
 
           <h2 className="lp-section-heading">This month</h2>
           <div className="lp-leaderboard-list--hifi">
-            {notRankedRows.map((row) => (
+            {displayRows.map((row) => (
               <div key={row.rank} className="lp-leaderboard-row--hifi">
                 <span className="lp-leaderboard-row__rank--hifi">{row.rank}</span>
                 <div className="lp-leaderboard-avatar">
                   <span className="lp-leaderboard-avatar__icon"><PersonIcon /></span>
                 </div>
-                <span className="lp-leaderboard-row__name--hifi">{row.name}</span>
+                <span className="lp-leaderboard-row__name--hifi">{row.display_name ?? ''}</span>
                 <span className="lp-leaderboard-row__points--hifi">{row.points}</span>
               </div>
             ))}
@@ -521,10 +596,20 @@ export const LearningProgress = () => {
     staleTime: 5 * 60_000,
   });
 
+  const { data: gamification } = useGamification();
+  const { data: leaderboardData } = useLeaderboard();
+
   const enrolledCourses = courses ?? [];
   const firstCourseId = enrolledCourses[0]?.courseId;
   const { data: progressData } = useProgress(firstCourseId ?? '');
-  const totalPoints = progressData?.points?.earned ?? 95;
+
+  // Use gamification API for points; fall back to legacy progress API while loading
+  const totalPoints = gamification?.lifetime_points ?? progressData?.points?.earned ?? 0;
+  const monthPoints = gamification?.month_points;
+
+  // Build course_key → gamification points map for PointsTab rows
+  const coursePointsByKey: Record<string, number> = {};
+  gamification?.courses.forEach((c) => { coursePointsByKey[c.course_key] = c.points; });
 
   const handleContinue = () => {
     if (firstCourseId) {
@@ -573,12 +658,14 @@ export const LearningProgress = () => {
           <PointsTab
             courses={enrolledCourses}
             totalPoints={totalPoints}
+            monthPoints={monthPoints}
+            coursePointsByKey={coursePointsByKey}
             onContinue={handleContinue}
           />
         )}
         {activeTab === 'Streak' && (
           <StreakTab
-            streakState="none"
+            apiSummary={gamification}
             onContinue={handleContinue}
           />
         )}
@@ -590,7 +677,7 @@ export const LearningProgress = () => {
         )}
         {activeTab === 'Leaderboard' && (
           <LeaderboardTab
-            ranked={false}
+            apiData={leaderboardData}
             onContinue={handleContinue}
           />
         )}

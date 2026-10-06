@@ -6,6 +6,8 @@ import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
 import { getStoredResumeIdx } from '../lib/resume-storage';
+import { useGamification } from '../hooks/useGamification';
+import type { GamificationDay, ThisWeekStatus, WeekdayKey } from '../api/gamification';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
 
@@ -88,6 +90,21 @@ const GoalRing = ({ daysCompleted, daysGoal }: GoalRingProps) => {
 // ── Day tracker ──────────────────────────────────────────
 
 type DayState = 'Learned' | 'Today' | 'Missed' | 'Upcoming';
+
+const WEEKDAY_LABEL: Record<WeekdayKey, string> = {
+  mon: 'M', tue: 'T', wed: 'W', thu: 'T', fri: 'F', sat: 'S', sun: 'S',
+};
+
+function mapApiDays(apiDays: GamificationDay[]): Array<{ label: string; state: DayState }> {
+  const todayIdx = apiDays.findIndex((d) => d.is_today);
+  return apiDays.map((day, idx) => {
+    const label = WEEKDAY_LABEL[day.weekday];
+    if (day.learned) { return { label, state: 'Learned' }; }
+    if (day.is_today) { return { label, state: 'Today' }; }
+    if (todayIdx >= 0 && idx > todayIdx) { return { label, state: 'Upcoming' }; }
+    return { label, state: 'Missed' };
+  });
+}
 
 interface DayProps {
   state: DayState;
@@ -391,21 +408,54 @@ const THIS_WEEK_CONFIGS: Record<WeekState, WeekStateConfig> = {
 
 interface ThisWeekCardProps {
   weekState: WeekState;
+  apiWeek?: import('../api/gamification').GamificationThisWeek;
+  currentStreak?: number;
 }
 
-const ThisWeekCard = ({ weekState }: ThisWeekCardProps) => {
-  const cfg = THIS_WEEK_CONFIGS[weekState];
+const ThisWeekCard = ({ weekState, apiWeek, currentStreak = 0 }: ThisWeekCardProps) => {
+  const days = apiWeek ? mapApiDays(apiWeek.days) : THIS_WEEK_CONFIGS[weekState].days;
+  const daysCompleted = apiWeek ? apiWeek.learning_days : THIS_WEEK_CONFIGS[weekState].completed;
+  const goal = apiWeek ? apiWeek.goal : 2;
+
+  let heading: string;
+  let desc: string;
+
+  if (apiWeek) {
+    if (apiWeek.status === 'paused') {
+      heading = 'Streak paused';
+      desc = 'Nothing required is left, so your streak is safe. Optional courses still count.';
+    } else if (apiWeek.status === 'goal_met') {
+      heading = 'Goal met this week';
+      const projected = apiWeek.projected_streak_weeks;
+      desc = projected > currentStreak
+        ? `Your streak grows to ${projected} weeks when the week ends.`
+        : 'Keep learning — your streak is already growing.';
+    } else if (daysCompleted === 0) {
+      heading = 'Two days to go';
+      desc = 'Learn on 2 days this week to start a week streak.';
+    } else {
+      heading = 'One more day to go';
+      desc = currentStreak > 0
+        ? `Learn on one more day this week to keep your ${currentStreak}-week streak.`
+        : 'Learn on one more day this week to start your first streak.';
+    }
+  } else {
+    const cfg = THIS_WEEK_CONFIGS[weekState];
+    heading = cfg.heading;
+    desc = cfg.desc;
+  }
+
   return (
     <div className="this-week-card">
       <div className="this-week-card__goal">
-        <GoalRing daysCompleted={cfg.completed} daysGoal={2} />
+        <GoalRing daysCompleted={daysCompleted} daysGoal={goal} />
         <div className="this-week-card__words">
-          <span className="this-week-card__heading">{cfg.heading}</span>
-          <span className="this-week-card__desc">{cfg.desc}</span>
+          <span className="this-week-card__heading">{heading}</span>
+          <span className="this-week-card__desc">{desc}</span>
         </div>
       </div>
       <div className="this-week-card__days">
-        {cfg.days.map((day, i) => (
+        {days.map((day, i) => (
           // eslint-disable-next-line react/no-array-index-key
           <Day key={i} state={day.state} label={day.label} />
         ))}
@@ -517,12 +567,28 @@ export const CourseCatalog = () => {
     staleTime: 5 * 60_000,
   });
 
+  const { data: gamification } = useGamification();
+
   const greeting = `${getGreeting()}, ${getUserFirstName()}.`;
   const enrolledCourses = courses ?? [];
   const completedCount = 0; // TODO: sum from progress API
   const allCoursesComplete = enrolledCourses.length > 0 && completedCount >= enrolledCourses.length;
 
-  const weekState: WeekState = allCoursesComplete ? 'paused' : 'one';
+  // Stat chip values from gamification API (fall back to 0 while loading)
+  const pointsValue = String(gamification?.lifetime_points ?? 0);
+  const streakValue = String(gamification?.current_streak_weeks ?? 0);
+
+  // This-week card state: derive from API when available, otherwise fall back to static
+  const apiThisWeek = gamification?.this_week;
+  const weekState: WeekState = (() => {
+    if (apiThisWeek) {
+      if (apiThisWeek.status === 'paused') { return 'paused'; }
+      if (apiThisWeek.status === 'goal_met') { return 'two'; }
+      return apiThisWeek.learning_days >= 1 ? 'one' : 'zero';
+    }
+    return allCoursesComplete ? 'paused' : 'zero';
+  })();
+
   const continueVariant: ContinueVariant = allCoursesComplete ? 'thirtyDayCheck' : 'lesson';
   const noticeVariant: NoticeVariant = allCoursesComplete ? 'caughtUp' : 'newCurriculum';
 
@@ -550,14 +616,14 @@ export const CourseCatalog = () => {
         <nav className="home-header__stats" aria-label="Learning stats">
           <StatChip
             icon={iconLightning}
-            value="95"
-            label="95 points — view points"
+            value={pointsValue}
+            label={`${pointsValue} points — view points`}
             onClick={() => navigate('/progress')}
           />
           <StatChip
             icon={iconCalendar}
-            value="2"
-            label="2-week streak — view streak"
+            value={streakValue}
+            label={`${streakValue}-week streak — view streak`}
             onClick={() => navigate('/progress')}
           />
           <StatChip
@@ -664,7 +730,11 @@ export const CourseCatalog = () => {
         <div className="home-section-header home-section-header--padded">
           <h2 className="home-section-header__title">This week</h2>
         </div>
-        <ThisWeekCard weekState={weekState} />
+        <ThisWeekCard
+          weekState={weekState}
+          apiWeek={apiThisWeek}
+          currentStreak={gamification?.current_streak_weeks}
+        />
 
         {/* All courses card */}
         <AllCoursesCard onClick={() => navigate('/library')} />

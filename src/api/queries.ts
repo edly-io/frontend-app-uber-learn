@@ -8,4 +8,6 @@ export const qk = {
   sequence: (seqId: string) => ['sequence', seqId] as const,
   progress: (courseId: string) => ['progress', courseId] as const,
   resume: (courseId: string) => ['resume', courseId] as const,
+  gamification: () => ['gamification', 'summary'] as const,
+  leaderboard: () => ['gamification', 'leaderboard'] as const,
 } as const;

@@ -1,5 +1,8 @@
-import React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { markBadgesSeen } from '../api/curriculum';
+import { qk } from '../api/queries';
 
 import badgeHalfwayEarned from '../assets/badges/badge-halfway-earned.svg';
 import badgeCompleteEarned from '../assets/badges/badge-complete-earned.svg';
@@ -68,10 +71,28 @@ const BADGE_CONFIGS: Record<BadgeType, BadgeConfig> = {
 
 export const BadgeEarned = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
   const { type } = useParams<{ type: string }>();
   const badgeType: BadgeType =
     type === 'halfway' ? 'halfway' : type === 'retained' ? 'retained' : 'complete';
   const config = BADGE_CONFIGS[badgeType];
+
+  const awardId: string | undefined = (location.state as { awardId?: string } | null)?.awardId;
+
+  const { mutate: markSeen } = useMutation({
+    mutationFn: (ids: string[]) => markBadgesSeen(ids),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.badges(true) });
+      void queryClient.invalidateQueries({ queryKey: qk.curriculums() });
+    },
+  });
+
+  useEffect(() => {
+    if (awardId) {
+      markSeen([awardId]);
+    }
+  }, [awardId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="badge-earned-page">

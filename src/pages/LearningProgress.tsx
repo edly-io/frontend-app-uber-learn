@@ -8,6 +8,8 @@ import { mapOutlineToLessons } from '../lib/outline-mapper';
 import { getStoredResumeIdx } from '../lib/resume-storage';
 import { useGamification, type GamificationSummary } from '../hooks/useGamification';
 import { useLeaderboard, type LeaderboardData } from '../hooks/useLeaderboard';
+import { useCurriculums } from '../hooks/useCurriculums';
+import type { LearnerCurriculum, BadgeSlot } from '../api/curriculum';
 import type { GamificationDay, WeekdayKey } from '../api/gamification';
 
 import iconCircleInfo from '../assets/icons/icon-circle-info.svg';
@@ -401,6 +403,10 @@ const StreakTab = ({ streakState = 'none', apiSummary, onContinue }: StreakTabPr
 
 // ── Badges tab ───────────────────────────────────────────
 
+function formatEarnedDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 type BadgesState = 'default' | 'thirtyDayDue' | 'allEarned';
 
 interface BadgeRowHiFiProps {
@@ -421,20 +427,54 @@ const BadgeRowHiFi = ({ src, name, sub }: BadgeRowHiFiProps) => (
 
 interface BadgesTabProps {
   badgesState?: BadgesState;
+  apiCurriculum?: LearnerCurriculum;
   onContinue: () => void;
   onThirtyDayCheck?: () => void;
 }
 
-const BadgesTab = ({ badgesState = 'default', onContinue, onThirtyDayCheck }: BadgesTabProps) => {
-  const earnedCount = badgesState === 'allEarned' ? 3 : badgesState === 'thirtyDayDue' ? 2 : 1;
+const SLOT_ORDER: BadgeSlot[] = ['halfway', 'complete', 'retained'];
+
+const SLOT_FALLBACK_EARNED: Record<BadgeSlot, string> = {
+  halfway: badgeHalfwayEarned,
+  complete: badgeCompleteEarned,
+  retained: badgeRetainedEarned,
+};
+const SLOT_FALLBACK_LOCKED: Record<BadgeSlot, string> = {
+  halfway: badgeHalfwayEarned,
+  complete: badgeCompleteLocked,
+  retained: badgeRetainedLocked,
+};
+const SLOT_LABEL: Record<BadgeSlot, string> = {
+  halfway: 'Halfway',
+  complete: 'Complete',
+  retained: 'Retained',
+};
+
+const BadgesTab = ({ badgesState = 'default', apiCurriculum, onContinue, onThirtyDayCheck }: BadgesTabProps) => {
+  const milestones = apiCurriculum?.milestones;
+  const knowledgeCheck = apiCurriculum?.knowledge_check;
+
+  const earnedSlots = milestones
+    ? SLOT_ORDER.filter((s) => milestones[s].reached_at !== null).length
+    : (badgesState === 'allEarned' ? 3 : badgesState === 'thirtyDayDue' ? 2 : 1);
+
+  const isThirtyDayDue = milestones ? Boolean(knowledgeCheck?.is_open) : badgesState === 'thirtyDayDue';
+
+  const handleThirtyDay = () => {
+    if (knowledgeCheck?.course_id) {
+      onThirtyDayCheck?.();
+    } else {
+      onContinue();
+    }
+  };
 
   return (
     <div className="lp-tab-content">
-      {/* Hi-fi hero */}
+      {/* Hero */}
       <div className="lp-badges-hifi-hero">
         <div className="lp-badges-hifi-hero__figure">
           <span className="lp-points-hero__label">Badges</span>
-          <span className="lp-points-hero__value">{earnedCount} of 3</span>
+          <span className="lp-points-hero__value">{earnedSlots} of 3</span>
           <span className="lp-points-hero__sub">for your required courses</span>
         </div>
         <div className="lp-badges-hifi-hero__art">
@@ -444,30 +484,55 @@ const BadgesTab = ({ badgesState = 'default', onContinue, onThirtyDayCheck }: Ba
 
       {/* Badge list */}
       <div className="lp-badge-list--hifi">
-        <BadgeRowHiFi
-          src={badgeHalfwayEarned}
-          name="Halfway"
-          sub="Earned 26 October 2026"
-        />
-        <BadgeRowHiFi
-          src={badgesState === 'default' ? badgeCompleteLocked : badgeCompleteEarned}
-          name="Complete"
-          sub={badgesState === 'default' ? 'Finish all lessons to earn this' : 'Earned 2 November 2026'}
-        />
-        <BadgeRowHiFi
-          src={badgesState === 'allEarned' ? badgeRetainedEarned : badgeRetainedLocked}
-          name="Retained"
-          sub={
-            badgesState === 'allEarned'
-              ? 'Earned 2 December 2026'
-              : badgesState === 'thirtyDayDue'
-              ? 'Your 30-day check is open'
-              : 'Pass your 30-day check to earn this'
+        {SLOT_ORDER.map((slot) => {
+          const milestone = milestones?.[slot];
+          const earned = milestone ? milestone.reached_at !== null : undefined;
+          const apiImageUrl = milestone?.badge?.image_url ?? null;
+          const badgeTitle = milestone?.badge?.title ?? SLOT_LABEL[slot];
+          const imgSrc = apiImageUrl ?? (
+            slot === 'halfway'
+              ? badgeHalfwayEarned
+              : earned === false
+              ? SLOT_FALLBACK_LOCKED[slot]
+              : SLOT_FALLBACK_EARNED[slot]
+          );
+
+          let sub: string;
+          if (milestone) {
+            if (milestone.reached_at) {
+              sub = `Earned ${formatEarnedDate(milestone.reached_at)}`;
+            } else if (slot === 'retained' && isThirtyDayDue) {
+              sub = 'Your 30-day check is open';
+            } else if (slot === 'retained') {
+              sub = 'Pass your 30-day check to earn this';
+            } else {
+              sub = 'Finish all lessons to earn this';
+            }
+          } else {
+            // No API data — fall back to static state
+            if (slot === 'halfway') {
+              sub = 'Earned 26 October 2026';
+            } else if (slot === 'complete') {
+              sub = badgesState === 'default' ? 'Finish all lessons to earn this' : 'Earned 2 November 2026';
+            } else {
+              sub = badgesState === 'allEarned' ? 'Earned 2 December 2026'
+                : badgesState === 'thirtyDayDue' ? 'Your 30-day check is open'
+                : 'Pass your 30-day check to earn this';
+            }
           }
-        />
-        {badgesState === 'thirtyDayDue' && (
+
+          return (
+            <BadgeRowHiFi
+              key={slot}
+              src={imgSrc}
+              name={badgeTitle}
+              sub={sub}
+            />
+          );
+        })}
+        {isThirtyDayDue && (
           <div className="lp-badge-cta">
-            <button type="button" className="btn-primary" onClick={onThirtyDayCheck ?? onContinue}>
+            <button type="button" className="btn-primary" onClick={handleThirtyDay}>
               Take your 30-day check
             </button>
           </div>
@@ -598,6 +663,7 @@ export const LearningProgress = () => {
 
   const { data: gamification } = useGamification();
   const { data: leaderboardData } = useLeaderboard();
+  const { data: curriculums } = useCurriculums();
 
   const enrolledCourses = courses ?? [];
   const firstCourseId = enrolledCourses[0]?.courseId;
@@ -671,7 +737,7 @@ export const LearningProgress = () => {
         )}
         {activeTab === 'Badges' && (
           <BadgesTab
-            badgesState="default"
+            apiCurriculum={curriculums?.[0]}
             onContinue={handleContinue}
           />
         )}

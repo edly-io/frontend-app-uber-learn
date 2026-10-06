@@ -10,4 +10,6 @@ export const qk = {
   resume: (courseId: string) => ['resume', courseId] as const,
   gamification: () => ['gamification', 'summary'] as const,
   leaderboard: () => ['gamification', 'leaderboard'] as const,
+  curriculums: () => ['curriculum', 'learner'] as const,
+  badges: (unseen?: boolean) => ['curriculum', 'badges', unseen ?? false] as const,
 } as const;

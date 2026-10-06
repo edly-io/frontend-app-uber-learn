@@ -7,6 +7,7 @@ import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
 import { getStoredResumeIdx } from '../lib/resume-storage';
 import { useGamification } from '../hooks/useGamification';
+import { useCurriculums } from '../hooks/useCurriculums';
 import type { GamificationDay, ThisWeekStatus, WeekdayKey } from '../api/gamification';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
@@ -568,6 +569,7 @@ export const CourseCatalog = () => {
   });
 
   const { data: gamification } = useGamification();
+  const { data: curriculums } = useCurriculums();
 
   const greeting = `${getGreeting()}, ${getUserFirstName()}.`;
   const enrolledCourses = courses ?? [];
@@ -577,6 +579,16 @@ export const CourseCatalog = () => {
   // Stat chip values from gamification API (fall back to 0 while loading)
   const pointsValue = String(gamification?.lifetime_points ?? 0);
   const streakValue = String(gamification?.current_streak_weeks ?? 0);
+
+  // Badge count: earned milestones from first curriculum
+  const curriculum = curriculums?.[0];
+  const badgesEarned = curriculum
+    ? (['halfway', 'complete', 'retained'] as const).filter(
+        (s) => curriculum.milestones[s].reached_at !== null,
+      ).length
+    : 0;
+  const badgesTotal = curriculum ? 3 : 3;
+  const badgesValue = `${badgesEarned}/${badgesTotal}`;
 
   // This-week card state: derive from API when available, otherwise fall back to static
   const apiThisWeek = gamification?.this_week;
@@ -628,8 +640,8 @@ export const CourseCatalog = () => {
           />
           <StatChip
             icon={iconBadgeCheck}
-            value="0/3"
-            label="0 of 3 badges — view badges"
+            value={badgesValue}
+            label={`${badgesEarned} of ${badgesTotal} badges — view badges`}
             onClick={() => navigate('/progress')}
           />
         </nav>

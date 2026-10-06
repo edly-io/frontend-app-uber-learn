@@ -18,5 +18,5 @@ export const useProgress = (courseId: string) => useQuery<UberLearnProgress, Err
   queryFn: () => getUberLearnProgress(courseId),
   enabled: Boolean(courseId),
   staleTime: 0,
-  retry: 0,
+  retry: 1,
 });

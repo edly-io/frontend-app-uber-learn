@@ -1,9 +1,9 @@
 import { getConfig } from '@edx/frontend-platform';
 import { getAuthenticatedHttpClient } from '@edx/frontend-platform/auth';
-import { CooldownError, AlreadyPassedError } from './errors';
+import { CooldownError, AlreadyPassedError, AssessmentIncompleteError } from './errors';
 
 // Re-export error classes so existing imports from '../api/progress' keep working.
-export { CooldownError, AlreadyPassedError };
+export { CooldownError, AlreadyPassedError, AssessmentIncompleteError };
 
 // ---------------------------------------------------------------------------
 // Types
@@ -208,6 +208,10 @@ export const submitAssessment = async (
       throw new CooldownError(retryAfter);
     }
     if (axiosErr?.response?.status === 409) {
+      const errorCode = axiosErr.response?.data?.error_code as string | undefined;
+      if (errorCode === 'assessment_incomplete') {
+        throw new AssessmentIncompleteError();
+      }
       throw new AlreadyPassedError();
     }
     throw err;
@@ -232,8 +236,9 @@ export const getUberLearnProgress = async (courseId: string): Promise<UberLearnP
   const url = `${getConfig().LMS_BASE_URL}/api/uber_learn/v1/progress/${courseId}`;
   const { data } = await getAuthenticatedHttpClient().get(url);
 
-  const completed = typeof data.completed_activities === 'number' ? data.completed_activities : 0;
-  const total = typeof data.total_activities === 'number' ? data.total_activities : 0;
+  const activitiesRaw = (data.activities ?? {}) as Record<string, unknown>;
+  const completed = typeof activitiesRaw.completed === 'number' ? activitiesRaw.completed : 0;
+  const total = typeof activitiesRaw.total === 'number' ? activitiesRaw.total : 0;
   const assessmentsRaw = (data.assessments ?? {}) as Record<string, Record<string, unknown>>;
 
   const rawPoints = (data.points ?? {}) as Record<string, unknown>;

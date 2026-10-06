@@ -1,66 +1,68 @@
 import React from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { NavHeader } from '../components/nav-header/NavHeader';
 import { useProgress } from '../hooks/useProgress';
+import courseArtBook from '../assets/icons/course-art-book.svg';
+import courseArtRow from '../assets/icons/course-art-row.svg';
+import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
+import iconLightning from '../assets/icons/icon-lightning.svg';
+import iconCircleCheck from '../assets/icons/icon-circle-check.svg';
+import ringTrack from '../assets/icons/ring-track.svg';
+import ringProgress from '../assets/icons/ring-progress.svg';
+import chevronRight from '../assets/icons/chevron-right.svg';
+import badgeArtRetained from '../assets/icons/badge-art-retained.svg';
 import './completion-page.css';
 
-// ── SVG icons (inlined, no external deps) ─────────────────────────────────
+// ── Shared: Art panel header ───────────────────────────────────────────────
 
-const PlusCircleIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M12 5V19M5 12H19" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
-  </svg>
+type ArtPanelSize = 'medium' | 'large';
+type ArtPanelColor = 'green' | 'blue' | 'yellow';
+
+interface ArtPanelProps {
+  size?: ArtPanelSize;
+  color?: ArtPanelColor;
+  art: string;
+  artAlt?: string;
+  onBack: () => void;
+}
+
+const ArtPanel = ({
+  size = 'medium', color = 'green', art, artAlt = '', onBack,
+}: ArtPanelProps) => (
+  <div className={`cp-art-panel cp-art-panel--${size} cp-art-panel--${color}`}>
+    <div className="cp-art-panel__halo">
+      <div className="cp-art-panel__disc">
+        <img src={art} alt={artAlt} aria-hidden="true" className="cp-art-panel__art" />
+      </div>
+    </div>
+    <button type="button" className="cp-art-panel__back" onClick={onBack} aria-label="Back">
+      <img src={iconArrowLeft} alt="" aria-hidden="true" width={24} height={24} />
+    </button>
+  </div>
 );
 
-const ShieldCheckIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path
-      d="M12 3L4 6.5V12C4 16.1 7.3 19.9 12 21C16.7 19.9 20 16.1 20 12V6.5L12 3Z"
-      fill="white"
-      opacity="0.2"
-    />
-    <path
-      d="M12 3L4 6.5V12C4 16.1 7.3 19.9 12 21C16.7 19.9 20 16.1 20 12V6.5L12 3Z"
-      stroke="white"
-      strokeWidth="1.5"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M8.5 12L11 14.5L15.5 10"
-      stroke="white"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
+// ── Shared: Two-action footer ──────────────────────────────────────────────
+
+interface FooterProps {
+  primaryLabel: string;
+  secondaryLabel: string;
+  onPrimary: () => void;
+  onSecondary: () => void;
+}
+
+const Footer = ({
+  primaryLabel, secondaryLabel, onPrimary, onSecondary,
+}: FooterProps) => (
+  <footer className="cp-footer">
+    <button type="button" className="cp-footer__primary" onClick={onPrimary}>
+      {primaryLabel}
+    </button>
+    <button type="button" className="cp-footer__secondary" onClick={onSecondary}>
+      {secondaryLabel}
+    </button>
+  </footer>
 );
 
-const LockIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-    <rect x="6" y="13" width="16" height="11" rx="2" fill="#767676" />
-    <path
-      d="M9.5 13V9.5C9.5 7.3 11.3 5.5 13.5 5.5H14.5C16.7 5.5 18.5 7.3 18.5 9.5V13"
-      stroke="#767676"
-      strokeWidth="2"
-      strokeLinecap="round"
-    />
-    <circle cx="14" cy="18" r="1.5" fill="white" />
-  </svg>
-);
-
-const ChevronRightIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path
-      d="M9 6L15 12L9 18"
-      stroke="#767676"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-// ── Shared progress bar sub-component ─────────────────────────────────────
+// ── Shared: Progress bar ───────────────────────────────────────────────────
 
 interface ProgressBarProps {
   completedCount: number;
@@ -101,8 +103,16 @@ interface LessonCompleteState {
   accountTotal?: number;
   nextLessonTitle?: string;
   nextLessonSubtitle?: string;
-  nextSequenceId?: string;
+  nextSequenceId?: string | null;
+  isRepeat?: boolean;
+  stepsReviewed?: number;
+  isLastLesson?: boolean;
+  accuracyPercent?: number;
+  finalCheckSequenceId?: string | null;
 }
+
+// Day labels for the This week widget
+const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export const LessonCompletePage = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
@@ -115,22 +125,30 @@ export const LessonCompletePage = () => {
   const lessonTitle = state.lessonTitle ?? 'Lesson complete';
   const lessonNumber = state.lessonNumber ?? 1;
   const pointsEarned = state.pointsEarned ?? 30;
-  const accountTotal = state.accountTotal ?? (progressData?.points?.earned ?? pointsEarned);
-  const nextLessonTitle = state.nextLessonTitle ?? 'Next lesson';
-  const nextLessonSubtitle = state.nextLessonSubtitle ?? '';
+  const nextLessonTitle = state.nextLessonTitle ?? '';
   const nextSequenceId = state.nextSequenceId;
+  const isRepeat = state.isRepeat ?? false;
+  const stepsReviewed = state.stepsReviewed ?? 4;
+  const isLastLesson = state.isLastLesson ?? false;
+  const accuracyPercent = state.accuracyPercent ?? 100;
+  const finalCheckSequenceId = state.finalCheckSequenceId;
 
-  // Use progress data for lesson count when available
-  const completedActivities = progressData?.completedActivities;
-  const totalActivities = progressData?.totalActivities;
-  const derivedTotal = totalActivities ? Math.ceil(totalActivities / 5) : 7;
+  const derivedTotal = progressData?.totalActivities
+    ? Math.ceil(progressData.totalActivities / 5) : 7;
   const totalCount = derivedTotal;
   const completedCount = lessonNumber;
   const percent = totalCount > 0 ? Math.min(100, Math.round((completedCount / totalCount) * 100)) : 0;
 
+  // Compute "this week" state from today's day of week (0 = Sun … 6 = Sat)
+  // Map to M T W T F S S order (Mon-first)
+  const todayJsDay = new Date().getDay(); // 0=Sun
+  const todayIdx = todayJsDay === 0 ? 6 : todayJsDay - 1; // 0=Mon … 6=Sun
+
   const handleBack = () => navigate(`/course/${courseId}`);
   const handleStartNext = () => {
-    if (nextSequenceId) {
+    if (isLastLesson && finalCheckSequenceId) {
+      navigate(`/course/${courseId}/lesson/${finalCheckSequenceId}/step/0`);
+    } else if (nextSequenceId) {
       navigate(`/course/${courseId}/lesson/${nextSequenceId}/step/0`);
     } else {
       navigate(`/course/${courseId}`);
@@ -138,83 +156,138 @@ export const LessonCompletePage = () => {
   };
 
   return (
-    <div className="cp-page">
-      <NavHeader title={lessonTitle} onBack={handleBack} />
+    <div className="cp-page cp-page--scrollable">
+      <ArtPanel art={courseArtBook} onBack={handleBack} />
 
       <main className="cp-content">
-        {/* Check result card */}
-        <div className="cp-result-card cp-result-card--positive">
-          <p className="cp-result-kicker">
+        {/* Heading */}
+        <div className="cpl-heading">
+          <p className="cpl-kicker">
             Lesson
             {' '}
             {lessonNumber}
             {' '}
             complete
           </p>
-          <p className="cp-result-title">{lessonTitle}</p>
+          <h1 className="cpl-title">{lessonTitle}</h1>
           {state.lessonDescription && (
-            <p className="cp-result-body">{state.lessonDescription}</p>
+            <p className="cpl-lead">{state.lessonDescription}</p>
           )}
         </div>
 
-        {/* Progress bar */}
+        {/* Result tiles */}
+        {isRepeat ? (
+          <>
+            <div className="cpl-tiles">
+              <div className="cpl-tile cpl-tile--neutral cpl-tile--single">
+                <p className="cpl-tile__value">{stepsReviewed}</p>
+                <p className="cpl-tile__label">steps reviewed</p>
+              </div>
+            </div>
+            <p className="cpl-repeat-note">
+              You&apos;ve finished this lesson before, so it adds no points.
+            </p>
+          </>
+        ) : (
+          <div className="cpl-tiles">
+            <div className="cpl-tile cpl-tile--points">
+              <img src={iconLightning} alt="" aria-hidden="true" className="cpl-tile__icon" />
+              <p className="cpl-tile__value">
+                +
+                {pointsEarned}
+              </p>
+              <p className="cpl-tile__label">points</p>
+            </div>
+            <div className="cpl-tile cpl-tile--accuracy">
+              <img src={iconCircleCheck} alt="" aria-hidden="true" className="cpl-tile__icon cpl-tile__icon--positive" />
+              <p className="cpl-tile__value">
+                {accuracyPercent}
+                %
+              </p>
+              <p className="cpl-tile__label">correct</p>
+            </div>
+          </div>
+        )}
+
+        {/* This week widget */}
+        <div className="cpl-week">
+          <div className="cpl-week__goal">
+            <div className="cpl-week__ring" aria-hidden="true">
+              <img src={ringTrack} alt="" className="cpl-week__ring-layer" />
+              <img src={ringProgress} alt="" className="cpl-week__ring-layer" />
+              <span className="cpl-week__ring-label">2/2</span>
+            </div>
+            <div className="cpl-week__words">
+              <p className="cpl-week__title">Goal met this week</p>
+              <p className="cpl-week__subtitle">
+                Your streak grows to 3 weeks when the week ends.
+              </p>
+            </div>
+          </div>
+          <div className="cpl-week__days" aria-label="Learning days this week">
+            {DAY_LABELS.map((label, idx) => {
+              const isPast = idx < todayIdx;
+              const isToday = idx === todayIdx;
+              // Mark past + today as "learned" for demo; upcoming days are empty
+              const learned = isPast || isToday;
+              return (
+                // eslint-disable-next-line react/no-array-index-key
+                <div key={idx} className="cpl-week__day-col">
+                  <div
+                    className={`cpl-week__dot ${learned ? 'cpl-week__dot--learned' : 'cpl-week__dot--upcoming'}`}
+                    aria-hidden="true"
+                  >
+                    {learned && (
+                      <img src={iconCircleCheck} alt="" className="cpl-week__dot-check" />
+                    )}
+                  </div>
+                  <span className={`cpl-week__day-label${isToday ? ' cpl-week__day-label--today' : ''}`}>
+                    {label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Course progress bar */}
         <ProgressBar
           completedCount={completedCount}
           totalCount={totalCount}
           percent={percent}
         />
 
-        {/* Milestone: points earned */}
-        <div className="cp-milestone cp-milestone--positive">
-          <div className="cp-milestone__mark" aria-hidden="true">
-            <PlusCircleIcon />
-          </div>
-          <div className="cp-milestone__body">
-            <p className="cp-milestone__title">
-              Lesson complete ·
-              {' '}
-              +
-              {pointsEarned}
-              {' '}
-              points
-            </p>
-            <p className="cp-milestone__subtitle">
-              Your account-level total is now
-              {' '}
-              {accountTotal}
-              {' '}
-              points.
-            </p>
-          </div>
-        </div>
-
-        {/* Next lesson */}
-        <button
-          type="button"
-          className="cp-milestone cp-milestone--next"
-          onClick={handleStartNext}
-        >
-          <div className="cp-milestone__body">
-            <p className="cp-milestone__kicker">Next lesson</p>
-            <p className="cp-milestone__title">{nextLessonTitle}</p>
-            {nextLessonSubtitle && (
-              <p className="cp-milestone__subtitle-dim">{nextLessonSubtitle}</p>
-            )}
-          </div>
-          <ChevronRightIcon />
-        </button>
+        {/* Next lesson / final check card */}
+        {(nextLessonTitle || isLastLesson) && (
+          <button
+            type="button"
+            className="cpl-next-card"
+            onClick={handleStartNext}
+          >
+            <div className="cpl-next-card__body">
+              <p className="cpl-next-card__kicker">
+                {isLastLesson ? 'Last step' : 'Next lesson'}
+              </p>
+              <p className="cpl-next-card__title">
+                {isLastLesson ? 'Final check' : nextLessonTitle}
+              </p>
+              {(state.nextLessonSubtitle || isLastLesson) && (
+                <p className="cpl-next-card__sub">
+                  {isLastLesson ? '5 questions · about 3 min' : state.nextLessonSubtitle}
+                </p>
+              )}
+            </div>
+            <img src={chevronRight} alt="" aria-hidden="true" className="cpl-next-card__chevron" />
+          </button>
+        )}
       </main>
 
-      <footer className="cp-footer">
-        <button type="button" className="cp-footer__primary" onClick={handleStartNext}>
-          Start lesson
-          {' '}
-          {lessonNumber + 1}
-        </button>
-        <button type="button" className="cp-footer__secondary" onClick={handleBack}>
-          Back to course
-        </button>
-      </footer>
+      <Footer
+        primaryLabel={isLastLesson ? 'Start final check' : `Start lesson ${lessonNumber + 1}`}
+        secondaryLabel="Back to course"
+        onPrimary={handleStartNext}
+        onSecondary={handleBack}
+      />
     </div>
   );
 };
@@ -235,89 +308,60 @@ export const CourseCompletePage = () => {
 
   const { data: progressData } = useProgress(courseId);
 
-  const courseTitle = state.courseTitle ?? 'Course complete';
   const totalLessons = state.totalLessons
     ?? (progressData?.totalActivities ? Math.ceil(progressData.totalActivities / 5) : 7);
-  const totalPoints = state.totalPoints ?? (progressData?.points?.earned ?? 250);
-
-  const earnedBadges = progressData?.badges ?? [];
-  const thoroughBadge = earnedBadges.find((b) => b.badgeType === 'thorough');
-  const badgeName = thoroughBadge ? 'Thorough' : 'Thorough';
+  const totalPoints = state.totalPoints ?? (progressData?.points?.earned ?? 360);
 
   const handleBack = () => navigate(`/course/${courseId}`);
   const handleViewProgress = () => navigate('/progress');
 
   return (
-    <div className="cp-page">
-      <NavHeader title={courseTitle} onBack={handleBack} />
+    <div className="cp-page cp-page--scrollable">
+      <ArtPanel size="large" art={courseArtBook} onBack={handleBack} />
 
       <main className="cp-content">
-        {/* Check result card */}
-        <div className="cp-result-card cp-result-card--positive">
-          <p className="cp-result-kicker">Course complete</p>
-          <p className="cp-result-title">You completed the course</p>
-          <p className="cp-result-body">
-            You completed all
+        {/* Heading */}
+        <div className="cpc-heading">
+          <h1 className="cpl-title">You completed the course</h1>
+          <p className="cpl-lead">
+            All
             {' '}
-            {totalLessons}
+            {totalLessons === 7 ? 'seven' : totalLessons}
             {' '}
-            lessons in this course.
+            lessons and the final check are done.
           </p>
         </div>
 
-        {/* Progress: 100% */}
-        <ProgressBar
-          completedCount={totalLessons}
-          totalCount={totalLessons}
-          percent={100}
-        />
-
-        {/* Milestone: contribution recorded */}
-        <div className="cp-milestone cp-milestone--positive">
-          <div className="cp-milestone__mark" aria-hidden="true">
-            <PlusCircleIcon />
+        {/* Course row */}
+        <div className="cpc-course-row">
+          <div className="cpc-course-row__tile">
+            <img src={courseArtRow} alt="" aria-hidden="true" className="cpc-course-row__art" />
           </div>
-          <div className="cp-milestone__body">
-            <p className="cp-milestone__title">Course contribution recorded</p>
-            <p className="cp-milestone__subtitle">
-              {totalPoints}
-              {' '}
-              points from this course are in your shared record.
-            </p>
+          <div className="cpc-course-row__body">
+            <p className="cpc-course-row__title">Sexual misconduct education</p>
+            <p className="cpc-course-row__sub">Part of your total on Your progress</p>
           </div>
+          <p className="cpc-course-row__points">
+            +
+            {totalPoints}
+          </p>
         </div>
 
-        {/* Badge unlocked */}
-        <div className="cp-badge-section">
-          <h2 className="cp-badge-section__heading">Badge unlocked</h2>
-          <div className="cp-badge-row">
-            <div className="cp-badge-art cp-badge-art--positive" aria-hidden="true">
-              <ShieldCheckIcon />
-            </div>
-            <div className="cp-badge-body">
-              <p className="cp-badge-name">{badgeName}</p>
-              <p className="cp-badge-desc">Earned across Uber Learn</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Commitment */}
-        <div className="cp-commitment">
-          <p className="cp-commitment__title">Your commitment</p>
-          <p className="cp-commitment__body">
+        {/* Commitment card */}
+        <div className="cpc-commitment">
+          <p className="cpc-commitment__title">Your commitment</p>
+          <p className="cpc-commitment__body">
             Keep conversations respectful, follow stated boundaries, and report concerns safely.
           </p>
         </div>
       </main>
 
-      <footer className="cp-footer">
-        <button type="button" className="cp-footer__primary" onClick={handleViewProgress}>
-          View learning progress
-        </button>
-        <button type="button" className="cp-footer__secondary" onClick={handleBack}>
-          Back to course
-        </button>
-      </footer>
+      <Footer
+        primaryLabel="See your progress"
+        secondaryLabel="Back to course"
+        onPrimary={handleViewProgress}
+        onSecondary={handleBack}
+      />
     </div>
   );
 };
@@ -327,6 +371,8 @@ export const CourseCompletePage = () => {
 interface RetentionInviteState {
   courseName?: string;
   retentionSequenceId?: string;
+  notOpenYet?: boolean;
+  opensOnDate?: string;
 }
 
 export const RetentionInvitePage = () => {
@@ -335,13 +381,12 @@ export const RetentionInvitePage = () => {
   const location = useLocation();
   const state = (location.state as RetentionInviteState) ?? {};
 
-  const courseName = state.courseName ?? 'this course';
-  const retentionSequenceId = state.retentionSequenceId;
-
   const { data: progressData } = useProgress(courseId);
-  const retentionSeqId = retentionSequenceId
+  const retentionSeqId = state.retentionSequenceId
     ?? progressData?.assessments?.retention?.sequenceKey
     ?? null;
+  const notOpenYet = state.notOpenYet ?? false;
+  const opensOnDate = state.opensOnDate ?? '4 December 2026';
 
   const handleBack = () => navigate(`/course/${courseId}`);
   const handleStartCheck = () => {
@@ -352,43 +397,161 @@ export const RetentionInvitePage = () => {
     }
   };
 
+  if (notOpenYet) {
+    return (
+      <div className="cp-page cp-page--scrollable">
+        <ArtPanel color="blue" art={badgeArtRetained} onBack={handleBack} />
+
+        <main className="cp-content">
+          <div className="cpl-heading">
+            <h1 className="cpl-title">Come back in 30 days</h1>
+            <p className="cpr-not-open-lead">
+              Your 30-day check opens on
+              {' '}
+              {opensOnDate}
+              .
+            </p>
+          </div>
+
+          <div className="cpr-badge-row">
+            <img src={badgeArtRetained} alt="" aria-hidden="true" className="cpr-badge-row__art" />
+            <div className="cpr-badge-row__body">
+              <p className="cpr-badge-row__title">Retained</p>
+              <p className="cpr-badge-row__desc">
+                Answer four of five correctly to earn it. If you miss some,
+                review those topics and try again, as often as you need.
+              </p>
+            </div>
+          </div>
+        </main>
+
+        <footer className="cp-footer">
+          <button type="button" className="cp-footer__primary" onClick={handleBack}>
+            Back to learning home
+          </button>
+        </footer>
+      </div>
+    );
+  }
+
   return (
-    <div className="cp-page">
-      <NavHeader title="Retention check" onBack={handleBack} />
+    <div className="cp-page cp-page--scrollable">
+      <ArtPanel color="blue" art={badgeArtRetained} onBack={handleBack} />
 
       <main className="cp-content">
-        <p className="cp-kicker">30 days on · Not scored for points</p>
-        <h1 className="cp-big-title">Still with you?</h1>
-        <p className="cp-lead">
-          Five new questions check what stayed with you from
-          {' '}
-          {courseName}
-          .
-        </p>
+        {/* Heading */}
+        <div className="cpl-heading">
+          <h1 className="cpl-title">Still with you?</h1>
+          <p className="cpl-lead">
+            Five questions check what stayed with you from your required courses.
+          </p>
+        </div>
 
-        {/* Retained badge (locked) */}
-        <div className="cp-badge-row cp-badge-row--bordered">
-          <div className="cp-badge-art cp-badge-art--locked" aria-hidden="true">
-            <LockIcon />
-          </div>
-          <div className="cp-badge-body">
-            <p className="cp-badge-name cp-badge-name--secondary">Retained</p>
-            <p className="cp-badge-desc">
-              Answer at least four of five questions correctly to earn it.
-              You can review the course and try again if needed.
+        {/* Badge row */}
+        <div className="cpr-badge-row">
+          <img src={badgeArtRetained} alt="" aria-hidden="true" className="cpr-badge-row__art" />
+          <div className="cpr-badge-row__body">
+            <p className="cpr-badge-row__title">Retained</p>
+            <p className="cpr-badge-row__desc">
+              Answer four of five correctly to earn it. If you miss some,
+              review those topics and try again, as often as you need.
             </p>
           </div>
         </div>
       </main>
 
-      <footer className="cp-footer">
-        <button type="button" className="cp-footer__primary" onClick={handleStartCheck}>
-          Start retention check
-        </button>
-        <button type="button" className="cp-footer__secondary" onClick={handleBack}>
-          Not now
-        </button>
-      </footer>
+      <Footer
+        primaryLabel="Start 30-day check"
+        secondaryLabel="Not now"
+        onPrimary={handleStartCheck}
+        onSecondary={handleBack}
+      />
+    </div>
+  );
+};
+
+// ── Retention Check Result Page ────────────────────────────────────────────
+
+interface RetentionCheckResultState {
+  passed?: boolean;
+  score?: number;
+  total?: number;
+}
+
+export const RetentionCheckResultPage = () => {
+  const { courseId = '' } = useParams<{ courseId: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const state = (location.state as RetentionCheckResultState) ?? {};
+
+  const score = state.score ?? 4;
+  const total = state.total ?? 5;
+  const passed = state.passed ?? score >= Math.ceil(total * 0.8);
+
+  const handleBack = () => navigate(`/course/${courseId}`);
+  const handleViewBadge = () => navigate('/progress');
+  const handleReviewCourse = () => navigate(`/course/${courseId}`);
+  const handleTryAgain = () => navigate(`/course/${courseId}/retention`);
+
+  if (passed) {
+    return (
+      <div className="cp-page cp-page--scrollable">
+        <ArtPanel color="yellow" art={badgeArtRetained} onBack={handleBack} />
+
+        <main className="cp-content">
+          <h1 className="cpl-title">You retained the key ideas</h1>
+
+          <div className="cpr-tile-row">
+            <div className="cpr-tile cpr-tile--positive">
+              <img src={iconCircleCheck} alt="" aria-hidden="true" className="cpr-tile__icon cpr-tile__icon--positive" />
+              <p className="cpr-tile__value">
+                {score}
+                /
+                {total}
+              </p>
+              <p className="cpr-tile__label">correct</p>
+            </div>
+          </div>
+        </main>
+
+        <footer className="cp-footer">
+          <button type="button" className="cp-footer__primary" onClick={handleViewBadge}>
+            Save result and view badge
+          </button>
+        </footer>
+      </div>
+    );
+  }
+
+  return (
+    <div className="cp-page cp-page--scrollable">
+      <ArtPanel color="yellow" art={badgeArtRetained} onBack={handleBack} />
+
+      <main className="cp-content">
+        <h1 className="cpl-title">Worth another look</h1>
+
+        <div className="cpr-tile-row">
+          <div className="cpr-tile cpr-tile--neutral">
+            <p className="cpr-tile__value">
+              {score}
+              /
+              {total}
+            </p>
+            <p className="cpr-tile__label">correct</p>
+          </div>
+        </div>
+
+        <p className="cpr-result-note">
+          Review the missed topics, then try again, as often as you need.
+        </p>
+      </main>
+
+      <Footer
+        primaryLabel="Review course"
+        secondaryLabel="Try again"
+        onPrimary={handleReviewCourse}
+        onSecondary={handleTryAgain}
+      />
     </div>
   );
 };

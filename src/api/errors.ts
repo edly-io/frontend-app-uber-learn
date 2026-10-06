@@ -21,3 +21,10 @@ export class AlreadyPassedError extends Error {
     this.name = 'AlreadyPassedError';
   }
 }
+
+export class AssessmentIncompleteError extends Error {
+  constructor() {
+    super('Answer all questions before submitting');
+    this.name = 'AssessmentIncompleteError';
+  }
+}

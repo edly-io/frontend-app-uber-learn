@@ -2,8 +2,107 @@
 .cp-page {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
   background: var(--u-background-primary);
+}
+
+.cp-page--scrollable {
+  min-height: 100dvh;
+  overflow-y: auto;
+}
+
+/* ── Art panel header ────────────────────────────────────────────────────── */
+.cp-art-panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* Sizes */
+.cp-art-panel--medium {
+  height: 240px;
+}
+
+.cp-art-panel--large {
+  height: 340px;
+}
+
+/* Colors */
+.cp-art-panel--green {
+  background: var(--u-background-positive);
+}
+
+.cp-art-panel--blue {
+  background: var(--u-background-accent);
+}
+
+.cp-art-panel--yellow {
+  background: var(--u-background-warning);
+}
+
+/* Halo / disc / art — medium defaults */
+.cp-art-panel__halo {
+  width: 196px;
+  height: 196px;
+  border-radius: 50%;
+  background: var(--u-background-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cp-art-panel--large .cp-art-panel__halo {
+  width: 272px;
+  height: 272px;
+}
+
+.cp-art-panel__disc {
+  width: 144px;
+  height: 144px;
+  border-radius: 50%;
+  background: var(--u-background-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cp-art-panel--large .cp-art-panel__disc {
+  width: 200px;
+  height: 200px;
+}
+
+.cp-art-panel__art {
+  width: 96px;
+  height: 96px;
+  display: block;
+}
+
+.cp-art-panel--large .cp-art-panel__art {
+  width: 128px;
+  height: 128px;
+}
+
+/* 40×40 white back button */
+.cp-art-panel__back {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background: var(--u-background-primary);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--u-duration-fast);
+}
+
+.cp-art-panel__back:hover {
+  opacity: 0.8;
 }
 
 /* ── Scrollable content area ─────────────────────────────────────────────── */
@@ -13,33 +112,155 @@
   flex-direction: column;
   gap: 16px;
   padding: 16px;
-  overflow-y: auto;
 }
 
-/* ── Check result card ───────────────────────────────────────────────────── */
-.cp-result-card {
+/* ── Lesson heading block ────────────────────────────────────────────────── */
+.cpl-heading {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 20px;
-  border-radius: 12px;
   width: 100%;
 }
 
-.cp-result-card--positive {
-  background: #eaf6ed;
-}
-
-.cp-result-kicker {
+.cpl-kicker {
   font-family: var(--u-font-body);
   font-size: 0.75rem;
   font-weight: 500;
-  color: #5e5e5e;
+  color: var(--u-content-secondary);
   line-height: 1.33;
   margin: 0;
 }
 
-.cp-result-title {
+.cpl-title {
+  font-family: var(--u-font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.25;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.cpl-lead {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Result tiles (points + accuracy) ───────────────────────────────────── */
+.cpl-tiles {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+}
+
+.cpl-tile {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border-radius: 16px;
+}
+
+.cpl-tile--points {
+  background: var(--u-background-warning-light);
+}
+
+.cpl-tile--accuracy {
+  background: var(--u-background-positive-light);
+}
+
+.cpl-tile__icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  flex-shrink: 0;
+}
+
+.cpl-tile__icon--positive {
+  filter: invert(36%) sepia(76%) saturate(500%) hue-rotate(104deg) brightness(88%) contrast(92%);
+}
+
+.cpl-tile__value {
+  font-family: var(--u-font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.25;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.cpl-tile__label {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--u-content-secondary);
+  line-height: 1.14;
+  margin: 0;
+}
+
+/* ── This week widget ────────────────────────────────────────────────────── */
+.cpl-week {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: var(--u-background-positive-light);
+  border-radius: 20px;
+  width: 100%;
+}
+
+.cpl-week__goal {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  width: 100%;
+}
+
+/* 64×64 goal ring */
+.cpl-week__ring {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+
+.cpl-week__ring-layer {
+  position: absolute;
+  inset: 0;
+  width: 64px;
+  height: 64px;
+}
+
+.cpl-week__ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1;
+  text-align: center;
+}
+
+.cpl-week__words {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cpl-week__title {
   font-family: var(--u-font-body);
   font-size: 1.125rem;
   font-weight: 500;
@@ -48,7 +269,7 @@
   margin: 0;
 }
 
-.cp-result-body {
+.cpl-week__subtitle {
   font-family: var(--u-font-body);
   font-size: 0.875rem;
   font-weight: 400;
@@ -57,13 +278,64 @@
   margin: 0;
 }
 
+/* Day bubbles row */
+.cpl-week__days {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.cpl-week__day-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.cpl-week__dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cpl-week__dot--upcoming {
+  border: 1.5px solid var(--u-border-opaque);
+}
+
+.cpl-week__dot--learned {
+  /* no border, icon provides the visual */
+}
+
+.cpl-week__dot-check {
+  width: 28px;
+  height: 28px;
+  display: block;
+  filter: invert(36%) sepia(76%) saturate(500%) hue-rotate(104deg) brightness(88%) contrast(92%);
+}
+
+.cpl-week__day-label {
+  font-family: var(--u-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--u-content-secondary);
+  line-height: 1.33;
+  text-align: center;
+}
+
+.cpl-week__day-label--today {
+  color: var(--u-content-primary);
+}
+
 /* ── Progress bar ────────────────────────────────────────────────────────── */
 .cp-progress {
   display: flex;
   flex-direction: column;
   gap: 8px;
   width: 100%;
-  overflow: hidden;
 }
 
 .cp-progress-labels {
@@ -82,7 +354,7 @@
 }
 
 .cp-progress-percent {
-  font-family: var(--u-font-body);
+  font-family: var(--u-font-mono);
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--u-content-primary);
@@ -109,70 +381,48 @@
   min-width: 4px;
 }
 
-/* ── Milestone rows ──────────────────────────────────────────────────────── */
-.cp-milestone {
+/* ── Next lesson card ────────────────────────────────────────────────────── */
+.cpl-next-card {
   display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  padding: 16px;
-  border-radius: 12px;
-  width: 100%;
-  text-align: left;
-  border: none;
-  background: transparent;
-}
-
-.cp-milestone--positive {
-  background: #eaf6ed;
-}
-
-.cp-milestone--next {
-  background: var(--u-background-state-disabled);
-  cursor: pointer;
   align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--u-background-secondary);
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
   transition: opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
-.cp-milestone--next:active {
+.cpl-next-card:active {
   opacity: 0.7;
 }
 
-.cp-milestone--next:focus-visible {
+.cpl-next-card:focus-visible {
   outline: 2px solid var(--u-content-primary);
   outline-offset: 2px;
 }
 
-/* Green circle mark (lesson/course milestone) */
-.cp-milestone__mark {
-  width: 28px;
-  height: 28px;
-  border-radius: 14px;
-  background: #0e8345;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.cp-milestone__body {
+.cpl-next-card__body {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  overflow: hidden;
 }
 
-.cp-milestone__kicker {
+.cpl-next-card__kicker {
   font-family: var(--u-font-body);
   font-size: 0.75rem;
   font-weight: 500;
-  color: #5e5e5e;
+  color: var(--u-content-tertiary);
   line-height: 1.33;
   margin: 0;
 }
 
-.cp-milestone__title {
+.cpl-next-card__title {
   font-family: var(--u-font-body);
   font-size: 1.125rem;
   font-weight: 500;
@@ -181,58 +431,43 @@
   margin: 0;
 }
 
-.cp-milestone__subtitle {
+.cpl-next-card__sub {
   font-family: var(--u-font-body);
   font-size: 0.875rem;
   font-weight: 400;
-  color: var(--u-content-secondary);
+  color: var(--u-content-tertiary);
   line-height: 1.43;
   margin: 0;
 }
 
-.cp-milestone__subtitle-dim {
-  font-family: var(--u-font-body);
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: #5e5e5e;
-  line-height: 1.43;
-  margin: 0;
+.cpl-next-card__chevron {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
 }
 
-/* ── Badge section ("Badge unlocked") ───────────────────────────────────── */
-.cp-badge-section {
+/* ── Course Complete: heading ─────────────────────────────────────────────── */
+.cpc-heading {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  padding-top: 8px;
+  gap: 8px;
 }
 
-.cp-badge-section__heading {
-  font-family: var(--u-font-display);
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--u-content-primary);
-  line-height: 1.4;
-  letter-spacing: 0.25px;
-  margin: 0;
-}
-
-/* ── Badge row ───────────────────────────────────────────────────────────── */
-.cp-badge-row {
+/* ── Course Complete: course row ─────────────────────────────────────────── */
+.cpc-course-row {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
-  padding: 16px 0;
-}
-
-.cp-badge-row--bordered {
+  padding: 12px 0;
   border-bottom: 1px solid var(--u-border-opaque);
+  width: 100%;
 }
 
-.cp-badge-art {
-  width: 56px;
-  height: 56px;
+.cpc-course-row__tile {
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
+  background: var(--u-learning-course-tint-blue);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -240,57 +475,21 @@
   overflow: hidden;
 }
 
-.cp-badge-art--positive {
-  background: #eaf6ed;
+.cpc-course-row__art {
+  width: 32px;
+  height: 32px;
+  display: block;
 }
 
-.cp-badge-art--locked {
-  background: var(--u-background-state-disabled);
-}
-
-.cp-badge-body {
+.cpc-course-row__body {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  overflow: hidden;
 }
 
-.cp-badge-name {
-  font-family: var(--u-font-body);
-  font-size: 1.125rem;
-  font-weight: 500;
-  color: var(--u-content-primary);
-  line-height: 1.33;
-  margin: 0;
-  white-space: nowrap;
-}
-
-.cp-badge-name--secondary {
-  color: var(--u-content-secondary);
-}
-
-.cp-badge-desc {
-  font-family: var(--u-font-body);
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: #5e5e5e;
-  line-height: 1.43;
-  margin: 0;
-}
-
-/* ── Commitment card ─────────────────────────────────────────────────────── */
-.cp-commitment {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 16px;
-  background: var(--u-background-state-disabled);
-  border-radius: 12px;
-}
-
-.cp-commitment__title {
+.cpc-course-row__title {
   font-family: var(--u-font-body);
   font-size: 1rem;
   font-weight: 500;
@@ -299,7 +498,7 @@
   margin: 0;
 }
 
-.cp-commitment__body {
+.cpc-course-row__sub {
   font-family: var(--u-font-body);
   font-size: 0.875rem;
   font-weight: 400;
@@ -308,31 +507,179 @@
   margin: 0;
 }
 
-/* ── Retention invite specific ───────────────────────────────────────────── */
-.cp-kicker {
+.cpc-course-row__points {
   font-family: var(--u-font-body);
-  font-size: 0.75rem;
+  font-size: 1rem;
   font-weight: 500;
-  color: var(--u-content-secondary);
-  line-height: 1.33;
+  color: var(--u-content-primary);
+  line-height: 1.25;
+  margin: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Course Complete: commitment card ────────────────────────────────────── */
+.cpc-commitment {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  background: var(--u-background-secondary);
+  border-radius: 12px;
+}
+
+.cpc-commitment__title {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.25;
   margin: 0;
 }
 
-.cp-big-title {
+.cpc-commitment__body {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+/* ── Lesson result: neutral tile (repeat lesson) ─────────────────────────── */
+.cpl-tile--neutral {
+  background: var(--u-background-secondary);
+}
+
+.cpl-tile--single {
+  flex: none;
+  width: 100%;
+}
+
+/* ── Lesson result: repeat note ──────────────────────────────────────────── */
+.cpl-repeat-note {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Retention check result: single tile row ─────────────────────────────── */
+.cpr-tile-row {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+}
+
+.cpr-tile {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border-radius: 16px;
+}
+
+.cpr-tile--neutral {
+  background: var(--u-background-secondary);
+}
+
+.cpr-tile--positive {
+  background: var(--u-background-positive-light);
+}
+
+.cpr-tile__icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  flex-shrink: 0;
+}
+
+.cpr-tile__icon--positive {
+  filter: invert(36%) sepia(76%) saturate(500%) hue-rotate(104deg) brightness(88%) contrast(92%);
+}
+
+.cpr-tile__value {
   font-family: var(--u-font-display);
   font-size: 2rem;
   font-weight: 700;
   color: var(--u-content-primary);
   line-height: 1.25;
   margin: 0;
+  font-variant-numeric: tabular-nums;
 }
 
-.cp-lead {
+.cpr-tile__label {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--u-content-secondary);
+  line-height: 1.14;
+  margin: 0;
+}
+
+.cpr-result-note {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+/* ── Retention invite: locked date info (not open yet) ───────────────────── */
+.cpr-not-open-lead {
   font-family: var(--u-font-body);
   font-size: 1rem;
   font-weight: 400;
   color: var(--u-content-secondary);
   line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Retention Invite: badge row ─────────────────────────────────────────── */
+.cpr-badge-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--u-border-opaque);
+  width: 100%;
+}
+
+.cpr-badge-row__art {
+  width: 56px;
+  height: 56px;
+  display: block;
+  flex-shrink: 0;
+}
+
+.cpr-badge-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cpr-badge-row__title {
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.33;
+  margin: 0;
+}
+
+.cpr-badge-row__desc {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
   margin: 0;
 }
 

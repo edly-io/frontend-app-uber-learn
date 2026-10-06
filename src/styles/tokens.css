@@ -38,6 +38,33 @@
   /* Borders */
   --u-border-opaque:             #e8e8e8;
 
+  /* Extended surfaces */
+  --u-background-secondary:      #f3f3f3;
+  --u-background-tertiary:       #e8e8e8;
+  --u-background-positive:       #0e8345;   /* green art panel, positive content */
+  --u-background-positive-light: #eaf6ed;
+  --u-background-accent-light:   #eff4fe;   /* notice card background */
+  --u-background-warning-light:  #fdf2dc;
+  --u-background-warning:        #f6bc2f;
+
+  /* Extended content */
+  --u-content-tertiary:          #5e5e5e;
+  --u-content-positive:          #0e8345;   /* "Complete · Carried over" etc */
+  --u-content-state-disabled:    #a6a6a6;   /* disabled button label */
+
+  /* Learning course tints */
+  --u-learning-course-tint-blue:    #dee9fe;
+  --u-learning-course-tint-teal:    #cdeef3;
+  --u-learning-course-tint-lime:    #deeec6;
+  --u-learning-course-tint-purple:  #f2e3ff;
+  --u-learning-course-tint-magenta: #fedff3;
+  --u-learning-course-tint-orange:  #fee2d4;
+
+  /* Rewards tier colours */
+  --u-rewards-tier-2:            #ffc043;
+  --u-rewards-tier-silver:       #8fa3ad;
+  --u-rewards-tier-bronze:       #9f6402;
+
   /* Semantic — RULE-002: mastery green ONLY for completion checkmarks */
   --u-mastery:                   #15803d;
   --u-mastery-light:             #e8f6ee;
@@ -45,6 +72,7 @@
   /* Typography */
   --u-font-display:              'Uber Move', system-ui, sans-serif;
   --u-font-body:                 'Uber Move Text', system-ui, sans-serif;
+  --u-font-mono:                 'Uber Move Mono', ui-monospace, monospace;
 
   /* Layout */
   --u-page-gutter:               1rem;

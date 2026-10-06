@@ -9,7 +9,7 @@ import { useProgress } from '../hooks/useProgress';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
 import { useAssessmentSubmit } from '../hooks/useAssessmentSubmit';
-import { recordActivity, AlreadyPassedError } from '../api/progress';
+import { recordActivity, AlreadyPassedError, AssessmentIncompleteError } from '../api/progress';
 import { qk } from '../api/queries';
 import { ContentIFrame } from '../components/content-iframe/ContentIFrame';
 import { ButtonDock } from '../components/button-dock/ButtonDock';
@@ -60,6 +60,8 @@ export const ActivityView = () => {
   const [isIframeLoaded, setIsIframeLoaded] = useState(false);
   // Track correctness from plugin.completed so it can be forwarded to the Progress API.
   const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
+  // Set when recordActivity fails — shown as an inline error so the user can retry.
+  const [activityRecordError, setActivityRecordError] = useState(false);
 
   // Network availability — drives the offline error screen
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -79,7 +81,7 @@ export const ActivityView = () => {
   } = useSequence(sequenceId);
 
   // Read assessments from the progress query to detect assessment sequences.
-  const { data: progressData } = useProgress(courseId);
+  const { data: progressData, isLoading: progressLoading } = useProgress(courseId);
 
   // Course outline — needed to find the next sequence after this one
   const outlineQuery = useCourseOutline(courseId);
@@ -110,6 +112,7 @@ export const ActivityView = () => {
     setIsCompleted(false);
     setLastCorrect(null);
     setIsIframeLoaded(false);
+    setActivityRecordError(false);
     if (sequenceId && courseId) {
       storeResumeSequence(courseId, sequenceId);
     }
@@ -124,14 +127,14 @@ export const ActivityView = () => {
       correct,
     }),
     onSuccess: () => {
-      // Invalidate progress so the progress bar and assessment keys stay current
       queryClient.invalidateQueries({ queryKey: qk.progress(courseId) });
+    },
+    onError: () => {
+      setActivityRecordError(true);
     },
   });
 
   const handleCompleted = useCallback((correct: boolean | null) => {
-    // eslint-disable-next-line no-console
-    console.debug('[ActivityView] plugin.completed received, correct=', correct);
     setLastCorrect(correct);
     setIsCompleted(true);
   }, []);
@@ -139,15 +142,28 @@ export const ActivityView = () => {
   // Called when the iframe finishes loading. Marks the frame visible and
   // auto-enables Continue for regular (non-assessment) content — standard
   // Open edX XBlocks don't send plugin.completed.
+  // Guard: if progress is still loading we can't yet know whether this is an
+  // assessment sequence, so defer the auto-enable until progress settles.
   const handleIframeLoad = useCallback(() => {
     setIsIframeLoaded(true);
-    if (!isAssessmentSequence) {
+    if (!progressLoading && !isAssessmentSequence) {
       setIsCompleted(true);
     }
-  }, [isAssessmentSequence]);
+  }, [progressLoading, isAssessmentSequence]);
 
-  const handleContinue = useCallback(() => {
+  // Once progress resolves, if the iframe already loaded and this is not an
+  // assessment sequence, enable Continue. Handles the race where the iframe
+  // loads before the progress query returns.
+  useEffect(() => {
+    if (!progressLoading && isIframeLoaded && !isAssessmentSequence && !isCompleted) {
+      setIsCompleted(true);
+    }
+  }, [progressLoading, isIframeLoaded, isAssessmentSequence, isCompleted]);
+
+  const handleContinue = useCallback(async () => {
     if (!isCompleted) { return; }
+
+    setActivityRecordError(false);
 
     // Notify iframe of continue click so XBlocks can trigger submission
     const frame = document.querySelector<HTMLIFrameElement>('.content-iframe-frame');
@@ -162,20 +178,29 @@ export const ActivityView = () => {
     const isLastUnit = nextIdx >= units.length;
 
     if (isLastUnit && isAssessmentSequence && currentAssessmentType) {
-      // Last unit of an assessment sequence: submit the assessment, do not navigate yet.
-      // Record the activity first, then submit assessment.
-      recordMutation.mutate(lastCorrect);
+      // Last unit of an assessment sequence: record activity (non-blocking on
+      // failure) then submit assessment and wait for the overlay.
+      try {
+        await recordMutation.mutateAsync(lastCorrect);
+      } catch {
+        // Activity record failed — set error but still submit assessment
+        setActivityRecordError(true);
+      }
       submitAssessmentResult(courseId, currentAssessmentType);
       return;
     }
 
-    // Non-assessment: record activity and navigate
-    recordMutation.mutate(lastCorrect);
+    // Non-assessment: record activity, navigate only on success
+    try {
+      await recordMutation.mutateAsync(lastCorrect);
+    } catch {
+      // Error already handled by onError — stop here so the user can retry
+      return;
+    }
 
     if (nextIdx < units.length) {
       navigate(`/course/${courseId}/lesson/${sequenceId}/step/${nextIdx}`);
     } else {
-      // Last unit in a non-assessment sequence — navigate to lesson complete page
       navigate(`/course/${courseId}/lesson-complete`, {
         state: {
           lessonTitle: sequence?.title ?? 'Lesson',
@@ -232,17 +257,18 @@ export const ActivityView = () => {
     navigate(`/course/${courseId}`);
   }, [resetResult, navigate, courseId]);
 
-  // Determine overlay assessment type — 409 maps to already_passed
   const overlayAssessmentType: OverlayAssessmentType | null = useMemo(() => {
     if (!assessmentResult && !assessmentError) { return null; }
     if (assessmentError instanceof AlreadyPassedError) { return 'already_passed'; }
+    if (assessmentError instanceof AssessmentIncompleteError) { return 'assessment_incomplete'; }
+    if (assessmentError) { return 'submission_error'; }
     return currentAssessmentType;
   }, [assessmentResult, assessmentError, currentAssessmentType]);
 
   if (isLoading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
-        <NavHeader title="Loading…" onBack={handleBack} />
+        <NavHeader title="Loading…" onBack={handleBack} onClose={handleClose} />
         <LoadingSkeleton lines={5} />
       </div>
     );
@@ -269,9 +295,9 @@ export const ActivityView = () => {
   }
 
   const lessonTitle = sequence?.title ?? 'Lesson';
-  const lessonKicker = allLessons.length > 0 && currentLessonIdx >= 0
-    ? `LESSON ${currentLessonIdx + 1} / ${allLessons.length}`
-    : undefined;
+  const lessonNavTitle = allLessons.length > 0 && currentLessonIdx >= 0
+    ? `Lesson ${currentLessonIdx + 1} of ${allLessons.length}`
+    : lessonTitle;
 
   // Show the Figma offline screen when the device loses connectivity
   if (isOffline) {
@@ -304,9 +330,8 @@ export const ActivityView = () => {
     }}
     >
       <NavHeader
-        title={lessonTitle}
+        title={lessonNavTitle}
         onBack={handleBack}
-        kicker={lessonKicker}
         onClose={handleClose}
       />
 
@@ -345,10 +370,27 @@ export const ActivityView = () => {
         />
       </main>
 
+      {activityRecordError && (
+        <p
+          role="alert"
+          style={{
+            margin: '0 16px 8px',
+            padding: '10px 14px',
+            background: 'var(--u-background-negative-light, #fdf0f2)',
+            color: 'var(--u-content-negative, #c8102e)',
+            borderRadius: '8px',
+            fontSize: '13px',
+            lineHeight: 1.4,
+          }}
+        >
+          Couldn&apos;t save your progress. Tap Continue to try again.
+        </p>
+      )}
+
       <ButtonDock
         onContinue={handleContinue}
-        disabled={!isCompleted || isSubmitting}
-        label={isSubmitting ? 'Submitting…' : buttonLabel}
+        disabled={!isCompleted || isSubmitting || recordMutation.isPending}
+        label={recordMutation.isPending ? 'Saving…' : isSubmitting ? 'Submitting…' : buttonLabel}
       />
 
       {/* Assessment result overlay — shown when submission resolves */}

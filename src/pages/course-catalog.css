@@ -1,4 +1,4 @@
-/* ── Learning Home Shell ──────────────────────────────── */
+/* ── Learning Home shell ─────────────────────────────── */
 .home-page {
   display: flex;
   flex-direction: column;
@@ -11,47 +11,60 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px var(--u-page-gutter);
+  padding: 16px;
   background: var(--u-background-primary);
-  position: sticky;
-  top: env(safe-area-inset-top, 0px);
-  z-index: 10;
+  flex-shrink: 0;
 }
 
-.home-wordmark {
-  font-family: var(--u-font-display);
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--u-content-primary);
-  letter-spacing: 0.016em;
+.home-header__logo {
+  width: 70px;
+  height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
-.home-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--u-background-always-dark);
+.home-header__stats {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ── Stat chip ────────────────────────────────────────── */
+.stat-chip {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-family: var(--u-font-body);
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--u-content-on-color);
-  flex-shrink: 0;
-  user-select: none;
+  gap: 4px;
+  padding: 8px 12px 8px 8px;
+  background: var(--u-background-secondary);
+  border-radius: 9999px;
   border: none;
   cursor: pointer;
   transition: opacity var(--u-duration-fast) var(--u-ease-out);
+  flex-shrink: 0;
 }
 
-.home-avatar:active {
-  opacity: 0.75;
+.stat-chip:active {
+  opacity: 0.7;
 }
 
-.home-avatar:focus-visible {
+.stat-chip:focus-visible {
   outline: 2px solid var(--u-content-primary);
   outline-offset: 2px;
+}
+
+.stat-chip__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.stat-chip__value {
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.14;
+  color: var(--u-content-primary);
+  white-space: nowrap;
 }
 
 /* ── Main content ─────────────────────────────────────── */
@@ -59,268 +72,661 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px var(--u-page-gutter) 32px;
+  gap: 20px;
+  padding: 16px 16px 32px;
+  overflow-y: auto;
 }
 
 /* ── Greeting ─────────────────────────────────────────── */
 .home-greeting {
   font-family: var(--u-font-display);
-  font-size: 2rem;
+  font-size: 32px;
   font-weight: 700;
-  color: var(--u-content-primary);
   line-height: 1.25;
-  margin: 0;
-}
-
-/* ── Section title ────────────────────────────────────── */
-.home-section-title {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding-top: 8px;
-}
-
-.home-section-title__heading {
-  font-family: var(--u-font-display);
-  font-size: 1.5rem;
-  font-weight: 700;
   color: var(--u-content-primary);
-  line-height: 1.33;
   margin: 0;
 }
 
-.home-section-title__meta {
-  font-family: var(--u-font-body);
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: var(--u-content-secondary);
-  line-height: 1.43;
+/* ── Continue card ────────────────────────────────────── */
+.continue-card {
+  background: var(--u-background-primary);
+  border: 1px solid var(--u-border-opaque);
+  border-radius: 20px;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
-.home-section-title__link {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  font-family: var(--u-font-body);
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: var(--u-content-secondary);
-  line-height: 1.43;
-  text-decoration: none;
+.continue-card__band {
+  height: 188px;
+  overflow: hidden;
+  position: relative;
+  background: var(--u-background-secondary);
 }
 
-/* ── Course card ──────────────────────────────────────── */
-.hc-card {
+.continue-card__scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+  display: block;
+}
+
+.continue-card__body {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 16px;
   padding: 16px;
-  background: var(--u-background-state-disabled);
-  border-radius: 12px;
-  width: 100%;
-  text-align: left;
-  border: none;
-  cursor: pointer;
-  transition: opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
-.hc-card:focus-visible {
+.continue-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.continue-card__kicker {
+  font-family: var(--u-font-body);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.33;
+  color: var(--u-content-secondary);
+}
+
+.continue-card__title {
+  font-family: var(--u-font-display);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.33;
+  color: var(--u-content-primary);
+  margin: 0;
+}
+
+.continue-card__meta {
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.43;
+  color: var(--u-content-secondary);
+}
+
+.continue-card__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.continue-card__progress-label {
+  font-family: var(--u-font-body);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.33;
+  color: var(--u-content-secondary);
+}
+
+/* ── Progress bar ─────────────────────────────────────── */
+.progress-bar {
+  position: relative;
+  height: 4px;
+  background: var(--u-border-opaque);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar__fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: var(--u-background-accent);
+  border-radius: 2px;
+  transition: width var(--u-duration-normal) var(--u-ease-out);
+  min-width: 4px;
+}
+
+/* ── Primary button ───────────────────────────────────── */
+.btn-primary {
+  width: 100%;
+  padding: 16px 20px;
+  background: var(--u-background-always-dark);
+  color: var(--u-content-on-color);
+  border: none;
+  border-radius: 8px;
+  font-family: var(--u-font-body);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.33;
+  text-align: center;
+  cursor: pointer;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+  min-height: 56px;
+}
+
+.btn-primary:active {
+  opacity: 0.85;
+}
+
+.btn-primary:focus-visible {
   outline: 2px solid var(--u-content-primary);
   outline-offset: 2px;
 }
 
-.hc-card:active {
-  opacity: 0.7;
+/* ── Section header ───────────────────────────────────── */
+.home-section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
 }
 
-.hc-card__body {
-  flex: 1;
+.home-section-header--padded {
+  padding-top: 8px;
+}
+
+.home-section-header__title {
+  font-family: var(--u-font-display);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.33;
+  color: var(--u-content-primary);
+  margin: 0;
+}
+
+.home-section-header__meta {
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.43;
+  color: var(--u-content-secondary);
+}
+
+/* ── Required carousel ────────────────────────────────── */
+.required-carousel {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+
+.required-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.required-carousel > [role='listitem'] {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+/* ── Course tile ──────────────────────────────────────── */
+.course-tile {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  width: 200px;
+  height: 264px;
+  border: 1px solid var(--u-border-opaque);
+  border-radius: 16px;
   overflow: hidden;
-}
-
-.hc-card__category {
-  font-family: var(--u-font-body);
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--u-content-secondary);
-  line-height: 1.33;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.hc-card__title {
-  font-family: var(--u-font-body);
-  font-size: 1.125rem;
-  font-weight: 500;
-  color: var(--u-content-primary);
-  line-height: 1.33;
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.hc-card__status {
-  font-family: var(--u-font-body);
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: var(--u-content-secondary);
-  line-height: 1.43;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ── Progress ring ────────────────────────────────────── */
-.hc-ring {
+  background: var(--u-background-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
   flex-shrink: 0;
-  width: 56px;
-  height: 56px;
-  position: relative;
 }
 
-.hc-ring__svg {
-  width: 56px;
-  height: 56px;
-  transform: rotate(-90deg);
+.course-tile:active {
+  opacity: 0.75;
 }
 
-.hc-ring__track {
-  fill: none;
-  stroke: var(--u-border-opaque);
-  stroke-width: 6;
+.course-tile:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
 }
 
-.hc-ring__arc {
-  fill: none;
-  stroke: var(--u-background-accent);
-  stroke-width: 6;
-  stroke-linecap: round;
-  transition: stroke-dashoffset var(--u-duration-normal) var(--u-ease-out);
-}
-
-.hc-ring__label {
-  position: absolute;
-  inset: 0;
+.course-tile__band {
+  height: 136px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--u-font-body);
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--u-content-primary);
-  line-height: 1;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
-/* ── Weekly Goal card ─────────────────────────────────── */
-.home-weekly-goal {
-  background: var(--u-background-primary);
-  border: 1px solid var(--u-border-opaque);
-  border-radius: 12px;
-  padding: 16px;
+.course-tile__band--blue {
+  background: var(--u-learning-course-tint-blue);
+}
+
+.course-tile__band--teal {
+  background: var(--u-learning-course-tint-teal);
+}
+
+.course-tile__art {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+}
+
+.course-tile__body {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  flex: 1;
+  padding: 12px 16px 16px;
+  min-height: 0;
   gap: 12px;
 }
 
-.home-weekly-goal__kicker {
-  font-family: var(--u-font-body);
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--u-content-secondary);
-  line-height: 1.33;
-}
-
-.home-weekly-goal__title {
-  font-family: var(--u-font-body);
-  font-size: 1.125rem;
-  font-weight: 500;
-  color: var(--u-content-primary);
-  line-height: 1.33;
-  margin: 0;
-}
-
-.home-weekly-goal__meter {
-  display: flex;
-  gap: 4px;
-}
-
-.home-weekly-goal__day {
-  flex: 1;
-  height: 6px;
-  background: var(--u-border-opaque);
-  border-radius: 3px;
-}
-
-.home-weekly-goal__day--done {
-  background: var(--u-background-accent);
-}
-
-.home-weekly-goal__desc {
-  font-family: var(--u-font-body);
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: var(--u-content-secondary);
-  line-height: 1.43;
-  margin: 0;
-}
-
-.home-weekly-goal__streak {
-  font-family: var(--u-font-body);
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--u-content-primary);
-  line-height: 1.14;
-}
-
-/* ── Learning Stats ───────────────────────────────────── */
-.home-stats {
-  display: flex;
-  gap: 8px;
-}
-
-.home-stat {
-  flex: 1;
-  background: var(--u-background-state-disabled);
-  border-radius: 12px;
-  padding: 16px;
+.course-tile__info {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.course-tile__category {
+  font-family: var(--u-font-body);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.33;
+  color: var(--u-content-secondary);
+}
+
+.course-tile__title {
+  font-family: var(--u-font-body);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--u-content-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.course-tile__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.course-tile__status {
+  font-family: var(--u-font-body);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.33;
+  color: var(--u-content-secondary);
+}
+
+/* ── This week card ───────────────────────────────────── */
+.this-week-card {
+  background: var(--u-background-positive-light);
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.this-week-card__goal {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  overflow: hidden;
+}
+
+.this-week-card__words {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
   min-width: 0;
   overflow: hidden;
 }
 
-.home-stat__value {
-  font-family: var(--u-font-display);
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--u-content-primary);
-  line-height: 1.33;
-}
-
-.home-stat__label {
+.this-week-card__heading {
   font-family: var(--u-font-body);
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: var(--u-content-secondary);
-  line-height: 1.67;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.33;
+  color: var(--u-content-primary);
 }
 
-/* ── Loading / empty states ───────────────────────────── */
+.this-week-card__desc {
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.43;
+  color: var(--u-content-secondary);
+}
+
+.this-week-card__days {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ── Goal ring ────────────────────────────────────────── */
+.goal-ring {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.goal-ring__track,
+.goal-ring__progress {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.goal-ring__label {
+  font-family: var(--u-font-body);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.33;
+  color: var(--u-content-primary);
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Day tracker ──────────────────────────────────────── */
+.week-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.week-day__dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.week-day__dot--learned {
+  /* circle-check icon fills it */
+}
+
+.week-day__dot--today {
+  border: 2px solid var(--u-content-primary);
+}
+
+.week-day__dot--missed {
+  background: var(--u-background-tertiary);
+}
+
+.week-day__dot--upcoming {
+  border: 1.5px solid var(--u-border-opaque);
+}
+
+.week-day__check {
+  width: 28px;
+  height: 28px;
+}
+
+.week-day__label {
+  font-family: var(--u-font-body);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.33;
+  color: var(--u-content-secondary);
+}
+
+.week-day__label--active {
+  color: var(--u-content-primary);
+}
+
+/* ── All courses card ─────────────────────────────────── */
+.all-courses-card {
+  display: flex;
+  align-items: stretch;
+  background: var(--u-background-always-dark);
+  border: none;
+  border-radius: 20px;
+  overflow: hidden;
+  padding-right: 8px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  min-height: 120px;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+  flex-shrink: 0;
+}
+
+.all-courses-card:active {
+  opacity: 0.85;
+}
+
+.all-courses-card:focus-visible {
+  outline: 2px solid var(--u-content-on-color);
+  outline-offset: 2px;
+}
+
+.all-courses-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 20px 0 20px 20px;
+  flex: 1;
+  min-width: 0;
+}
+
+.all-courses-card__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.all-courses-card__title {
+  font-family: var(--u-font-display);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.25px;
+  color: var(--u-content-on-color);
+  display: block;
+}
+
+.all-courses-card__desc {
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.43;
+  color: var(--u-content-on-color);
+  display: block;
+}
+
+.all-courses-card__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--u-background-primary);
+  border-radius: 999px;
+  padding: 14px 16px;
+  font-family: var(--u-font-body);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--u-background-always-dark);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.all-courses-card__artwork {
+  position: relative;
+  width: 128px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+.all-courses-card__tile {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  border: 3px solid var(--u-background-always-dark);
+  overflow: hidden;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.all-courses-card__tile--1 {
+  top: calc(50% + 36px);
+  left: 8px;
+}
+
+.all-courses-card__tile--2 {
+  top: 50%;
+  left: 36px;
+}
+
+.all-courses-card__tile--3 {
+  top: calc(50% - 36px);
+  left: 64px;
+}
+
+.all-courses-card__tile-art {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+/* ── Notice card ──────────────────────────────────────── */
+.notice-card {
+  background: var(--u-background-accent-light);
+  border-radius: 20px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.notice-card__band {
+  height: 120px;
+  overflow: hidden;
+  position: relative;
+}
+
+.notice-card__scene {
+  position: absolute;
+  left: 0;
+  top: -110px;
+  width: 358px;
+  height: 358px;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.notice-card__dismiss {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  background: var(--u-background-primary);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.notice-card__dismiss:active {
+  opacity: 0.7;
+}
+
+.notice-card__dismiss:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
+
+.notice-card__dismiss-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.notice-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+}
+
+.notice-card__title {
+  font-family: var(--u-font-body);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.33;
+  color: var(--u-content-primary);
+  margin: 0;
+}
+
+.notice-card__desc {
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.43;
+  color: var(--u-content-secondary);
+  margin: 0;
+}
+
+/* ── Positive status text ─────────────────────────────── */
+.course-tile__status--positive {
+  color: var(--u-content-positive);
+}
+
+/* ── Empty state ──────────────────────────────────────── */
 .home-empty {
-  padding: 1rem 0;
+  padding: 16px 0;
   text-align: center;
   color: var(--u-content-secondary);
   font-family: var(--u-font-body);
-  font-size: 0.875rem;
+  font-size: 14px;
+}
+
+/* ── Notice card — caught-up variant ─────────────────── */
+.notice-card--caught-up {
+  background: var(--u-background-positive-light);
+}
+
+.notice-card__badges {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.notice-card__badge-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* ── Optional tile tints ─────────────────────────────── */
+.course-tile__band--lime {
+  background: var(--u-learning-course-tint-lime);
+}
+
+.course-tile__band--purple {
+  background: var(--u-learning-course-tint-purple);
 }

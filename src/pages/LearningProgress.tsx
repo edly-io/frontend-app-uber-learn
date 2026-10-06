@@ -2,321 +2,518 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
-import { useCourseOutline } from '../hooks/useCourseOutline';
 import { useProgress } from '../hooks/useProgress';
+import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
 import { getStoredResumeIdx } from '../lib/resume-storage';
+
+import iconCircleInfo from '../assets/icons/icon-circle-info.svg';
+import courseArtBlue from '../assets/icons/course-art-blue2.svg';
+import courseArtTeal from '../assets/icons/course-art-teal2.svg';
+import iconLightningLarge from '../assets/icons/icon-lightning-large.svg';
+import iconCircleCheck from '../assets/icons/icon-circle-check.svg';
+import iconCalendar from '../assets/icons/icon-calendar.svg';
+import iconBadgeCheck from '../assets/icons/icon-badge-check.svg';
+import ringTrack from '../assets/icons/ring-track.svg';
+import ringProgress from '../assets/icons/ring-progress.svg';
+import badgeHalfwayEarned from '../assets/badges/badge-halfway-earned.svg';
+import badgeCompleteEarned from '../assets/badges/badge-complete-earned.svg';
+import badgeCompleteLocked from '../assets/badges/badge-complete-locked.svg';
+import badgeRetainedEarned from '../assets/badges/badge-retained-earned.svg';
+import badgeRetainedLocked from '../assets/badges/badge-retained-locked.svg';
+
 import './learning-progress.css';
 
-// ── SVG icons ──────────────────────────────────────────
+// ── Tab types ────────────────────────────────────────────
+
+type TabId = 'Points' | 'Streak' | 'Badges' | 'Leaderboard';
+
+const TABS: TabId[] = ['Points', 'Streak', 'Badges', 'Leaderboard'];
+
+// ── Back icon ────────────────────────────────────────────
 
 const ArrowLeft = () => (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
     <path
       d="M12.5 15L7.5 10L12.5 5"
       stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-const BadgeCheckIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-    <path
-      fillRule="evenodd"
-      clipRule="evenodd"
-      d="M14 2L17.09 8.26L24 9.27L19 14.14L20.18 21.02L14 17.77L7.82 21.02L9 14.14L4 9.27L10.91 8.26L14 2Z"
-      fill="#15803d"
-    />
-    <path
-      d="M10 14L12.5 16.5L18 11"
-      stroke="white"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-const ShieldCheckIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-    <path
-      fillRule="evenodd"
-      clipRule="evenodd"
-      d="M14 3L23 7V14C23 18.97 19.07 23.57 14 25C8.93 23.57 5 18.97 5 14V7L14 3Z"
-      fill="#4b4b4b"
-    />
-    <path
-      d="M10 14L12.5 16.5L18 11"
-      stroke="white"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-
-const LockIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-    <rect x="6" y="12" width="16" height="13" rx="2" fill="#9c9c9c" />
-    <path
-      d="M10 12V9C10 6.79 11.79 5 14 5C16.21 5 18 6.79 18 9V12"
-      stroke="#9c9c9c"
       strokeWidth="2"
       strokeLinecap="round"
+      strokeLinejoin="round"
     />
-    <circle cx="14" cy="18" r="1.5" fill="white" />
   </svg>
 );
 
-// ── Tab types ───────────────────────────────────────────
+// ── Points tab ───────────────────────────────────────────
 
-type TabId = 'progress' | 'habit' | 'badges' | 'standing';
+interface CourseRowProps {
+  course: EnrolledCourse;
+  artSrc: string;
+  tintClass: string;
+}
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'progress', label: 'Progress' },
-  { id: 'habit', label: 'Habit' },
-  { id: 'badges', label: 'Badges' },
-  { id: 'standing', label: 'Standing' },
-];
-
-// ── Progress tab — connected sub-components ─────────────
-
-const CourseContributionRow = ({ course }: { course: EnrolledCourse }) => {
+const PointsCourseRow = ({ course, artSrc, tintClass }: CourseRowProps) => {
   const outlineQuery = useCourseOutline(course.courseId);
   const { data: progressData } = useProgress(course.courseId);
-
   const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
   const totalLessons = allLessons.length;
   const storedIdx = totalLessons > 0 ? getStoredResumeIdx(course.courseId, allLessons) : -1;
   const completedLessons = storedIdx > 0 ? storedIdx : 0;
   const pointsEarned = progressData?.points?.earned ?? 0;
-  const totalActivities = progressData?.totalActivities ?? 0;
 
-  const statusParts = [
-    totalLessons > 0 ? `${completedLessons} of ${totalLessons} lessons complete` : null,
-    totalActivities > 0 ? `${totalActivities} eligible activities` : null,
-  ].filter(Boolean);
+  const statusText = totalLessons > 0
+    ? `${completedLessons} of ${totalLessons} lessons complete`
+    : 'Not started';
 
   return (
-    <div className="lp-contribution-row">
-      <div className="lp-contribution-row__body">
-        <span className="lp-contribution-row__name">{course.title}</span>
-        <span className="lp-contribution-row__status">
-          {statusParts.length > 0 ? statusParts.join(' · ') : 'Start course to earn points'}
-        </span>
+    <div className="lp-course-row">
+      <div className={`lp-course-row__art ${tintClass}`}>
+        <img src={artSrc} alt="" className="lp-course-row__art-img" aria-hidden="true" />
       </div>
-      <span className={`lp-contribution-row__points${pointsEarned === 0 ? ' lp-contribution-row__points--empty' : ''}`}>
-        {pointsEarned > 0 ? `+${pointsEarned}` : '—'}
+      <div className="lp-course-row__body">
+        <span className="lp-course-row__title">{course.title}</span>
+        <span className="lp-course-row__status">{statusText}</span>
+      </div>
+      <span className="lp-course-row__points">
+        {pointsEarned > 0 ? `+${pointsEarned}` : '0'}
       </span>
     </div>
   );
 };
 
-const OverallProgressBar = ({ courseId }: { courseId: string }) => {
-  const outlineQuery = useCourseOutline(courseId);
-  const { data: progressData } = useProgress(courseId);
+const COURSE_ART = [
+  { artSrc: courseArtBlue, tintClass: 'lp-course-row__art--blue' },
+  { artSrc: courseArtTeal, tintClass: 'lp-course-row__art--teal' },
+];
 
-  const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
-  const totalLessons = allLessons.length;
-  const storedIdx = totalLessons > 0 ? getStoredResumeIdx(courseId, allLessons) : -1;
-  const completedLessons = storedIdx > 0 ? storedIdx : 0;
+interface PointsTabProps {
+  courses: EnrolledCourse[];
+  totalPoints: number;
+  onContinue: () => void;
+}
 
-  // Prefer activity counts from the API; fall back to lesson counts
-  const totalSteps = (progressData?.totalActivities ?? 0) > 0
-    ? (progressData?.totalActivities ?? 0) : totalLessons;
-  const completedSteps = (progressData?.completedActivities ?? 0) > 0
-    ? (progressData?.completedActivities ?? 0) : completedLessons;
+const PointsTab = ({ courses, totalPoints, onContinue }: PointsTabProps) => (
+  <div className="lp-tab-content">
+    {/* Hero card */}
+    <div className="lp-points-hero">
+      <div className="lp-points-hero__figure">
+        <span className="lp-points-hero__label">Total points</span>
+        <span className="lp-points-hero__value">{totalPoints}</span>
+        <span className="lp-points-hero__sub">{totalPoints} this month</span>
+      </div>
+      <div className="lp-points-hero__art">
+        <img src={iconLightningLarge} alt="" className="lp-points-hero__icon" aria-hidden="true" />
+      </div>
+    </div>
 
-  const pct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+    {/* By course */}
+    <h2 className="lp-section-heading">By course</h2>
+    <div className="lp-course-list">
+      {courses.map((course, i) => (
+        <PointsCourseRow
+          key={course.courseId}
+          course={course}
+          artSrc={COURSE_ART[i % COURSE_ART.length].artSrc}
+          tintClass={COURSE_ART[i % COURSE_ART.length].tintClass}
+        />
+      ))}
+    </div>
+
+    {/* Rules pill */}
+    <div className="lp-rules-wrap">
+      <button type="button" className="lp-rules-pill">
+        <img src={iconCircleInfo} alt="" className="lp-rules-pill__icon" aria-hidden="true" />
+        <span>How points work</span>
+      </button>
+    </div>
+
+    <div className="lp-spacer" />
+
+    {/* Footer CTA */}
+    <button type="button" className="btn-primary" onClick={onContinue}>
+      Continue learning
+    </button>
+  </div>
+);
+
+// ── Streak tab ───────────────────────────────────────────
+
+type StreakState = 'none' | 'reset';
+
+type WeekCellState = 'empty' | 'met' | 'forgiven' | 'missed' | 'current';
+
+interface WeekCellData {
+  monthLabel: string;
+  dateLabel: string;
+  state: WeekCellState;
+}
+
+const STREAK_NONE_WEEKS: WeekCellData[] = [
+  { monthLabel: 'Sep', dateLabel: '7', state: 'empty' },
+  { monthLabel: '', dateLabel: '14', state: 'empty' },
+  { monthLabel: '', dateLabel: '21', state: 'empty' },
+  { monthLabel: '', dateLabel: '28', state: 'empty' },
+  { monthLabel: 'Oct', dateLabel: '5', state: 'empty' },
+  { monthLabel: '', dateLabel: '12', state: 'empty' },
+  { monthLabel: '', dateLabel: '19', state: 'empty' },
+  { monthLabel: '', dateLabel: 'Now', state: 'current' },
+];
+
+const STREAK_RESET_WEEKS: WeekCellData[] = [
+  { monthLabel: 'Sep', dateLabel: '7', state: 'met' },
+  { monthLabel: '', dateLabel: '14', state: 'met' },
+  { monthLabel: '', dateLabel: '21', state: 'met' },
+  { monthLabel: '', dateLabel: '28', state: 'met' },
+  { monthLabel: 'Oct', dateLabel: '5', state: 'forgiven' },
+  { monthLabel: '', dateLabel: '12', state: 'missed' },
+  { monthLabel: '', dateLabel: '19', state: 'missed' },
+  { monthLabel: '', dateLabel: 'Now', state: 'current' },
+];
+
+type LpDayState = 'learned' | 'today' | 'missed' | 'upcoming';
+
+interface LpDayProps {
+  state: LpDayState;
+  label: string;
+}
+
+const LpDay = ({ state, label }: LpDayProps) => (
+  <div className="lp-streak-day">
+    <div className={`lp-streak-day__dot lp-streak-day__dot--${state}`}>
+      {state === 'learned' && (
+        <img src={iconCircleCheck} alt="" className="lp-streak-day__check" aria-hidden="true" />
+      )}
+    </div>
+    <span className={`lp-streak-day__label${state === 'today' ? ' lp-streak-day__label--today' : ''}`}>
+      {label}
+    </span>
+  </div>
+);
+
+interface StreakThisWeekProps {
+  streakState: StreakState;
+}
+
+const STREAK_THIS_WEEK_DAYS: Record<StreakState, Array<{ label: string; state: LpDayState }>> = {
+  none: [
+    { label: 'M', state: 'missed' },
+    { label: 'T', state: 'missed' },
+    { label: 'W', state: 'today' },
+    { label: 'T', state: 'upcoming' },
+    { label: 'F', state: 'upcoming' },
+    { label: 'S', state: 'upcoming' },
+    { label: 'S', state: 'upcoming' },
+  ],
+  reset: [
+    { label: 'M', state: 'learned' },
+    { label: 'T', state: 'missed' },
+    { label: 'W', state: 'today' },
+    { label: 'T', state: 'upcoming' },
+    { label: 'F', state: 'upcoming' },
+    { label: 'S', state: 'upcoming' },
+    { label: 'S', state: 'upcoming' },
+  ],
+};
+
+const STREAK_THIS_WEEK_CONFIG: Record<StreakState, { completed: number; heading: string; desc: string }> = {
+  none: {
+    completed: 0,
+    heading: 'Two days to go',
+    desc: 'Learn on 2 days this week to start a week streak.',
+  },
+  reset: {
+    completed: 1,
+    heading: 'One more day to go',
+    desc: 'Learn on one more day this week to start a new streak.',
+  },
+};
+
+const StreakThisWeek = ({ streakState }: StreakThisWeekProps) => {
+  const cfg = STREAK_THIS_WEEK_CONFIG[streakState];
+  const days = STREAK_THIS_WEEK_DAYS[streakState];
+  const showProgress = cfg.completed > 0;
 
   return (
-    <div className="lp-progress-section">
-      <div className="lp-progress-label-row">
-        <span>{`${completedSteps} of ${totalSteps} course steps`}</span>
-        <span>{`${pct}%`}</span>
+    <div className="lp-streak-this-week">
+      <div className="lp-streak-this-week__goal">
+        <div className="lp-streak-this-week__ring" aria-label={`${cfg.completed} of 2 days done`}>
+          <img src={ringTrack} alt="" className="lp-streak-this-week__ring-track" aria-hidden="true" />
+          {showProgress && (
+            <img src={ringProgress} alt="" className="lp-streak-this-week__ring-progress" aria-hidden="true" />
+          )}
+          <span className="lp-streak-this-week__ring-label">{cfg.completed}/2</span>
+        </div>
+        <div className="lp-streak-this-week__words">
+          <span className="lp-streak-this-week__heading">{cfg.heading}</span>
+          <span className="lp-streak-this-week__desc">{cfg.desc}</span>
+        </div>
       </div>
-      <div
-        className="lp-progress-track"
-        role="progressbar"
-        aria-valuenow={pct}
-        aria-valuemin={0}
-        aria-valuemax={100}
-      >
-        <div className="lp-progress-fill" style={{ width: `${pct}%` }} />
+      <div className="lp-streak-this-week__days">
+        {days.map((day, i) => (
+          // eslint-disable-next-line react/no-array-index-key
+          <LpDay key={i} state={day.state} label={day.label} />
+        ))}
       </div>
     </div>
   );
 };
 
-// ── Progress tab ────────────────────────────────────────
-
-interface ProgressTabProps {
-  courses: EnrolledCourse[];
+interface StreakTabProps {
+  streakState?: StreakState;
+  onContinue: () => void;
 }
 
-const ProgressTab = ({ courses }: ProgressTabProps) => {
-  const firstCourseId = courses[0]?.courseId;
-
-  // Aggregate points across all enrolled courses
-  const firstProgress = useProgress(firstCourseId ?? '');
-  const totalPoints = firstProgress.data?.points?.earned ?? 0;
+const StreakTab = ({ streakState = 'none', onContinue }: StreakTabProps) => {
+  const weeks = streakState === 'reset' ? STREAK_RESET_WEEKS : STREAK_NONE_WEEKS;
+  const streakCount = streakState === 'reset' ? 0 : 0;
+  const longestStreak = streakState === 'reset' ? 4 : 0;
+  const subLine = streakState === 'reset'
+    ? `weeks in a row · longest ${longestStreak}`
+    : 'weeks in a row';
 
   return (
-    <div className="lp-panel">
-      {/* Points summary */}
-      <div className="lp-summary-card">
-        <div className="lp-summary-card__body">
-          <span className="lp-summary-card__label">Uber Learn points</span>
-          <span className="lp-summary-card__sublabel">Across all your courses</span>
+    <div className="lp-tab-content">
+      {/* Hero — includes 8-week history */}
+      <div className="lp-streak-hero">
+        <div className="lp-streak-hero__row">
+          <div className="lp-streak-hero__figure">
+            <span className="lp-points-hero__label">Week streak</span>
+            <span className="lp-points-hero__value">{streakCount}</span>
+            <span className="lp-points-hero__sub">{subLine}</span>
+          </div>
+          <div className="lp-streak-hero__art lp-streak-hero__art--green">
+            <img src={iconCalendar} alt="" className="lp-streak-hero__icon" aria-hidden="true" />
+          </div>
         </div>
-        <span className="lp-summary-card__value">{totalPoints}</span>
+        <div className="lp-week-history" aria-label="8-week history">
+          {weeks.map((week, i) => (
+            // eslint-disable-next-line react/no-array-index-key
+            <div key={i} className="lp-week-col">
+              <span className="lp-week-col__month">{week.monthLabel}</span>
+              <div className={`lp-week-cell lp-week-cell--${week.state}`}>
+                {week.state === 'met' && (
+                  <img src={iconCircleCheck} alt="" className="lp-week-cell__icon" aria-hidden="true" />
+                )}
+              </div>
+              <span className={`lp-week-col__date${week.state === 'current' ? ' lp-week-col__date--current' : ''}`}>
+                {week.dateLabel}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Per-course contributions */}
-      {courses.length > 0 && (
+      {/* This week */}
+      <StreakThisWeek streakState={streakState} />
+
+      <div className="lp-rules-wrap">
+        <button type="button" className="lp-rules-pill">
+          <img src={iconCircleInfo} alt="" className="lp-rules-pill__icon" aria-hidden="true" />
+          <span>How your streak works</span>
+        </button>
+      </div>
+
+      <div className="lp-spacer" />
+      <button type="button" className="btn-primary" onClick={onContinue}>
+        Continue learning
+      </button>
+    </div>
+  );
+};
+
+// ── Badges tab ───────────────────────────────────────────
+
+type BadgesState = 'default' | 'thirtyDayDue' | 'allEarned';
+
+interface BadgeRowHiFiProps {
+  src: string;
+  name: string;
+  sub: string;
+}
+
+const BadgeRowHiFi = ({ src, name, sub }: BadgeRowHiFiProps) => (
+  <div className="lp-badge-row--hifi">
+    <img src={src} alt="" className="lp-badge-row__img--hifi" aria-hidden="true" />
+    <div className="lp-badge-row__body--hifi">
+      <span className="lp-badge-row__name--hifi">{name}</span>
+      <span className="lp-badge-row__sub--hifi">{sub}</span>
+    </div>
+  </div>
+);
+
+interface BadgesTabProps {
+  badgesState?: BadgesState;
+  onContinue: () => void;
+  onThirtyDayCheck?: () => void;
+}
+
+const BadgesTab = ({ badgesState = 'default', onContinue, onThirtyDayCheck }: BadgesTabProps) => {
+  const earnedCount = badgesState === 'allEarned' ? 3 : badgesState === 'thirtyDayDue' ? 2 : 1;
+
+  return (
+    <div className="lp-tab-content">
+      {/* Hi-fi hero */}
+      <div className="lp-badges-hifi-hero">
+        <div className="lp-badges-hifi-hero__figure">
+          <span className="lp-points-hero__label">Badges</span>
+          <span className="lp-points-hero__value">{earnedCount} of 3</span>
+          <span className="lp-points-hero__sub">for your required courses</span>
+        </div>
+        <div className="lp-badges-hifi-hero__art">
+          <img src={iconBadgeCheck} alt="" className="lp-badges-hifi-hero__icon" aria-hidden="true" />
+        </div>
+      </div>
+
+      {/* Badge list */}
+      <div className="lp-badge-list--hifi">
+        <BadgeRowHiFi
+          src={badgeHalfwayEarned}
+          name="Halfway"
+          sub="Earned 26 October 2026"
+        />
+        <BadgeRowHiFi
+          src={badgesState === 'default' ? badgeCompleteLocked : badgeCompleteEarned}
+          name="Complete"
+          sub={badgesState === 'default' ? 'Finish all lessons to earn this' : 'Earned 2 November 2026'}
+        />
+        <BadgeRowHiFi
+          src={badgesState === 'allEarned' ? badgeRetainedEarned : badgeRetainedLocked}
+          name="Retained"
+          sub={
+            badgesState === 'allEarned'
+              ? 'Earned 2 December 2026'
+              : badgesState === 'thirtyDayDue'
+              ? 'Your 30-day check is open'
+              : 'Pass your 30-day check to earn this'
+          }
+        />
+        {badgesState === 'thirtyDayDue' && (
+          <div className="lp-badge-cta">
+            <button type="button" className="btn-primary" onClick={onThirtyDayCheck ?? onContinue}>
+              Take your 30-day check
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="lp-rules-wrap">
+        <button type="button" className="lp-rules-pill">
+          <img src={iconCircleInfo} alt="" className="lp-rules-pill__icon" aria-hidden="true" />
+          <span>How badges work</span>
+        </button>
+      </div>
+
+      <div className="lp-spacer" />
+      <button type="button" className="btn-primary" onClick={onContinue}>
+        Continue learning
+      </button>
+    </div>
+  );
+};
+
+// ── Leaderboard tab ──────────────────────────────────────
+
+const PersonIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+    <circle cx="9" cy="6" r="3.5" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M2 16c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+
+interface LeaderboardTabProps {
+  ranked?: boolean;
+  onContinue: () => void;
+}
+
+const LeaderboardTab = ({ ranked = false, onContinue }: LeaderboardTabProps) => {
+  const notRankedRows = [
+    { rank: 1, name: 'Driver 4821', points: 45 },
+    { rank: 2, name: 'Driver 2210', points: 40 },
+    { rank: 3, name: 'Driver 1307', points: 40 },
+  ];
+
+  const rankedRows = [
+    { rank: 1, name: 'Alex M.', points: 240, isYou: false },
+    { rank: 2, name: 'Jordan T.', points: 195, isYou: false },
+    { rank: 3, name: 'You', points: 95, isYou: true },
+    { rank: 4, name: 'Sam R.', points: 80, isYou: false },
+    { rank: 5, name: 'Casey L.', points: 70, isYou: false },
+  ];
+
+  return (
+    <div className="lp-tab-content">
+      {ranked ? (
         <>
-          <h2 className="lp-section-heading">Course contributions</h2>
-          <div className="lp-contributions">
-            {courses.map((course) => (
-              <CourseContributionRow key={course.courseId} course={course} />
+          <div className="lp-leaderboard-hero">
+            <span className="lp-points-hero__label">Your rank</span>
+            <span className="lp-points-hero__value">#3</span>
+            <span className="lp-points-hero__sub">Top 30% this month</span>
+          </div>
+          <h2 className="lp-section-heading">This month</h2>
+          <div className="lp-leaderboard-list">
+            {rankedRows.map((row) => (
+              <div
+                key={row.rank}
+                className={`lp-leaderboard-row${row.isYou ? ' lp-leaderboard-row--you' : ''}`}
+              >
+                <span className="lp-leaderboard-row__rank">{row.rank}</span>
+                <span className="lp-leaderboard-row__name">{row.name}</span>
+                <span className="lp-leaderboard-row__points">{row.points}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="lp-leaderboard-hero--hifi">
+            <div className="lp-leaderboard-hero__figure">
+              <span className="lp-points-hero__label">Your rank this month</span>
+              <span className="lp-points-hero__value">Not yet</span>
+              <span className="lp-points-hero__sub">Finish a lesson this month to join</span>
+            </div>
+            <div className="lp-podium" aria-hidden="true">
+              <div className="lp-podium__bar lp-podium__bar--silver" />
+              <div className="lp-podium__bar lp-podium__bar--gold" />
+              <div className="lp-podium__bar lp-podium__bar--bronze" />
+            </div>
+          </div>
+
+          <h2 className="lp-section-heading">This month</h2>
+          <div className="lp-leaderboard-list--hifi">
+            {notRankedRows.map((row) => (
+              <div key={row.rank} className="lp-leaderboard-row--hifi">
+                <span className="lp-leaderboard-row__rank--hifi">{row.rank}</span>
+                <div className="lp-leaderboard-avatar">
+                  <span className="lp-leaderboard-avatar__icon"><PersonIcon /></span>
+                </div>
+                <span className="lp-leaderboard-row__name--hifi">{row.name}</span>
+                <span className="lp-leaderboard-row__points--hifi">{row.points}</span>
+              </div>
             ))}
           </div>
         </>
       )}
 
-      {/* Overall progress bar — driven by first enrolled course */}
-      {firstCourseId && <OverallProgressBar courseId={firstCourseId} />}
+      <div className="lp-rules-wrap">
+        <button type="button" className="lp-rules-pill">
+          <img src={iconCircleInfo} alt="" className="lp-rules-pill__icon" aria-hidden="true" />
+          <span>How the leaderboard works</span>
+        </button>
+      </div>
 
-      <p className="lp-note">
-        Points are awarded once per eligible activity. Reading requires Continue,
-        videos require full playback, and practice requires a correct answer.
-        Resource screens and assessments award no points.
-      </p>
+      <div className="lp-spacer" />
+      <button type="button" className="btn-primary" onClick={onContinue}>
+        Continue learning
+      </button>
     </div>
   );
 };
 
-// ── Habit tab ───────────────────────────────────────────
-
-const HabitTab = () => (
-  <div className="lp-panel">
-    {/* Week streak summary */}
-    <div className="lp-summary-card">
-      <div className="lp-summary-card__body">
-        <span className="lp-summary-card__label">Week streak</span>
-        <span className="lp-summary-card__sublabel">Consecutive goal weeks</span>
-      </div>
-      <span className="lp-summary-card__value">0</span>
-    </div>
-
-    {/* Weekly goal card */}
-    <div className="lp-weekly-goal">
-      <p className="lp-weekly-goal__kicker">This week's goal</p>
-      <p className="lp-weekly-goal__title">0 of 2 learning days this week</p>
-      <div className="lp-weekly-goal__meter" aria-hidden="true">
-        <div className="lp-weekly-goal__day" />
-        <div className="lp-weekly-goal__day" />
-      </div>
-      <p className="lp-weekly-goal__desc">
-        Learn on two different days this week to keep your streak.
-      </p>
-      <p className="lp-weekly-goal__streak">No week streak yet</p>
-    </div>
-
-    <p className="lp-note">
-      A learning day requires the first completion of an eligible activity. The goal
-      is two different days in a Monday–Sunday week. Finishing all available learning
-      also meets that week's goal. A week with no eligible learning pauses the streak.
-      One missed active week in eight can be forgiven; earned points and badges never
-      disappear.
-    </p>
-  </div>
-);
-
-// ── Badges tab ──────────────────────────────────────────
-
-const BadgesTab = () => (
-  <div className="lp-panel">
-    <p className="lp-note" style={{ paddingBottom: 0 }}>
-      Three account-level badges recognise applied practice, course completion, and
-      retained knowledge.
-    </p>
-    <div className="lp-badge-list">
-      <div className="lp-badge-row">
-        <div className="lp-badge-icon lp-badge-icon--earned">
-          <BadgeCheckIcon />
-        </div>
-        <div className="lp-badge-row__body">
-          <span className="lp-badge-row__name lp-badge-row__name--earned">Applied</span>
-          <span className="lp-badge-row__desc">Earned across Uber Learn</span>
-        </div>
-      </div>
-      <div className="lp-badge-row">
-        <div className="lp-badge-icon lp-badge-icon--locked">
-          <ShieldCheckIcon />
-        </div>
-        <div className="lp-badge-row__body">
-          <span className="lp-badge-row__name lp-badge-row__name--locked">Thorough</span>
-          <span className="lp-badge-row__desc">Complete an eligible course and its required check</span>
-        </div>
-      </div>
-      <div className="lp-badge-row">
-        <div className="lp-badge-icon lp-badge-icon--locked">
-          <LockIcon />
-        </div>
-        <div className="lp-badge-row__body">
-          <span className="lp-badge-row__name lp-badge-row__name--locked">Retained</span>
-          <span className="lp-badge-row__desc">Pass a check 30 days after course completion</span>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-// ── Standing tab ────────────────────────────────────────
-
-const StandingTab = () => {
-  const bands: { label: string; active: boolean }[] = [
-    { label: '1–25%', active: false },
-    { label: '26–50%', active: true },
-    { label: '51–75%', active: false },
-    { label: '76–100%', active: false },
-  ];
-
-  return (
-    <div className="lp-panel">
-      <div className="lp-cohort">
-        <p className="lp-cohort__kicker">Illustrative cohort · This week</p>
-        <h2 className="lp-cohort__heading">Your band: 26–50%</h2>
-        <div className="lp-cohort__bands">
-          {bands.map(({ label, active }) => (
-            <div key={label} className="lp-cohort__band">
-              <div className={`lp-cohort__block${active ? ' lp-cohort__block--active' : ''}`}>
-                {active && <span className="lp-cohort__you">You</span>}
-              </div>
-              <span className={`lp-cohort__band-label${active ? ' lp-cohort__band-label--active' : ''}`}>
-                {label}
-              </span>
-            </div>
-          ))}
-        </div>
-        <p className="lp-cohort__note">
-          Example cohort of 120 learners. Live comparisons will use approved,
-          privacy-safe learner data.
-        </p>
-      </div>
-    </div>
-  );
-};
-
-// ── Main page ───────────────────────────────────────────
+// ── Main page ────────────────────────────────────────────
 
 export const LearningProgress = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabId>('progress');
+  const [activeTab, setActiveTab] = useState<TabId>('Points');
 
   const { data: courses } = useQuery({
     queryKey: ['enrolled-courses'],
@@ -324,8 +521,10 @@ export const LearningProgress = () => {
     staleTime: 5 * 60_000,
   });
 
-  const firstCourseId = courses?.[0]?.courseId;
   const enrolledCourses = courses ?? [];
+  const firstCourseId = enrolledCourses[0]?.courseId;
+  const { data: progressData } = useProgress(firstCourseId ?? '');
+  const totalPoints = progressData?.points?.earned ?? 95;
 
   const handleContinue = () => {
     if (firstCourseId) {
@@ -347,51 +546,55 @@ export const LearningProgress = () => {
         >
           <ArrowLeft />
         </button>
-        <span className="lp-nav__title">Learning progress</span>
+        <span className="lp-nav__title">Your progress</span>
+        <div className="lp-nav__spacer" aria-hidden="true" />
       </header>
 
-      {/* Scrollable body */}
-      <div className="lp-body">
-        {/* Page header */}
-        <div className="lp-header">
-          <p className="lp-kicker">Across all courses</p>
-          <h1 className="lp-title">Learning progress</h1>
-          <p className="lp-lead">Points, habits, badges, and standing across your courses.</p>
-        </div>
-
-        {/* Tabs */}
-        <div className="lp-tabs" role="tablist">
-          {TABS.map(({ id, label }) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              className={`lp-tab${activeTab === id ? ' lp-tab--active' : ''}`}
-              aria-selected={activeTab === id}
-              onClick={() => setActiveTab(id)}
-            >
-              <span className="lp-tab__label">{label}</span>
-              <span className="lp-tab__bar" />
-            </button>
-          ))}
-        </div>
-
-        {/* Tab panels */}
-        {activeTab === 'progress' && <ProgressTab courses={enrolledCourses} />}
-        {activeTab === 'habit' && <HabitTab />}
-        {activeTab === 'badges' && <BadgesTab />}
-        {activeTab === 'standing' && <StandingTab />}
+      {/* Tabs */}
+      <div className="lp-tabs" role="tablist">
+        {TABS.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            className={`lp-tab${activeTab === tab ? ' lp-tab--active' : ''}`}
+            aria-selected={activeTab === tab}
+            onClick={() => setActiveTab(tab)}
+          >
+            <span className="lp-tab__label">{tab}</span>
+            <span className="lp-tab__bar" />
+          </button>
+        ))}
       </div>
 
-      {/* Footer */}
-      <footer className="lp-footer">
-        <button type="button" className="lp-footer__primary" onClick={handleContinue}>
-          Continue course
-        </button>
-        <button type="button" className="lp-footer__secondary" onClick={() => navigate('/')}>
-          Learning home
-        </button>
-      </footer>
+      {/* Scrollable content + footer */}
+      <div className="lp-body">
+        {activeTab === 'Points' && (
+          <PointsTab
+            courses={enrolledCourses}
+            totalPoints={totalPoints}
+            onContinue={handleContinue}
+          />
+        )}
+        {activeTab === 'Streak' && (
+          <StreakTab
+            streakState="none"
+            onContinue={handleContinue}
+          />
+        )}
+        {activeTab === 'Badges' && (
+          <BadgesTab
+            badgesState="default"
+            onContinue={handleContinue}
+          />
+        )}
+        {activeTab === 'Leaderboard' && (
+          <LeaderboardTab
+            ranked={false}
+            onContinue={handleContinue}
+          />
+        )}
+      </div>
     </div>
   );
 };

@@ -133,6 +133,52 @@
   margin: 0;
 }
 
+/* ── Also earned ──────────────────────────────────────── */
+.badge-earned__also-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 24px 0;
+}
+
+.badge-earned__also-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--u-background-secondary);
+  border-radius: 16px;
+}
+
+.badge-earned__also-art {
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background: var(--u-learning-course-tint-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.badge-earned__also-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.badge-earned__also-text {
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.43;
+  color: var(--u-content-primary);
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
 /* ── Badge trio summary ───────────────────────────────── */
 .badge-earned__trio-wrap {
   padding: 20px 24px 0;

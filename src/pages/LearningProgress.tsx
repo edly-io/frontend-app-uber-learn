@@ -9,8 +9,10 @@ import { getStoredResumeIdx } from '../lib/resume-storage';
 import { useGamification, type GamificationSummary } from '../hooks/useGamification';
 import { useLeaderboard, type LeaderboardData } from '../hooks/useLeaderboard';
 import { useCurriculums } from '../hooks/useCurriculums';
-import type { LearnerCurriculum, BadgeSlot } from '../api/curriculum';
+import { useBadges } from '../hooks/useBadges';
+import type { LearnerCurriculum, BadgeSlot, BadgeAward } from '../api/curriculum';
 import type { GamificationDay, WeekdayKey } from '../api/gamification';
+import { BadgeDetailSheet, type SheetBadgeData } from '../components/ui/BadgeDetailSheet';
 
 import iconCircleInfo from '../assets/icons/icon-circle-info.svg';
 import courseArtBlue from '../assets/icons/course-art-blue2.svg';
@@ -26,6 +28,14 @@ import badgeCompleteEarned from '../assets/badges/badge-complete-earned.svg';
 import badgeCompleteLocked from '../assets/badges/badge-complete-locked.svg';
 import badgeRetainedEarned from '../assets/badges/badge-retained-earned.svg';
 import badgeRetainedLocked from '../assets/badges/badge-retained-locked.svg';
+
+import courseArtBlue1 from '../assets/icons/course-art-blue.svg';
+import courseArtOrange from '../assets/icons/course-art-orange.svg';
+import courseArtMagenta from '../assets/icons/course-art-magenta.svg';
+import courseArtPurple from '../assets/icons/course-art-purple.svg';
+import courseArtLime from '../assets/icons/course-art-lime.svg';
+import courseArtSteering from '../assets/icons/course-art-steering.svg';
+import courseArtToolbox from '../assets/icons/course-art-toolbox.svg';
 
 import './learning-progress.css';
 
@@ -403,70 +413,127 @@ const StreakTab = ({ streakState = 'none', apiSummary, onContinue }: StreakTabPr
 
 // ── Badges tab ───────────────────────────────────────────
 
-function formatEarnedDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-}
+const COURSE_ARTS = [
+  { art: courseArtBlue1, tint: 'var(--u-learning-course-tint-blue)' },
+  { art: courseArtLime, tint: 'var(--u-learning-course-tint-lime)' },
+  { art: courseArtOrange, tint: 'var(--u-learning-course-tint-orange)' },
+  { art: courseArtMagenta, tint: 'var(--u-learning-course-tint-magenta)' },
+  { art: courseArtPurple, tint: 'var(--u-learning-course-tint-purple)' },
+  { art: courseArtSteering, tint: 'var(--u-learning-course-tint-teal)' },
+  { art: courseArtToolbox, tint: 'var(--u-learning-course-tint-blue)' },
+];
 
-type BadgesState = 'default' | 'thirtyDayDue' | 'allEarned';
+// ── Badge grid seal ring ──────────────────────────────────
 
-interface BadgeRowHiFiProps {
-  src: string;
-  name: string;
-  sub: string;
-}
+const GridSealRing = ({ progress, art, tintColor, earned, hasThirty, thirtyOpen }: {
+  progress: number; art: string; tintColor: string; earned: boolean;
+  hasThirty?: boolean; thirtyOpen?: boolean;
+}) => {
+  const size = 88;
+  const r = (size - 12) / 2;
+  const c = size / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - Math.min(1, progress));
 
-const BadgeRowHiFi = ({ src, name, sub }: BadgeRowHiFiProps) => (
-  <div className="lp-badge-row--hifi">
-    <img src={src} alt="" className="lp-badge-row__img--hifi" aria-hidden="true" />
-    <div className="lp-badge-row__body--hifi">
-      <span className="lp-badge-row__name--hifi">{name}</span>
-      <span className="lp-badge-row__sub--hifi">{sub}</span>
+  return (
+    <div className="lp-badge-grid-ring" style={{ width: size, height: size }}>
+      <svg className="lp-badge-grid-ring__svg" viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={c} cy={c} r={r} stroke="var(--u-border-opaque)" strokeWidth="4" fill="none" />
+        {progress > 0 && (
+          <circle
+            cx={c} cy={c} r={r}
+            stroke="var(--u-background-accent)" strokeWidth="4" fill="none"
+            strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset}
+            transform={`rotate(-90 ${c} ${c})`}
+          />
+        )}
+      </svg>
+      <div
+        className="lp-badge-grid-ring__inner"
+        style={{ background: earned ? tintColor : 'var(--u-background-tertiary)' }}
+      >
+        <img
+          src={art} alt=""
+          className={`lp-badge-grid-ring__art${earned ? '' : ' lp-badge-grid-ring__art--locked'}`}
+          aria-hidden="true"
+        />
+      </div>
+      {hasThirty && (
+        <div
+          className={`lp-badge-grid-ring__thirty${thirtyOpen ? ' lp-badge-grid-ring__thirty--open' : ''}`}
+          aria-label={thirtyOpen ? '30-day check open' : '30-day check locked'}
+        >
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+            <path d="M10 13c-3.314 0-6-2.686-6-6V3h12v4c0 3.314-2.686 6-6 6Z" stroke="currentColor" strokeWidth="1.5" fill="none" />
+            <path d="M4 5H2v2c0 1.657 1.343 3 3 3M16 5h2v2c0 1.657-1.343 3-3 3M10 13v4M7 17h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </div>
+      )}
     </div>
-  </div>
+  );
+};
+
+// ── Badge grid item ───────────────────────────────────────
+
+const BadgeGridItem = ({ title, sub, ring, isNew, onClick }: {
+  title: string; sub: string; ring: React.ReactNode; isNew?: boolean; onClick: () => void;
+}) => (
+  <button type="button" className="lp-badge-grid-item" onClick={onClick}>
+    <div className="lp-badge-grid-item__ring-wrap">
+      {ring}
+      {isNew && <span className="lp-badge-grid-item__new">New</span>}
+    </div>
+    <span className="lp-badge-grid-item__name">{title}</span>
+    <span className="lp-badge-grid-item__sub">{sub}</span>
+  </button>
 );
 
+// ── Main BadgesTab ────────────────────────────────────────
+
 interface BadgesTabProps {
-  badgesState?: BadgesState;
-  apiCurriculum?: LearnerCurriculum;
+  curriculums?: LearnerCurriculum[];
+  courses: EnrolledCourse[];
   onContinue: () => void;
-  onThirtyDayCheck?: () => void;
 }
 
-const SLOT_ORDER: BadgeSlot[] = ['halfway', 'complete', 'retained'];
+const BadgesTab = ({ curriculums, courses, onContinue }: BadgesTabProps) => {
+  const [sheet, setSheet] = useState<SheetBadgeData | null>(null);
+  const { data: badgesPage } = useBadges();
+  const totalBadges = badgesPage?.count ?? 0;
+  const earnedAwards = badgesPage?.results ?? [];
 
-const SLOT_FALLBACK_EARNED: Record<BadgeSlot, string> = {
-  halfway: badgeHalfwayEarned,
-  complete: badgeCompleteEarned,
-  retained: badgeRetainedEarned,
-};
-const SLOT_FALLBACK_LOCKED: Record<BadgeSlot, string> = {
-  halfway: badgeHalfwayEarned,
-  complete: badgeCompleteLocked,
-  retained: badgeRetainedLocked,
-};
-const SLOT_LABEL: Record<BadgeSlot, string> = {
-  halfway: 'Halfway',
-  complete: 'Complete',
-  retained: 'Retained',
-};
-
-const BadgesTab = ({ badgesState = 'default', apiCurriculum, onContinue, onThirtyDayCheck }: BadgesTabProps) => {
-  const milestones = apiCurriculum?.milestones;
-  const knowledgeCheck = apiCurriculum?.knowledge_check;
-
-  const earnedSlots = milestones
-    ? SLOT_ORDER.filter((s) => milestones[s].reached_at !== null).length
-    : (badgesState === 'allEarned' ? 3 : badgesState === 'thirtyDayDue' ? 2 : 1);
-
-  const isThirtyDayDue = milestones ? Boolean(knowledgeCheck?.is_open) : badgesState === 'thirtyDayDue';
-
-  const handleThirtyDay = () => {
-    if (knowledgeCheck?.course_id) {
-      onThirtyDayCheck?.();
-    } else {
-      onContinue();
+  // Build map of course_id → BadgeAward for quick lookup
+  const courseAwardMap = new Map<string, BadgeAward>();
+  earnedAwards.forEach((a) => {
+    if (a.source.type === 'course') {
+      courseAwardMap.set(a.source.course_id, a);
     }
+  });
+
+  const handlePathClick = (curriculum: LearnerCurriculum) => {
+    setSheet({ kind: 'path', curriculum });
   };
+
+  const handleCourseClick = (course: EnrolledCourse, idx: number) => {
+    const award = courseAwardMap.get(course.courseId);
+    const artMeta = COURSE_ARTS[idx % COURSE_ARTS.length];
+    const earned = Boolean(award);
+    setSheet({
+      kind: 'course',
+      courseId: course.courseId,
+      title: award?.badge.title ?? course.title,
+      description: award?.badge.description ?? `Earned when you finish all lessons and the final check.`,
+      art: artMeta.art,
+      tintColor: artMeta.tint,
+      progress: 'In progress',
+      earned,
+      earnedDate: award
+        ? new Date(award.awarded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+        : undefined,
+    });
+  };
+
+  const badgeLabel = totalBadges === 1 ? 'badge earned' : 'badges earned';
 
   return (
     <div className="lp-tab-content">
@@ -474,70 +541,90 @@ const BadgesTab = ({ badgesState = 'default', apiCurriculum, onContinue, onThirt
       <div className="lp-badges-hifi-hero">
         <div className="lp-badges-hifi-hero__figure">
           <span className="lp-points-hero__label">Badges</span>
-          <span className="lp-points-hero__value">{earnedSlots} of 3</span>
-          <span className="lp-points-hero__sub">for your required courses</span>
+          <span className="lp-points-hero__value">{totalBadges}</span>
+          <span className="lp-points-hero__sub">{badgeLabel}</span>
         </div>
         <div className="lp-badges-hifi-hero__art">
           <img src={iconBadgeCheck} alt="" className="lp-badges-hifi-hero__icon" aria-hidden="true" />
         </div>
       </div>
 
-      {/* Badge list */}
-      <div className="lp-badge-list--hifi">
-        {SLOT_ORDER.map((slot) => {
-          const milestone = milestones?.[slot];
-          const earned = milestone ? milestone.reached_at !== null : undefined;
-          const apiImageUrl = milestone?.badge?.image_url ?? null;
-          const badgeTitle = milestone?.badge?.title ?? SLOT_LABEL[slot];
-          const imgSrc = apiImageUrl ?? (
-            slot === 'halfway'
-              ? badgeHalfwayEarned
-              : earned === false
-              ? SLOT_FALLBACK_LOCKED[slot]
-              : SLOT_FALLBACK_EARNED[slot]
-          );
+      {/* Learning paths section */}
+      {curriculums && curriculums.length > 0 && (
+        <>
+          <h2 className="lp-section-heading lp-section-heading--badges">Learning paths</h2>
+          <div className="lp-badge-grid">
+            {curriculums.map((c) => {
+              const complete = c.milestones.complete;
+              const retained = c.milestones.retained;
+              const isComplete = complete.reached_at !== null;
+              const thirtyOpen = c.knowledge_check.is_open;
+              const thirtyEarned = retained.reached_at !== null;
+              const progress = c.courses_total > 0
+                ? c.courses_passed / c.courses_total
+                : 0;
+              const sub = isComplete
+                ? new Date(complete.reached_at!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                : `${c.courses_passed}/${c.courses_total} courses`;
 
-          let sub: string;
-          if (milestone) {
-            if (milestone.reached_at) {
-              sub = `Earned ${formatEarnedDate(milestone.reached_at)}`;
-            } else if (slot === 'retained' && isThirtyDayDue) {
-              sub = 'Your 30-day check is open';
-            } else if (slot === 'retained') {
-              sub = 'Pass your 30-day check to earn this';
-            } else {
-              sub = 'Finish all lessons to earn this';
-            }
-          } else {
-            // No API data — fall back to static state
-            if (slot === 'halfway') {
-              sub = 'Earned 26 October 2026';
-            } else if (slot === 'complete') {
-              sub = badgesState === 'default' ? 'Finish all lessons to earn this' : 'Earned 2 November 2026';
-            } else {
-              sub = badgesState === 'allEarned' ? 'Earned 2 December 2026'
-                : badgesState === 'thirtyDayDue' ? 'Your 30-day check is open'
-                : 'Pass your 30-day check to earn this';
-            }
-          }
-
-          return (
-            <BadgeRowHiFi
-              key={slot}
-              src={imgSrc}
-              name={badgeTitle}
-              sub={sub}
-            />
-          );
-        })}
-        {isThirtyDayDue && (
-          <div className="lp-badge-cta">
-            <button type="button" className="btn-primary" onClick={handleThirtyDay}>
-              Take your 30-day check
-            </button>
+              return (
+                <BadgeGridItem
+                  key={c.uuid}
+                  title={c.title}
+                  sub={sub}
+                  onClick={() => handlePathClick(c)}
+                  ring={
+                    <GridSealRing
+                      progress={progress}
+                      art={complete.badge?.image_url ?? iconBadgeCheck}
+                      tintColor="var(--u-learning-course-tint-blue)"
+                      earned={isComplete}
+                      hasThirty={!thirtyEarned}
+                      thirtyOpen={thirtyOpen}
+                    />
+                  }
+                />
+              );
+            })}
           </div>
-        )}
-      </div>
+        </>
+      )}
+
+      {/* Courses section */}
+      {courses.length > 0 && (
+        <>
+          <h2 className="lp-section-heading lp-section-heading--badges lp-section-heading--with-divider">Courses</h2>
+          <div className="lp-badge-grid">
+            {courses.map((course, idx) => {
+              const award = courseAwardMap.get(course.courseId);
+              const artMeta = COURSE_ARTS[idx % COURSE_ARTS.length];
+              const earned = Boolean(award);
+              const isNew = award && !award.seen;
+              const sub = earned
+                ? new Date(award!.awarded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                : 'In progress';
+
+              return (
+                <BadgeGridItem
+                  key={course.courseId}
+                  title={course.title}
+                  sub={sub}
+                  isNew={Boolean(isNew)}
+                  onClick={() => handleCourseClick(course, idx)}
+                  ring={
+                    <GridSealRing
+                      progress={earned ? 1 : 0.2}
+                      art={artMeta.art}
+                      tintColor={artMeta.tint}
+                      earned={earned}
+                    />
+                  }
+                />
+              );
+            })}
+          </div>
+        </>
+      )}
 
       <div className="lp-rules-wrap">
         <button type="button" className="lp-rules-pill">
@@ -550,6 +637,8 @@ const BadgesTab = ({ badgesState = 'default', apiCurriculum, onContinue, onThirt
       <button type="button" className="btn-primary" onClick={onContinue}>
         Continue learning
       </button>
+
+      <BadgeDetailSheet data={sheet} onClose={() => setSheet(null)} />
     </div>
   );
 };
@@ -737,7 +826,8 @@ export const LearningProgress = () => {
         )}
         {activeTab === 'Badges' && (
           <BadgesTab
-            apiCurriculum={curriculums?.[0]}
+            curriculums={curriculums}
+            courses={enrolledCourses}
             onContinue={handleContinue}
           />
         )}

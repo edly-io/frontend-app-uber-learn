@@ -991,3 +991,137 @@
   color: var(--u-content-primary);
   flex-shrink: 0;
 }
+
+/* ── Badge grid (new Figma design) ───────────────────── */
+
+.lp-section-heading--badges {
+  padding-top: 8px;
+  margin-bottom: 16px;
+}
+
+.lp-section-heading--with-divider {
+  border-top: 1px solid var(--u-border-opaque);
+  padding-top: 20px;
+  margin-top: 8px;
+}
+
+.lp-badge-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px 8px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.lp-badge-grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  position: relative;
+}
+
+.lp-badge-grid-item__ring-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.lp-badge-grid-item__name {
+  font-family: var(--u-font-body);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.33;
+  color: var(--u-content-primary);
+  width: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.lp-badge-grid-item__sub {
+  font-family: var(--u-font-body);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--u-content-secondary);
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lp-badge-grid-item__new {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  background: var(--u-background-accent);
+  color: var(--u-content-on-color);
+  font-family: var(--u-font-body);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+/* ── Grid seal ring ──────────────────────────────────── */
+
+.lp-badge-grid-ring {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.lp-badge-grid-ring__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.lp-badge-grid-ring__inner {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  border: 4px solid var(--u-background-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.lp-badge-grid-ring__art {
+  width: 55%;
+  height: 55%;
+  object-fit: contain;
+}
+
+.lp-badge-grid-ring__art--locked {
+  filter: grayscale(100%) opacity(0.5);
+}
+
+/* 30-day trophy pin */
+.lp-badge-grid-ring__thirty {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 26px;
+  height: 26px;
+  background: var(--u-background-tertiary);
+  border: 3px solid var(--u-background-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--u-content-secondary);
+}
+
+.lp-badge-grid-ring__thirty--open {
+  background: var(--u-background-accent);
+  color: var(--u-content-on-color);
+}

@@ -22,6 +22,7 @@ import {
 } from './pages/CourseIntroductionPage';
 import { BadgeEarned } from './pages/BadgeEarned';
 import { LearningPathView } from './pages/LearningPathView';
+import { SearchPage } from './pages/SearchPage';
 
 import './styles/tokens.css';
 import './styles/typography.css';
@@ -107,6 +108,7 @@ export const App = () => (
         <Route path="/course/:courseId/check-result/:type" element={<KnowledgeCheckResultPage />} />
         <Route path="/badge/:type" element={<BadgeEarned />} />
         <Route path="/learning-path/:curriculumId" element={<LearningPathView />} />
+        <Route path="/search" element={<SearchPage />} />
         {/* LMS-generated deep links */}
         <Route path="/course/:courseId/home" element={<CourseHomeRedirect />} />
         <Route path="/course/:courseId/progress" element={<Navigate to="/progress" replace />} />

@@ -97,11 +97,9 @@ const CourseBadgeSheet = ({ data, onClose }: { data: CourseBadgeData; onClose: (
       ) : (
         <p className="bds-progress">{data.progress}</p>
       )}
-      {!data.earned && (
-        <button type="button" className="btn-primary bds-cta" onClick={handleContinue}>
-          Continue course
-        </button>
-      )}
+      <button type="button" className="btn-primary bds-cta" onClick={handleContinue}>
+        {data.earned ? 'View course' : 'Continue course'}
+      </button>
     </div>
   );
 };

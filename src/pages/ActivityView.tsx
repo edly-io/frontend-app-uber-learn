@@ -56,8 +56,11 @@ export const ActivityView = () => {
   const queryClient = useQueryClient();
   const unitIdx = parseInt(unitIdxParam, 10);
 
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [isIframeLoaded, setIsIframeLoaded] = useState(false);
+  // Completion and visibility are tracked per unit id rather than as booleans reset in an
+  // effect: the effect only runs after the first render of a new step, so for that render the
+  // previous step's "completed"/"loaded" state would leak through (enabled Continue, no spinner).
+  const [completedUnitId, setCompletedUnitId] = useState<string | null>(null);
+  const [shownUnitId, setShownUnitId] = useState<string | null>(null);
   // Track correctness from plugin.completed so it can be forwarded to the Progress API.
   const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
 
@@ -102,20 +105,21 @@ export const ActivityView = () => {
     resetResult,
   } = useAssessmentSubmit();
 
-  // Reset completion + loading state whenever the unit changes.
+  // Reset correctness whenever the unit changes.
   // Also record this as the furthest-reached sequence so CourseOverview and
   // SaveAndResumePage can show accurate progress even when the LMS resume
   // block hasn't caught up (common with demo courses).
   useEffect(() => {
-    setIsCompleted(false);
     setLastCorrect(null);
-    setIsIframeLoaded(false);
     if (sequenceId && courseId) {
       storeResumeSequence(courseId, sequenceId);
     }
   }, [sequenceId, unitIdx, courseId]);
 
   const currentUnit = units[unitIdx];
+  const currentUnitId = currentUnit?.id ?? null;
+  const isCompleted = currentUnitId !== null && completedUnitId === currentUnitId;
+  const isIframeLoaded = currentUnitId !== null && shownUnitId === currentUnitId;
 
   const recordMutation = useMutation({
     mutationFn: (correct: boolean | null) => recordActivity({
@@ -133,18 +137,19 @@ export const ActivityView = () => {
     // eslint-disable-next-line no-console
     console.debug('[ActivityView] plugin.completed received, correct=', correct);
     setLastCorrect(correct);
-    setIsCompleted(true);
-  }, []);
+    setCompletedUnitId(currentUnitId);
+  }, [currentUnitId]);
 
-  // Called when the iframe finishes loading. Marks the frame visible and
-  // auto-enables Continue for regular (non-assessment) content — standard
-  // Open edX XBlocks don't send plugin.completed.
-  const handleIframeLoad = useCallback(() => {
-    setIsIframeLoaded(true);
+  // Called when the unit's content is on screen: the iframe's first plugin.resize, or its load
+  // event, whichever comes first (load also waits for e.g. a video's first frame, which can take
+  // seconds on mobile). Marks the frame visible and auto-enables Continue for regular
+  // (non-assessment) content — standard Open edX XBlocks don't send plugin.completed.
+  const handleContentShown = useCallback(() => {
+    setShownUnitId(currentUnitId);
     if (!isAssessmentSequence) {
-      setIsCompleted(true);
+      setCompletedUnitId(currentUnitId);
     }
-  }, [isAssessmentSequence]);
+  }, [currentUnitId, isAssessmentSequence]);
 
   const handleContinue = useCallback(() => {
     if (!isCompleted) { return; }
@@ -341,7 +346,8 @@ export const ActivityView = () => {
           key={currentUnit.id}
           usageKey={currentUnit.id}
           onCompleted={handleCompleted}
-          onLoad={handleIframeLoad}
+          onContentReady={handleContentShown}
+          onLoad={handleContentShown}
         />
       </main>
 

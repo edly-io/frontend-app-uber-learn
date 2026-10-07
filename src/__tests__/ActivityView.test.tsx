@@ -342,6 +342,62 @@ describe('ActivityView', () => {
     });
   });
 
+  describe('showing the unit before the iframe load event', () => {
+    /** Simulate the unversioned plugin.resize the LMS posts once the unit's DOM is built. */
+    function dispatchFrameResize(source: MessageEventSource | null, origin: string = LMS_ORIGIN) {
+      act(() => {
+        window.dispatchEvent(new MessageEvent('message', {
+          origin,
+          source,
+          data: { type: 'plugin.resize', payload: { width: 400, height: 600 } },
+        }));
+      });
+    }
+    const getFrame = () => document.querySelector<HTMLIFrameElement>('.content-iframe-frame')!;
+    const spinner = () => document.querySelector('.content-iframe-spinner');
+
+    it('first plugin.resize from the unit iframe hides the spinner and enables Continue', async () => {
+      renderComponent();
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+      expect(spinner()).toBeInTheDocument();
+
+      dispatchFrameResize(getFrame().contentWindow);
+
+      await waitFor(() => expect(spinner()).not.toBeInTheDocument());
+      expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled();
+    });
+
+    it('ignores plugin.resize from another window on the LMS origin', async () => {
+      renderComponent();
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+
+      dispatchFrameResize(window);
+
+      expect(spinner()).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /continue/i })).toBeDisabled();
+    });
+
+    it('ignores plugin.resize from the iframe when the origin is not the LMS', async () => {
+      renderComponent();
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+
+      dispatchFrameResize(getFrame().contentWindow, 'https://evil.example.com');
+
+      expect(spinner()).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /continue/i })).toBeDisabled();
+    });
+
+    it('still shows the unit on the iframe load event (no plugin.resize)', async () => {
+      renderComponent();
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+
+      fireEvent.load(getFrame());
+
+      await waitFor(() => expect(spinner()).not.toBeInTheDocument());
+      expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled();
+    });
+  });
+
   describe('AC-ACT-PM-01: uber.continueClicked postMessage to LMS iframe', () => {
     // Isolate the contentWindow override to this describe block only.
     const mockPostMessage = jest.fn();

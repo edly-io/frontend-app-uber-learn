@@ -730,3 +730,111 @@
 .course-tile__band--purple {
   background: var(--u-learning-course-tint-purple);
 }
+
+/* ── Learning path card ───────────────────────────────── */
+.path-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.path-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px;
+  padding-right: 12px;
+  background: var(--u-background-primary);
+  border: 1px solid var(--u-border-opaque);
+  border-radius: 20px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.path-card__seal {
+  position: relative;
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+}
+
+.path-card__ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.path-card__seal-inner {
+  position: absolute;
+  inset: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--u-background-secondary);
+  border-radius: 999px;
+}
+
+.path-card__seal-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  opacity: 0.5;
+}
+
+.path-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.path-card__title {
+  font-family: var(--u-font-body);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.33;
+  color: var(--u-content-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.path-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.path-card__progress {
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.43;
+  color: var(--u-content-secondary);
+  display: block;
+}
+
+.path-card__next {
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.43;
+  color: var(--u-content-tertiary, var(--u-content-secondary));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.path-card__chevron {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  opacity: 0.4;
+}

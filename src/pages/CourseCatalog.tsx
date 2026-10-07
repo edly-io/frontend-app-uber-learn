@@ -26,6 +26,7 @@ import courseArtPurple from '../assets/icons/course-art-toolbox.svg';
 import sceneSafetyCar from '../assets/scenes/safety-car.png';
 import sceneSafetyEducation from '../assets/scenes/scene-safety-education.png';
 import iconDismiss from '../assets/icons/icon-dismiss.svg';
+import iconChevronRight from '../assets/icons/chevron-right.svg';
 import badgeHalfwayEarned from '../assets/badges/badge-halfway-earned.svg';
 import badgeCompleteEarned from '../assets/badges/badge-complete-earned.svg';
 import badgeRetainedLocked from '../assets/badges/badge-retained-locked.svg';
@@ -517,6 +518,56 @@ const NoticeCard = ({ variant = 'newCurriculum', onDismiss }: NoticeCardProps) =
   );
 };
 
+// ── Learning path card ───────────────────────────────────
+
+interface LearningPathCardProps {
+  curriculum: import('../api/curriculum').LearnerCurriculum;
+  onClick: () => void;
+}
+
+const LearningPathCard = ({ curriculum, onClick }: LearningPathCardProps) => {
+  const nextCourse = curriculum.courses
+    .slice()
+    .sort((a, b) => a.position - b.position)
+    .find((c) => !c.passed);
+
+  return (
+    <button type="button" className="path-card" onClick={onClick} aria-label={`View ${curriculum.title}`}>
+      <div className="path-card__seal">
+        <svg className="path-card__ring" viewBox="0 0 56 56" fill="none" aria-hidden="true">
+          <circle cx="28" cy="28" r="24" stroke="var(--u-border-opaque)" strokeWidth="3" />
+          {curriculum.courses_total > 0 && (
+            <circle
+              cx="28" cy="28" r="24"
+              stroke="var(--u-content-accent)"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray={`${2 * Math.PI * 24}`}
+              strokeDashoffset={`${2 * Math.PI * 24 * (1 - curriculum.courses_passed / curriculum.courses_total)}`}
+              transform="rotate(-90 28 28)"
+            />
+          )}
+        </svg>
+        <div className="path-card__seal-inner">
+          <img src={iconBadgeCheck} alt="" className="path-card__seal-icon" aria-hidden="true" />
+        </div>
+      </div>
+      <div className="path-card__body">
+        <span className="path-card__title">{curriculum.title}</span>
+        <div className="path-card__meta">
+          <span className="path-card__progress">
+            {curriculum.courses_passed} of {curriculum.courses_total} courses done
+          </span>
+          {nextCourse && (
+            <span className="path-card__next">Next: {nextCourse.display_name ?? nextCourse.course_id}</span>
+          )}
+        </div>
+      </div>
+      <img src={iconChevronRight} alt="" className="path-card__chevron" aria-hidden="true" />
+    </button>
+  );
+};
+
 // ── All courses card ─────────────────────────────────────
 
 const AllCoursesCard = ({ onClick }: { onClick: () => void }) => (
@@ -661,14 +712,6 @@ export const CourseCatalog = () => {
           />
         )}
 
-        {/* Notice card — new curriculum or caught up */}
-        {!isLoading && !isError && (allCoursesComplete || noticeVisible) && (
-          <NoticeCard
-            variant={noticeVariant}
-            onDismiss={!allCoursesComplete ? handleDismissNotice : undefined}
-          />
-        )}
-
         {/* Continue card — shown when there are enrolled courses */}
         {!isLoading && !isError && enrolledCourses.length > 0 && (
           <ConnectedContinueCard
@@ -676,66 +719,6 @@ export const CourseCatalog = () => {
             onContinue={(courseId) => navigate(`/course/${courseId}`)}
             variant={continueVariant}
           />
-        )}
-
-        {/* Required section */}
-        {!isLoading && !isError && enrolledCourses.length > 0 && (
-          <>
-            <div className="home-section-header">
-              <h2 className="home-section-header__title">Required</h2>
-              <span className="home-section-header__meta">
-                {completedCount} of {enrolledCourses.length} done
-              </span>
-            </div>
-            <div className="required-carousel" role="list">
-              {enrolledCourses.map((course, i) => (
-                <div key={course.courseId} role="listitem">
-                  <ConnectedCourseTile
-                    course={course}
-                    index={i}
-                    onClick={() => navigate(`/course/${course.courseId}`)}
-                  />
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Optional section — shown when all required courses are complete */}
-        {!isLoading && !isError && allCoursesComplete && (
-          <>
-            <div className="home-section-header">
-              <h2 className="home-section-header__title">Optional</h2>
-              <span className="home-section-header__meta">
-                {OPTIONAL_COURSES.length} courses
-              </span>
-            </div>
-            <div className="required-carousel" role="list">
-              {OPTIONAL_COURSES.map((opt) => (
-                <div key={opt.id} role="listitem">
-                  <button type="button" className="course-tile" onClick={() => {}}>
-                    <div className={`course-tile__band ${opt.tintClass}`}>
-                      <img src={opt.artSrc} alt="" className="course-tile__art" aria-hidden="true" />
-                    </div>
-                    <div className="course-tile__body">
-                      <div className="course-tile__info">
-                        <span className="course-tile__category">Optional</span>
-                        <span className="course-tile__title">{opt.title}</span>
-                      </div>
-                      <div className="course-tile__footer">
-                        <span className="course-tile__status">3 lessons</span>
-                      </div>
-                    </div>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Empty state */}
-        {!isLoading && !isError && enrolledCourses.length === 0 && (
-          <p className="home-empty">No required courses at the moment.</p>
         )}
 
         {/* This week */}
@@ -747,6 +730,24 @@ export const CourseCatalog = () => {
           apiWeek={apiThisWeek}
           currentStreak={gamification?.current_streak_weeks}
         />
+
+        {/* Your learning paths */}
+        {curriculums && curriculums.length > 0 && (
+          <>
+            <div className="home-section-header home-section-header--padded">
+              <h2 className="home-section-header__title">Your learning paths</h2>
+            </div>
+            <div className="path-list">
+              {curriculums.map((c) => (
+                <LearningPathCard
+                  key={c.uuid}
+                  curriculum={c}
+                  onClick={() => navigate(`/learning-path/${c.uuid}`)}
+                />
+              ))}
+            </div>
+          </>
+        )}
 
         {/* All courses card */}
         <AllCoursesCard onClick={() => navigate('/library')} />

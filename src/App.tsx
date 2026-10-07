@@ -21,6 +21,7 @@ import {
   SaveAndResumePage,
 } from './pages/CourseIntroductionPage';
 import { BadgeEarned } from './pages/BadgeEarned';
+import { LearningPathView } from './pages/LearningPathView';
 
 import './styles/tokens.css';
 import './styles/typography.css';
@@ -105,6 +106,7 @@ export const App = () => (
         <Route path="/course/:courseId/check/:type" element={<KnowledgeCheckPage />} />
         <Route path="/course/:courseId/check-result/:type" element={<KnowledgeCheckResultPage />} />
         <Route path="/badge/:type" element={<BadgeEarned />} />
+        <Route path="/learning-path/:curriculumId" element={<LearningPathView />} />
         {/* LMS-generated deep links */}
         <Route path="/course/:courseId/home" element={<CourseHomeRedirect />} />
         <Route path="/course/:courseId/progress" element={<Navigate to="/progress" replace />} />

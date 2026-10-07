@@ -182,6 +182,13 @@ export const SaveAndResumePage = () => {
 
   const handleHome = () => navigate('/');
 
+  const lessonsLead = completedLessons > 0 && totalLessons > 0
+    ? `You completed ${completedLessons} of ${totalLessons} lessons. Come back whenever you’re ready.`
+    : 'Your progress is saved. Come back whenever you’re ready.';
+  const progressLead = totalActivities > 0
+    ? `You completed ${completedActivities} of ${totalActivities} activities. Come back whenever you’re ready.`
+    : lessonsLead;
+
   return (
     <div className="course-page">
       <NavHeader title="Progress saved" onBack={() => navigate(`/course/${courseId}`)} />
@@ -191,11 +198,7 @@ export const SaveAndResumePage = () => {
           <p className="sr-kicker">Progress saved</p>
           <h1 className="sr-title">Pick up where you left off</h1>
           <p className="sr-lead">
-            {totalActivities > 0
-              ? `You completed ${completedActivities} of ${totalActivities} activities. Come back whenever you’re ready.`
-              : completedLessons > 0 && totalLessons > 0
-                ? `You completed ${completedLessons} of ${totalLessons} lessons. Come back whenever you’re ready.`
-                : "Your progress is saved. Come back whenever you’re ready."}
+            {progressLead}
           </p>
 
           {hasProgress && totalLessons > 0 && (

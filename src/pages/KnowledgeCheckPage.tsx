@@ -109,8 +109,8 @@ export const KnowledgeCheckPage = () => {
 
   const checkType = (state.checkType ?? type) as CheckType;
   const questions = state.questions ?? PLACEHOLDER_QUESTIONS;
-  const baselineScore = state.baselineScore;
-  const baselineTotal = state.baselineTotal;
+  const { baselineScore } = state;
+  const { baselineTotal } = state;
 
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
@@ -133,9 +133,6 @@ export const KnowledgeCheckPage = () => {
       const correctCount = newAnswers.filter(
         (ans, idx) => questions[idx].correctIndex === undefined || ans === questions[idx].correctIndex,
       ).length;
-      const scoreTotal = checkType === 'baseline'
-        ? questions.length
-        : questions.filter((q) => q.correctIndex !== undefined).length;
 
       navigate(`/course/${courseId}/check-result/${checkType}`, {
         state: {
@@ -151,7 +148,9 @@ export const KnowledgeCheckPage = () => {
       setCurrentIdx((i) => i + 1);
       setSelectedOption(null);
     }
-  }, [selectedOption, answers, isLastQuestion, questions, currentIdx, checkType, courseId, baselineScore, baselineTotal, navigate]);
+  }, [
+    selectedOption, answers, isLastQuestion, questions, checkType, courseId, baselineScore, baselineTotal, navigate,
+  ]);
 
   const headerLabel = checkType === 'final' ? 'Final check' : 'Quick check';
   const progressPercent = questions.length > 0
@@ -248,14 +247,14 @@ export const KnowledgeCheckResultPage = () => {
   const isBaseline = checkType === 'baseline';
 
   const kicker = isBaseline ? 'Baseline recorded' : 'Final knowledge check';
-  const statusTitle = isBaseline
-    ? 'Your starting point is recorded'
-    : (passed ? 'Ready to complete' : 'Keep going');
+  const resultTitle = passed ? 'Ready to complete' : 'Keep going';
+  const resultBody = passed
+    ? `You answered ${score} of ${total} questions correctly.`
+    : `You answered ${score} of ${total} questions correctly. Review and try again.`;
+  const statusTitle = isBaseline ? 'Your starting point is recorded' : resultTitle;
   const statusBody = isBaseline
     ? `You answered ${score} of ${total} questions. This sets your starting knowledge level.`
-    : (passed
-      ? `You answered ${score} of ${total} questions correctly.`
-      : `You answered ${score} of ${total} questions correctly. Review and try again.`);
+    : resultBody;
 
   const scoreDisplay = isBaseline ? `${score} / ${total}` : `${score} / ${total}`;
 

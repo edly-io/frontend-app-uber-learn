@@ -96,7 +96,9 @@ const LibraryCourseCard = ({ course, onClick }: LibraryCourseCardProps) => {
 export const CourseLibrary = () => {
   const navigate = useNavigate();
 
-  const { data: courses, isLoading, isError, refetch } = useQuery({
+  const {
+    data: courses, isLoading, isError, refetch,
+  } = useQuery({
     queryKey: ['enrolled-courses'],
     queryFn: getEnrolledCourses,
     staleTime: 5 * 60_000,
@@ -120,7 +122,7 @@ export const CourseLibrary = () => {
         <h1 className="library-title">Explore learning</h1>
         <p className="library-lead">Courses available for your profile.</p>
 
-        {isLoading && <LoadingSkeleton lines={3} />}
+        {isLoading && <LoadingSkeleton />}
 
         {isError && (
           <ErrorView

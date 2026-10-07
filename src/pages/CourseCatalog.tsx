@@ -101,8 +101,8 @@ const CourseCardConnected = ({ course, onClick }: { course: EnrolledCourse; onCl
 
 function getGreeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
+  if (hour < 12) { return 'Good morning'; }
+  if (hour < 18) { return 'Good afternoon'; }
   return 'Good evening';
 }
 
@@ -129,7 +129,9 @@ function getUserFirstName(): string {
 export const CourseCatalog = () => {
   const navigate = useNavigate();
 
-  const { data: courses, isLoading, isError, refetch } = useQuery({
+  const {
+    data: courses, isLoading, isError, refetch,
+  } = useQuery({
     queryKey: ['enrolled-courses'],
     queryFn: getEnrolledCourses,
     staleTime: 5 * 60_000,
@@ -160,7 +162,7 @@ export const CourseCatalog = () => {
           <h2 className="home-section-title__heading">Required</h2>
         </div>
 
-        {isLoading && <LoadingSkeleton lines={3} />}
+        {isLoading && <LoadingSkeleton />}
 
         {isError && (
           <ErrorView

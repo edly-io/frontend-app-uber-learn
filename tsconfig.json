@@ -8,6 +8,6 @@
     },
     "types": ["jest", "@testing-library/jest-dom"]
   },
-  "include": ["*.js", "src/**/*"],
+  "include": ["*.js", ".eslintrc.js", "src/**/*"],
   "exclude": ["dist", "node_modules"]
 }

@@ -194,7 +194,7 @@ export const RewardsView = () => {
 
       <main style={{ flex: 1, overflowY: 'auto' }}>
         {isLoading ? (
-          <LoadingSkeleton lines={6} />
+          <LoadingSkeleton />
         ) : (
           <>
             {/* Course complete banner */}

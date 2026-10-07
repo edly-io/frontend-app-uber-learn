@@ -118,10 +118,9 @@ export const LessonCompletePage = () => {
   const accountTotal = state.accountTotal ?? (progressData?.points?.earned ?? pointsEarned);
   const nextLessonTitle = state.nextLessonTitle ?? 'Next lesson';
   const nextLessonSubtitle = state.nextLessonSubtitle ?? '';
-  const nextSequenceId = state.nextSequenceId;
+  const { nextSequenceId } = state;
 
   // Use progress data for lesson count when available
-  const completedActivities = progressData?.completedActivities;
   const totalActivities = progressData?.totalActivities;
   const derivedTotal = totalActivities ? Math.ceil(totalActivities / 5) : 7;
   const totalCount = derivedTotal;
@@ -336,7 +335,7 @@ export const RetentionInvitePage = () => {
   const state = (location.state as RetentionInviteState) ?? {};
 
   const courseName = state.courseName ?? 'this course';
-  const retentionSequenceId = state.retentionSequenceId;
+  const { retentionSequenceId } = state;
 
   const { data: progressData } = useProgress(courseId);
   const retentionSeqId = retentionSequenceId

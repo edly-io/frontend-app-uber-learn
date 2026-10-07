@@ -249,9 +249,12 @@ export const ActivityView = () => {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
+      <div style={{
+        display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden',
+      }}
+      >
         <NavHeader title="Loading…" onBack={handleBack} />
-        <LoadingSkeleton lines={5} />
+        <LoadingSkeleton />
       </div>
     );
   }

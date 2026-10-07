@@ -141,6 +141,7 @@ const OverallProgressBar = ({ courseId }: { courseId: string }) => {
       <div
         className="lp-progress-track"
         role="progressbar"
+        aria-label="Course progress"
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
@@ -214,7 +215,7 @@ const HabitTab = () => (
 
     {/* Weekly goal card */}
     <div className="lp-weekly-goal">
-      <p className="lp-weekly-goal__kicker">This week's goal</p>
+      <p className="lp-weekly-goal__kicker">This week&apos;s goal</p>
       <p className="lp-weekly-goal__title">0 of 2 learning days this week</p>
       <div className="lp-weekly-goal__meter" aria-hidden="true">
         <div className="lp-weekly-goal__day" />
@@ -229,7 +230,7 @@ const HabitTab = () => (
     <p className="lp-note">
       A learning day requires the first completion of an eligible activity. The goal
       is two different days in a Monday–Sunday week. Finishing all available learning
-      also meets that week's goal. A week with no eligible learning pauses the streak.
+      also meets that week&apos;s goal. A week with no eligible learning pauses the streak.
       One missed active week in eight can be forgiven; earned points and badges never
       disappear.
     </p>

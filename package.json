@@ -13,7 +13,8 @@
     "lint:fix": "fedx-scripts eslint --fix --ext .js --ext .jsx --ext .ts --ext .tsx .",
     "test": "NODE_ENV=test fedx-scripts jest --coverage --passWithNoTests",
     "test:watch": "fedx-scripts jest --watch --passWithNoTests",
-    "types": "tsc --noEmit"
+    "types": "tsc --noEmit",
+    "i18n_extract": "fedx-scripts formatjs extract"
   },
   "author": "Uber Technologies",
   "license": "AGPL-3.0",

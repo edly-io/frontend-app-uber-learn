@@ -1,7 +1,6 @@
 import React from 'react';
 
 interface LoadingSkeletonProps {
-  lines?: number;
   className?: string;
 }
 
@@ -30,7 +29,7 @@ const styles = `
   }
 `;
 
-export const LoadingSkeleton = ({ lines: _lines, className }: LoadingSkeletonProps) => (
+export const LoadingSkeleton = ({ className }: LoadingSkeletonProps) => (
   <div className={`uber-page-loader${className ? ` ${className}` : ''}`} aria-busy="true" aria-label="Loading…">
     <style>{styles}</style>
     <div className="uber-spinner" aria-hidden="true" />

@@ -173,15 +173,17 @@ interface LessonRowProps {
   onClick: () => void;
 }
 
+const LESSON_STATE_TEXT: Record<LessonState, string | null> = {
+  complete: 'Complete',
+  current: 'In progress',
+  upcoming: null,
+};
+
 const LessonRow = ({
   lesson, state, isLast, onClick,
 }: LessonRowProps) => {
   const isClickable = state !== 'upcoming';
-  const descText = state === 'complete'
-    ? 'Complete'
-    : state === 'current'
-      ? 'In progress'
-      : null;
+  const descText = LESSON_STATE_TEXT[state];
 
   return (
     <button
@@ -268,7 +270,6 @@ export const CourseOverview = () => {
 
   const apiResumeSequenceId = resumeQuery.data?.sectionId ?? null;
   const fraction = progressData?.fraction ?? 0;
-  const completedCount = progressData?.completedActivities ?? 0;
   const totalActivities = progressData?.totalActivities ?? 0;
   const courseComplete = progressData?.courseComplete ?? false;
   const pointsEarned = progressData?.points?.earned ?? 0;
@@ -287,9 +288,7 @@ export const CourseOverview = () => {
     : (getStoredResumeSequenceId(courseId) ?? apiResumeSequenceId);
 
   const resumeIdx = effectiveResumeIdx;
-  const completedLessons = courseComplete
-    ? lessons.length
-    : resumeIdx > 0 ? resumeIdx : 0;
+  const completedLessons = courseComplete ? lessons.length : Math.max(resumeIdx, 0);
 
   const totalLessons = lessons.length;
   // Prefer outline-derived fraction when the progress API returns zero (demo courses).
@@ -345,11 +344,13 @@ export const CourseOverview = () => {
     navigate(`/course/${courseId}/lesson/${sequenceId}/step/0`);
   };
 
-  const ctaLabel = courseComplete
-    ? 'View completion'
-    : resumeSequenceId
-      ? 'Continue course'
-      : 'Start course';
+  let ctaLabel = 'Start course';
+  if (courseComplete) {
+    ctaLabel = 'View completion';
+  } else if (resumeSequenceId) {
+    ctaLabel = 'Continue course';
+  }
+  const badgesText = badgesCount === 1 ? '1 badge earned' : `${badgesCount} badges earned`;
 
   const factsText = [
     totalLessons > 0 ? `${totalLessons} lessons` : null,
@@ -367,16 +368,16 @@ export const CourseOverview = () => {
           {/* Kicker */}
           <p className="cd-kicker">Required · Safety</p>
 
-        {/* Title */}
-        <h1 className="cd-title">{outline?.title ?? 'Course'}</h1>
+          {/* Title */}
+          <h1 className="cd-title">{outline?.title ?? 'Course'}</h1>
 
-        {/* Lead */}
-        <p className="cd-lead">
-          Practical guidance for respectful boundaries, awareness, and safe reporting.
-        </p>
+          {/* Lead */}
+          <p className="cd-lead">
+            Practical guidance for respectful boundaries, awareness, and safe reporting.
+          </p>
 
-        {/* Progress — show whenever we have any completion signal */}
-        {(fraction > 0 || completedLessons > 0) && (
+          {/* Progress — show whenever we have any completion signal */}
+          {(fraction > 0 || completedLessons > 0) && (
           <div className="cd-progress">
             <div className="cd-progress-labels">
               <span className="cd-progress-label">
@@ -390,13 +391,13 @@ export const CourseOverview = () => {
               <div className="cd-progress-fill" style={{ width: `${Math.round(effectiveFraction * 100)}%` }} />
             </div>
           </div>
-        )}
+          )}
 
-        {/* Facts */}
-        {factsText && <p className="cd-facts">{factsText}</p>}
+          {/* Facts */}
+          {factsText && <p className="cd-facts">{factsText}</p>}
 
-        {/* Learning record card */}
-        {(pointsEarned > 0 || badgesCount > 0) && (
+          {/* Learning record card */}
+          {(pointsEarned > 0 || badgesCount > 0) && (
           <button
             type="button"
             className="cd-record-card"
@@ -408,7 +409,7 @@ export const CourseOverview = () => {
               <p className="cd-record-card__desc">
                 {[
                   pointsEarned > 0 ? `${pointsEarned} points from this course` : null,
-                  badgesCount === 1 ? '1 badge earned' : badgesCount > 1 ? `${badgesCount} badges earned` : null,
+                  badgesCount > 0 ? badgesText : null,
                 ].filter(Boolean).join(' · ')}
               </p>
             </div>
@@ -416,26 +417,26 @@ export const CourseOverview = () => {
               <ChevronRightIcon />
             </span>
           </button>
-        )}
+          )}
 
-        {/* Lesson sections */}
-        {sections.map((section) => (
-          <div key={section.sectionId} className="cd-section">
-            <h2 className="cd-section__heading">{section.sectionTitle}</h2>
-            {section.lessons.map((lesson, idx) => {
-              const state = getLessonState(lesson, resumeSequenceId, lessons, courseComplete);
-              return (
-                <LessonRow
-                  key={lesson.sequenceId}
-                  lesson={lesson}
-                  state={state}
-                  isLast={idx === section.lessons.length - 1}
-                  onClick={() => handleLessonClick(lesson.sequenceId)}
-                />
-              );
-            })}
-          </div>
-        ))}
+          {/* Lesson sections */}
+          {sections.map((section) => (
+            <div key={section.sectionId} className="cd-section">
+              <h2 className="cd-section__heading">{section.sectionTitle}</h2>
+              {section.lessons.map((lesson, idx) => {
+                const state = getLessonState(lesson, resumeSequenceId, lessons, courseComplete);
+                return (
+                  <LessonRow
+                    key={lesson.sequenceId}
+                    lesson={lesson}
+                    state={state}
+                    isLast={idx === section.lessons.length - 1}
+                    onClick={() => handleLessonClick(lesson.sequenceId)}
+                  />
+                );
+              })}
+            </div>
+          ))}
 
           {lessons.length === 0 && (
             <p style={{ color: 'var(--u-content-secondary)', textAlign: 'center', padding: '2rem 0' }}>

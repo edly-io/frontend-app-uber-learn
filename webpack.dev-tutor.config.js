@@ -1,3 +1,5 @@
+// webpack-merge comes with @openedx/frontend-build.
+// eslint-disable-next-line import/no-extraneous-dependencies
 const { merge } = require('webpack-merge');
 const fs = require('fs');
 

@@ -254,7 +254,7 @@ describe('RewardsView', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /back to course/i }));
 
-      expect(mockNavigate).toHaveBeenCalledWith(`/uber-learn/course/${COURSE_ID}`);
+      expect(mockNavigate).toHaveBeenCalledWith(`/course/${COURSE_ID}`);
     });
 
     it('back arrow also navigates to course overview', async () => {
@@ -266,7 +266,7 @@ describe('RewardsView', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /go back/i }));
 
-      expect(mockNavigate).toHaveBeenCalledWith(`/uber-learn/course/${COURSE_ID}`);
+      expect(mockNavigate).toHaveBeenCalledWith(`/course/${COURSE_ID}`);
     });
   });
 });

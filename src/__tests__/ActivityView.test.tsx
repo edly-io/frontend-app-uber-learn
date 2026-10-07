@@ -316,11 +316,11 @@ describe('ActivityView', () => {
       fireEvent.click(screen.getByRole('button', { name: /continue/i }));
 
       expect(mockNavigate).toHaveBeenCalledWith(
-        `/uber-learn/course/${COURSE_ID}/lesson/${SEQ_ID}/step/1`,
+        `/course/${COURSE_ID}/lesson/${SEQ_ID}/step/1`,
       );
     });
 
-    it('AC-ACT-NAV-02: navigates to course overview when on the last unit', async () => {
+    it('AC-ACT-NAV-02: navigates to the lesson-complete page when on the last unit', async () => {
       // unitIdx=1 = last of 2 units
       mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
 
@@ -332,14 +332,10 @@ describe('ActivityView', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /finish/i }));
 
-      // The non-assessment last-unit flow shows LessonCompleteOverlay before navigating.
-      // Dismiss the overlay by clicking it, which triggers handleLessonCompleteDismiss.
-      await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument());
-      fireEvent.click(screen.getByRole('status'));
-
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith(`/uber-learn/course/${COURSE_ID}`);
-      });
+      expect(mockNavigate).toHaveBeenCalledWith(
+        `/course/${COURSE_ID}/lesson-complete`,
+        { state: expect.objectContaining({ lessonTitle: 'Driver Basics', nextSequenceId: null }) },
+      );
     });
   });
 

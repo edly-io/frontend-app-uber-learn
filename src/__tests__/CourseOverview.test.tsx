@@ -135,7 +135,7 @@ describe('CourseOverview', () => {
       renderComponent();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Driver Safety 101');
+        expect(screen.getByRole('heading', { level: 1, name: 'Driver Safety 101' })).toBeInTheDocument();
       });
     });
 
@@ -160,17 +160,17 @@ describe('CourseOverview', () => {
   });
 
   describe('returning user (sectionId is set)', () => {
-    it('AC-NAV-02: navigates to /lesson/:sectionId/step/0 with replace:true', async () => {
+    it('AC-NAV-02: stays on the overview and "Continue course" resumes /lesson/:sectionId/step/0', async () => {
       jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue(RESUME_RETURNING);
 
       renderComponent();
 
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith(
-          `/uber-learn/course/${COURSE_ID}/lesson/seq-1/step/0`,
-          { replace: true },
-        );
-      });
+      const cta = await screen.findByRole('button', { name: 'Continue course' });
+      expect(mockNavigate).not.toHaveBeenCalled();
+
+      fireEvent.click(cta);
+
+      expect(mockNavigate).toHaveBeenCalledWith(`/course/${COURSE_ID}/lesson/seq-1/step/0`);
     });
 
     it('AC-NAV-02b: uses sectionId (camelCased from section_id) not sectionId as raw string', async () => {
@@ -183,17 +183,19 @@ describe('CourseOverview', () => {
 
       renderComponent();
 
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith(
-          expect.stringContaining('block-v1:Uber+L2024+type@sequential+block@abc'),
-          { replace: true },
-        );
-      });
+      fireEvent.click(await screen.findByRole('button', { name: 'Continue course' }));
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        expect.stringContaining('block-v1:Uber+L2024+type@sequential+block@abc'),
+      );
     });
   });
 
   describe('lesson card interaction', () => {
-    it('AC-NAV-03: clicking a lesson card navigates to /lesson/:seqId/step/0', async () => {
+    // Lessons unlock in order: the current lesson and completed ones are clickable,
+    // lessons not reached yet ("upcoming") are disabled.
+    it('AC-NAV-03: clicking the current lesson card navigates to /lesson/:seqId/step/0', async () => {
+      jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue(RESUME_RETURNING);
       renderComponent();
 
       await waitFor(() => expect(screen.getByText('Lesson 1: Basics')).toBeInTheDocument());
@@ -201,20 +203,33 @@ describe('CourseOverview', () => {
       fireEvent.click(screen.getByText('Lesson 1: Basics'));
 
       expect(mockNavigate).toHaveBeenCalledWith(
-        `/uber-learn/course/${COURSE_ID}/lesson/seq-1/step/0`,
+        `/course/${COURSE_ID}/lesson/seq-1/step/0`,
       );
     });
 
     it('AC-NAV-03b: clicking a different lesson card uses the correct sequenceId', async () => {
+      jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue({ ...RESUME_RETURNING, sectionId: 'seq-2' });
       renderComponent();
 
       await waitFor(() => expect(screen.getByText('Lesson 2: Advanced')).toBeInTheDocument());
 
       fireEvent.click(screen.getByText('Lesson 2: Advanced'));
+      expect(mockNavigate).toHaveBeenLastCalledWith(`/course/${COURSE_ID}/lesson/seq-2/step/0`);
 
-      expect(mockNavigate).toHaveBeenCalledWith(
-        `/uber-learn/course/${COURSE_ID}/lesson/seq-2/step/0`,
-      );
+      // The completed lesson before it stays reachable.
+      fireEvent.click(screen.getByText('Lesson 1: Basics'));
+      expect(mockNavigate).toHaveBeenLastCalledWith(`/course/${COURSE_ID}/lesson/seq-1/step/0`);
+    });
+
+    it('AC-NAV-03c: lessons not reached yet are disabled', async () => {
+      jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue(RESUME_RETURNING);
+      renderComponent();
+
+      await waitFor(() => expect(screen.getByText('Lesson 2: Advanced')).toBeInTheDocument());
+
+      expect(screen.getByText('Lesson 2: Advanced').closest('button')).toBeDisabled();
+      fireEvent.click(screen.getByText('Lesson 2: Advanced'));
+      expect(mockNavigate).not.toHaveBeenCalled();
     });
   });
 

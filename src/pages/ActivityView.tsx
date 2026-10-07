@@ -140,10 +140,13 @@ export const ActivityView = () => {
     setCompletedUnitId(currentUnitId);
   }, [currentUnitId]);
 
-  // Called when the unit's content is on screen: the iframe's first plugin.resize, or its load
-  // event, whichever comes first (load also waits for e.g. a video's first frame, which can take
-  // seconds on mobile). Marks the frame visible and auto-enables Continue for regular
-  // (non-assessment) content — standard Open edX XBlocks don't send plugin.completed.
+  // Called when the unit's content is on screen: its iframe's load event or, in lightweight mode,
+  // the iframe's first plugin.resize if that comes first (load also waits for e.g. a video's first
+  // frame, which can take seconds on mobile). Marks the frame visible and auto-enables Continue for
+  // regular (non-assessment) content — standard Open edX XBlocks don't send plugin.completed.
+  // Lightweight mode is per site: MFE_CONFIG_OVERRIDES["uber-learn"].UBER_LIGHTWEIGHT_IFRAMES
+  // (see tutor-contrib-uber), the same flag that trims what the LMS loads in these iframes.
+  const isLightweightMode = getConfig().UBER_LIGHTWEIGHT_IFRAMES === true;
   const handleContentShown = useCallback(() => {
     setShownUnitId(currentUnitId);
     if (!isAssessmentSequence) {
@@ -346,7 +349,7 @@ export const ActivityView = () => {
           key={currentUnit.id}
           usageKey={currentUnit.id}
           onCompleted={handleCompleted}
-          onContentReady={handleContentShown}
+          onContentReady={isLightweightMode ? handleContentShown : undefined}
           onLoad={handleContentShown}
         />
       </main>

@@ -19,6 +19,7 @@ import {
   render, screen, waitFor, fireEvent, act,
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { mergeConfig } from '@edx/frontend-platform';
 import { ActivityView } from '../pages/ActivityView';
 import * as coursewareApi from '../api/courseware';
 import * as progressApi from '../api/progress';
@@ -343,6 +344,9 @@ describe('ActivityView', () => {
   });
 
   describe('showing the unit before the iframe load event', () => {
+    beforeEach(() => mergeConfig({ UBER_LIGHTWEIGHT_IFRAMES: true }));
+    afterEach(() => mergeConfig({ UBER_LIGHTWEIGHT_IFRAMES: undefined }));
+
     /** Simulate the unversioned plugin.resize the LMS posts once the unit's DOM is built. */
     function dispatchFrameResize(source: MessageEventSource | null, origin: string = LMS_ORIGIN) {
       act(() => {
@@ -385,6 +389,21 @@ describe('ActivityView', () => {
 
       expect(spinner()).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /continue/i })).toBeDisabled();
+    });
+
+    it('waits for the iframe load event when lightweight mode is off', async () => {
+      mergeConfig({ UBER_LIGHTWEIGHT_IFRAMES: false });
+      renderComponent();
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+
+      dispatchFrameResize(getFrame().contentWindow);
+
+      expect(spinner()).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /continue/i })).toBeDisabled();
+
+      fireEvent.load(getFrame());
+
+      await waitFor(() => expect(spinner()).not.toBeInTheDocument());
     });
 
     it('still shows the unit on the iframe load event (no plugin.resize)', async () => {

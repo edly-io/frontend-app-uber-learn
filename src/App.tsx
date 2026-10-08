@@ -24,9 +24,9 @@ import { BadgeEarned } from './pages/BadgeEarned';
 import { LearningPathView } from './pages/LearningPathView';
 import { SearchPage } from './pages/SearchPage';
 
-import './styles/tokens.css';
-import './styles/typography.css';
-import './styles/global.css';
+import './styles/tokens.scss';
+import './styles/typography.scss';
+import './styles/global.scss';
 
 interface ErrorBoundaryState { hasError: boolean }
 
@@ -77,6 +77,13 @@ const CourseHomeRedirect = () => {
   return <Navigate to={`/course/${courseId}`} replace />;
 };
 
+// Handles LMS jump_to URLs: /course/<key>/<sequence>/<unit>
+// and staff preview: /preview/course/<key>/<sequence>/<unit>
+const LmsJumpToRedirect = () => {
+  const { courseId, sequenceId } = useParams<{ courseId: string; sequenceId: string; unitId: string }>();
+  return <Navigate to={`/course/${courseId}/lesson/${sequenceId}/step/0`} replace />;
+};
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -112,6 +119,12 @@ export const App = () => (
         {/* LMS-generated deep links */}
         <Route path="/course/:courseId/home" element={<CourseHomeRedirect />} />
         <Route path="/course/:courseId/progress" element={<Navigate to="/progress" replace />} />
+        <Route path="/course/:courseId/dates" element={<CourseHomeRedirect />} />
+        {/* LMS jump_to / courseware: /course/<key>/<sequence>/<unit> */}
+        <Route path="/course/:courseId/:sequenceId/:unitId" element={<LmsJumpToRedirect />} />
+        {/* Staff preview mirrors the jump_to shape under /preview/course/ */}
+        <Route path="/preview/course/:courseId/:sequenceId/:unitId" element={<LmsJumpToRedirect />} />
+        <Route path="/preview/course/:courseId/*" element={<CourseHomeRedirect />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </QueryClientProvider>

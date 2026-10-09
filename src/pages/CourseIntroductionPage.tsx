@@ -3,7 +3,6 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getResumeBlock } from '../api/courseware';
 import { qk } from '../api/queries';
-import { useProgress } from '../hooks/useProgress';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
 import { getStoredResumeIdx, getStoredResumeSequenceId } from '../lib/resume-storage';
@@ -11,7 +10,7 @@ import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
 import iconAlert from '../assets/icons/icon-alert.svg';
 import courseArtToolbox from '../assets/icons/course-art-toolbox.svg';
 import courseArtBook from '../assets/icons/course-art-book.svg';
-import './course-page.css';
+import './course-page.scss';
 
 // ── Shared art panel header ────────────────────────────────────────────────
 
@@ -35,9 +34,19 @@ const ArtPanel = ({
 export const CourseIntroductionPage = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
+  const outlineQuery = useCourseOutline(courseId);
 
   const handleBack = () => navigate(`/course/${courseId}`);
-  const handleBegin = () => navigate(`/course/${courseId}/check/baseline`);
+
+  const handleBegin = () => {
+    const lessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
+    const firstLesson = lessons[0];
+    if (firstLesson) {
+      navigate(`/course/${courseId}/lesson/${firstLesson.sequenceId}/step/0`);
+    } else {
+      navigate(`/course/${courseId}`);
+    }
+  };
 
   return (
     <div className="course-page">
@@ -60,17 +69,6 @@ export const CourseIntroductionPage = () => {
                 <span className="cp-numbered-step__num">01</span>
               </div>
               <div className="cp-numbered-step__body">
-                <p className="cp-numbered-step__title">Start with a quick check</p>
-                <p className="cp-numbered-step__desc">
-                  Five questions establish a baseline. They do not add or remove points.
-                </p>
-              </div>
-            </div>
-            <div className="cp-numbered-step">
-              <div className="cp-numbered-step__num-wrap">
-                <span className="cp-numbered-step__num">02</span>
-              </div>
-              <div className="cp-numbered-step__body">
                 <p className="cp-numbered-step__title">Learn and practise</p>
                 <p className="cp-numbered-step__desc">
                   Watch required videos, make decisions, and review the source guidance.
@@ -79,7 +77,7 @@ export const CourseIntroductionPage = () => {
             </div>
             <div className="cp-numbered-step">
               <div className="cp-numbered-step__num-wrap">
-                <span className="cp-numbered-step__num">03</span>
+                <span className="cp-numbered-step__num">02</span>
               </div>
               <div className="cp-numbered-step__body">
                 <p className="cp-numbered-step__title">Confirm what you learned</p>
@@ -105,8 +103,13 @@ export const CourseIntroductionPage = () => {
       </div>
 
       <footer className="course-footer">
-        <button type="button" className="course-footer__primary" onClick={handleBegin}>
-          Begin quick check
+        <button
+          type="button"
+          className="course-footer__primary"
+          onClick={handleBegin}
+          disabled={outlineQuery.isLoading}
+        >
+          Start course
         </button>
         <button type="button" className="course-footer__secondary" onClick={handleBack}>
           Back to course
@@ -119,8 +122,6 @@ export const CourseIntroductionPage = () => {
 // ── SaveAndResumePage ──────────────────────────────────────────────────────
 
 interface SaveAndResumeState {
-  completedActivities?: number;
-  totalActivities?: number;
   completedLessons?: number;
   totalLessons?: number;
   fraction?: number;
@@ -133,7 +134,6 @@ export const SaveAndResumePage = () => {
   const location = useLocation();
   const routeState = (location.state as SaveAndResumeState) ?? {};
 
-  const { data: progressData } = useProgress(courseId);
   const outlineQuery = useCourseOutline(courseId);
   const resumeQuery = useQuery({
     queryKey: qk.resume(courseId),
@@ -167,13 +167,9 @@ export const SaveAndResumePage = () => {
     : 0;
   const fraction = derivedFraction > 0
     ? derivedFraction
-    : (routeState.fraction ?? progressData?.fraction ?? 0);
-
-  const completedActivities = routeState.completedActivities ?? progressData?.completedActivities ?? 0;
-  const totalActivities = routeState.totalActivities ?? progressData?.totalActivities ?? 0;
+    : (routeState.fraction ?? 0);
 
   const hasProgress = completedLessons > 0 || fraction > 0 || Boolean(resumeSequenceId);
-  const percentDisplay = `${Math.round(fraction * 100)}%`;
 
   const handleResume = () => {
     if (!resumeSequenceId) {
@@ -187,19 +183,17 @@ export const SaveAndResumePage = () => {
 
   return (
     <div className="course-page">
-      <ArtPanel art={courseArtBook} color="green" onBack={() => navigate(`/course/${courseId}`)} />
+      <ArtPanel art={courseArtBook} color="blue" onBack={() => navigate(`/course/${courseId}`)} />
 
       <div className="course-scroll">
         <main className="course-content">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <p className="sr-kicker">Progress saved</p>
-            <h1 className="sr-title">Pick up where you left off</h1>
+            <p className="sr-kicker">{outlineQuery.data?.title ?? ''}</p>
+            <h1 className="sr-title">Progress saved</h1>
             <p className="sr-lead">
-              {totalActivities > 0
-                ? `You completed ${completedActivities} of ${totalActivities} activities. Come back whenever you're ready.`
-                : completedLessons > 0 && totalLessons > 0
-                  ? `You completed ${completedLessons} of ${totalLessons} lessons. Come back whenever you're ready.`
-                  : "Your progress is saved. Come back whenever you're ready."}
+              {resumeIdx >= 0
+                ? `Lesson ${resumeIdx + 1} keeps your place. Come back whenever you're ready.`
+                : "Your progress is saved. Come back whenever you're ready."}
             </p>
           </div>
 
@@ -209,7 +203,6 @@ export const SaveAndResumePage = () => {
                 <span className="sr-progress-label">
                   {`${completedLessons} of ${totalLessons} lessons complete`}
                 </span>
-                <span className="sr-progress-percent">{percentDisplay}</span>
               </div>
               <div className="sr-progress-track">
                 <div className="sr-progress-fill" style={{ width: `${Math.round(fraction * 100)}%` }} />
@@ -221,7 +214,7 @@ export const SaveAndResumePage = () => {
 
       <footer className="course-footer">
         <button type="button" className="course-footer__primary" onClick={handleResume}>
-          Resume where you left off
+          {resumeIdx >= 0 ? `Resume lesson ${resumeIdx + 1}` : 'Resume where you left off'}
         </button>
         <button type="button" className="course-footer__secondary" onClick={handleHome}>
           Back to learning home

@@ -1,16 +1,14 @@
 import React from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { useProgress } from '../hooks/useProgress';
+import { useCourseOutline } from '../hooks/useCourseOutline';
+import { mapOutlineToLessons } from '../lib/outline-mapper';
 import courseArtBook from '../assets/icons/course-art-book.svg';
 import courseArtRow from '../assets/icons/course-art-row.svg';
 import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
-import iconLightning from '../assets/icons/icon-lightning.svg';
 import iconCircleCheck from '../assets/icons/icon-circle-check.svg';
-import ringTrack from '../assets/icons/ring-track.svg';
-import ringProgress from '../assets/icons/ring-progress.svg';
 import chevronRight from '../assets/icons/chevron-right.svg';
 import badgeArtRetained from '../assets/icons/badge-art-retained.svg';
-import './completion-page.css';
+import './completion-page.scss';
 
 // ── Shared: Art panel header ───────────────────────────────────────────────
 
@@ -82,10 +80,6 @@ const ProgressBar = ({ completedCount, totalCount, percent }: ProgressBarProps) 
         {' '}
         lessons complete
       </span>
-      <span className="cp-progress-percent">
-        {percent}
-        %
-      </span>
     </div>
     <div className="cp-progress-track">
       <div className="cp-progress-fill" style={{ width: `${percent}%` }} />
@@ -97,22 +91,14 @@ const ProgressBar = ({ completedCount, totalCount, percent }: ProgressBarProps) 
 
 interface LessonCompleteState {
   lessonTitle?: string;
-  lessonDescription?: string;
   lessonNumber?: number;
-  pointsEarned?: number;
-  accountTotal?: number;
   nextLessonTitle?: string;
   nextLessonSubtitle?: string;
   nextSequenceId?: string | null;
   isRepeat?: boolean;
-  stepsReviewed?: number;
   isLastLesson?: boolean;
-  accuracyPercent?: number;
   finalCheckSequenceId?: string | null;
 }
-
-// Day labels for the This week widget
-const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export const LessonCompletePage = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
@@ -120,31 +106,26 @@ export const LessonCompletePage = () => {
   const location = useLocation();
   const state = (location.state as LessonCompleteState) ?? {};
 
-  const { data: progressData } = useProgress(courseId);
+  const outlineQuery = useCourseOutline(courseId);
+  const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
 
   const lessonTitle = state.lessonTitle ?? 'Lesson complete';
   const lessonNumber = state.lessonNumber ?? 1;
-  const pointsEarned = state.pointsEarned ?? 30;
-  const nextLessonTitle = state.nextLessonTitle ?? '';
   const nextSequenceId = state.nextSequenceId;
   const isRepeat = state.isRepeat ?? false;
-  const stepsReviewed = state.stepsReviewed ?? 4;
   const isLastLesson = state.isLastLesson ?? false;
-  const accuracyPercent = state.accuracyPercent ?? 100;
   const finalCheckSequenceId = state.finalCheckSequenceId;
 
-  const derivedTotal = progressData?.totalActivities
-    ? Math.ceil(progressData.totalActivities / 5) : 7;
-  const totalCount = derivedTotal;
+  const totalCount = allLessons.length > 0 ? allLessons.length : 7;
   const completedCount = lessonNumber;
   const percent = totalCount > 0 ? Math.min(100, Math.round((completedCount / totalCount) * 100)) : 0;
 
-  // Compute "this week" state from today's day of week (0 = Sun … 6 = Sat)
-  // Map to M T W T F S S order (Mon-first)
-  const todayJsDay = new Date().getDay(); // 0=Sun
-  const todayIdx = todayJsDay === 0 ? 6 : todayJsDay - 1; // 0=Mon … 6=Sun
+  const kicker = `Lesson ${lessonNumber} ${isRepeat ? 'refreshed' : 'complete'}`;
+  const lead = isRepeat
+    ? "You've finished this lesson before. Your progress is saved."
+    : 'Your progress is saved. Come back whenever you\'re ready.';
 
-  const handleBack = () => navigate(`/course/${courseId}`);
+  const handleBack = () => navigate('/');
   const handleStartNext = () => {
     if (isLastLesson && finalCheckSequenceId) {
       navigate(`/course/${courseId}/lesson/${finalCheckSequenceId}/step/0`);
@@ -155,136 +136,29 @@ export const LessonCompletePage = () => {
     }
   };
 
+  const primaryLabel = isLastLesson ? 'Start final check' : `Start lesson ${lessonNumber + 1}`;
+
   return (
     <div className="cp-page cp-page--scrollable">
-      <ArtPanel art={courseArtBook} onBack={handleBack} />
+      <ArtPanel art={courseArtBook} color="blue" onBack={() => navigate(`/course/${courseId}`)} />
 
       <main className="cp-content">
-        {/* Heading */}
         <div className="cpl-heading">
-          <p className="cpl-kicker">
-            Lesson
-            {' '}
-            {lessonNumber}
-            {' '}
-            complete
-          </p>
+          <p className="cpl-kicker">{kicker}</p>
           <h1 className="cpl-title">{lessonTitle}</h1>
-          {state.lessonDescription && (
-            <p className="cpl-lead">{state.lessonDescription}</p>
-          )}
+          <p className="cpl-lead">{lead}</p>
         </div>
 
-        {/* Result tiles */}
-        {isRepeat ? (
-          <>
-            <div className="cpl-tiles">
-              <div className="cpl-tile cpl-tile--neutral cpl-tile--single">
-                <p className="cpl-tile__value">{stepsReviewed}</p>
-                <p className="cpl-tile__label">steps reviewed</p>
-              </div>
-            </div>
-            <p className="cpl-repeat-note">
-              You&apos;ve finished this lesson before, so it adds no points.
-            </p>
-          </>
-        ) : (
-          <div className="cpl-tiles">
-            <div className="cpl-tile cpl-tile--points">
-              <img src={iconLightning} alt="" aria-hidden="true" className="cpl-tile__icon" />
-              <p className="cpl-tile__value">
-                +
-                {pointsEarned}
-              </p>
-              <p className="cpl-tile__label">points</p>
-            </div>
-            <div className="cpl-tile cpl-tile--accuracy">
-              <img src={iconCircleCheck} alt="" aria-hidden="true" className="cpl-tile__icon cpl-tile__icon--positive" />
-              <p className="cpl-tile__value">
-                {accuracyPercent}
-                %
-              </p>
-              <p className="cpl-tile__label">correct</p>
-            </div>
-          </div>
-        )}
-
-        {/* This week widget */}
-        <div className="cpl-week">
-          <div className="cpl-week__goal">
-            <div className="cpl-week__ring" aria-hidden="true">
-              <img src={ringTrack} alt="" className="cpl-week__ring-layer" />
-              <img src={ringProgress} alt="" className="cpl-week__ring-layer" />
-              <span className="cpl-week__ring-label">2/2</span>
-            </div>
-            <div className="cpl-week__words">
-              <p className="cpl-week__title">Goal met this week</p>
-              <p className="cpl-week__subtitle">
-                Your streak grows to 3 weeks when the week ends.
-              </p>
-            </div>
-          </div>
-          <div className="cpl-week__days" aria-label="Learning days this week">
-            {DAY_LABELS.map((label, idx) => {
-              const isPast = idx < todayIdx;
-              const isToday = idx === todayIdx;
-              // Mark past + today as "learned" for demo; upcoming days are empty
-              const learned = isPast || isToday;
-              return (
-                // eslint-disable-next-line react/no-array-index-key
-                <div key={idx} className="cpl-week__day-col">
-                  <div
-                    className={`cpl-week__dot ${learned ? 'cpl-week__dot--learned' : 'cpl-week__dot--upcoming'}`}
-                    aria-hidden="true"
-                  >
-                    {learned && (
-                      <img src={iconCircleCheck} alt="" className="cpl-week__dot-check" />
-                    )}
-                  </div>
-                  <span className={`cpl-week__day-label${isToday ? ' cpl-week__day-label--today' : ''}`}>
-                    {label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Course progress bar */}
         <ProgressBar
           completedCount={completedCount}
           totalCount={totalCount}
           percent={percent}
         />
-
-        {/* Next lesson / final check card */}
-        {(nextLessonTitle || isLastLesson) && (
-          <button
-            type="button"
-            className="cpl-next-card"
-            onClick={handleStartNext}
-          >
-            <div className="cpl-next-card__body">
-              <p className="cpl-next-card__kicker">
-                {isLastLesson ? 'Last step' : 'Next lesson'}
-              </p>
-              <p className="cpl-next-card__title">
-                {isLastLesson ? 'Final check' : nextLessonTitle}
-              </p>
-              {(state.nextLessonSubtitle || isLastLesson) && (
-                <p className="cpl-next-card__sub">
-                  {isLastLesson ? '5 questions · about 3 min' : state.nextLessonSubtitle}
-                </p>
-              )}
-            </div>
-            <img src={chevronRight} alt="" aria-hidden="true" className="cpl-next-card__chevron" />
-          </button>
-        )}
       </main>
 
       <Footer
-        primaryLabel={isLastLesson ? 'Start final check' : `Start lesson ${lessonNumber + 1}`}
-        secondaryLabel="Back to course"
+        primaryLabel={primaryLabel}
+        secondaryLabel="Back to learning home"
         onPrimary={handleStartNext}
         onSecondary={handleBack}
       />
@@ -298,6 +172,8 @@ interface CourseCompleteState {
   courseTitle?: string;
   totalLessons?: number;
   totalPoints?: number;
+  badgeImageUrl?: string;
+  badgeEarnedDate?: string;
 }
 
 export const CourseCompletePage = () => {
@@ -306,11 +182,14 @@ export const CourseCompletePage = () => {
   const location = useLocation();
   const state = (location.state as CourseCompleteState) ?? {};
 
-  const { data: progressData } = useProgress(courseId);
+  const courseOutlineQuery = useCourseOutline(courseId);
+  const courseAllLessons = courseOutlineQuery.data ? mapOutlineToLessons(courseOutlineQuery.data) : [];
 
   const totalLessons = state.totalLessons
-    ?? (progressData?.totalActivities ? Math.ceil(progressData.totalActivities / 5) : 7);
-  const totalPoints = state.totalPoints ?? (progressData?.points?.earned ?? 360);
+    ?? (courseAllLessons.length > 0 ? courseAllLessons.length : 7);
+  const totalPoints = state.totalPoints ?? 360;
+  const badgeImageUrl = state.badgeImageUrl ?? null;
+  const badgeEarnedDate = state.badgeEarnedDate ?? null;
 
   const handleBack = () => navigate(`/course/${courseId}`);
   const handleViewProgress = () => navigate('/progress');
@@ -332,7 +211,30 @@ export const CourseCompletePage = () => {
           </p>
         </div>
 
-        {/* Course row */}
+        {/* Badge row — only shown when a badge was earned */}
+        {badgeImageUrl && badgeEarnedDate && (
+          <button
+            type="button"
+            className="cpc-course-row cpc-course-row--tappable"
+            onClick={handleViewProgress}
+            aria-label="View course badge"
+          >
+            <div className="cpc-course-row__tile">
+              <img src={badgeImageUrl} alt="" aria-hidden="true" className="cpc-course-row__art" />
+            </div>
+            <div className="cpc-course-row__body">
+              <p className="cpc-course-row__title">Course badge</p>
+              <p className="cpc-course-row__sub cpc-course-row__sub--earned">
+                Earned
+                {' '}
+                {badgeEarnedDate}
+              </p>
+            </div>
+            <img src={chevronRight} alt="" aria-hidden="true" className="cpc-course-row__chevron" />
+          </button>
+        )}
+
+        {/* Course summary row — not tappable */}
         <div className="cpc-course-row">
           <div className="cpc-course-row__tile">
             <img src={courseArtRow} alt="" aria-hidden="true" className="cpc-course-row__art" />
@@ -341,10 +243,10 @@ export const CourseCompletePage = () => {
             <p className="cpc-course-row__title">Sexual misconduct education</p>
             <p className="cpc-course-row__sub">Part of your total on Your progress</p>
           </div>
-          <p className="cpc-course-row__points">
+          <span className="cpc-course-row__points">
             +
             {totalPoints}
-          </p>
+          </span>
         </div>
 
         {/* Commitment card */}
@@ -381,10 +283,7 @@ export const RetentionInvitePage = () => {
   const location = useLocation();
   const state = (location.state as RetentionInviteState) ?? {};
 
-  const { data: progressData } = useProgress(courseId);
-  const retentionSeqId = state.retentionSequenceId
-    ?? progressData?.assessments?.retention?.sequenceKey
-    ?? null;
+  const retentionSeqId = state.retentionSequenceId ?? null;
   const notOpenYet = state.notOpenYet ?? false;
   const opensOnDate = state.opensOnDate ?? '4 December 2026';
 

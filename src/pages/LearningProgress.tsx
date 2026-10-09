@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
-import { useProgress } from '../hooks/useProgress';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
 import { getStoredResumeIdx } from '../lib/resume-storage';
@@ -10,9 +9,11 @@ import { useGamification, type GamificationSummary } from '../hooks/useGamificat
 import { useLeaderboard, type LeaderboardData } from '../hooks/useLeaderboard';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { useBadges } from '../hooks/useBadges';
-import type { LearnerCurriculum, BadgeSlot, BadgeAward } from '../api/curriculum';
+import type { LearnerCurriculum, BadgeAward } from '../api/curriculum';
 import type { GamificationDay, WeekdayKey } from '../api/gamification';
 import { BadgeDetailSheet, type SheetBadgeData } from '../components/ui/BadgeDetailSheet';
+import { InfoSheet, type InfoSheetData } from '../components/ui/InfoSheet';
+import { GoalRing } from '../components/ui/GoalRing';
 
 import iconCircleInfo from '../assets/icons/icon-circle-info.svg';
 import courseArtBlue from '../assets/icons/course-art-blue2.svg';
@@ -21,8 +22,6 @@ import iconLightningLarge from '../assets/icons/icon-lightning-large.svg';
 import iconCircleCheck from '../assets/icons/icon-circle-check.svg';
 import iconCalendar from '../assets/icons/icon-calendar.svg';
 import iconBadgeCheck from '../assets/icons/icon-badge-check.svg';
-import ringTrack from '../assets/icons/ring-track.svg';
-import ringProgress from '../assets/icons/ring-progress.svg';
 import badgeHalfwayEarned from '../assets/badges/badge-halfway-earned.svg';
 import badgeCompleteEarned from '../assets/badges/badge-complete-earned.svg';
 import badgeCompleteLocked from '../assets/badges/badge-complete-locked.svg';
@@ -37,7 +36,7 @@ import courseArtLime from '../assets/icons/course-art-lime.svg';
 import courseArtSteering from '../assets/icons/course-art-steering.svg';
 import courseArtToolbox from '../assets/icons/course-art-toolbox.svg';
 
-import './learning-progress.css';
+import './learning-progress.scss';
 
 // ── Tab types ────────────────────────────────────────────
 
@@ -45,19 +44,80 @@ type TabId = 'Points' | 'Streak' | 'Badges' | 'Leaderboard';
 
 const TABS: TabId[] = ['Points', 'Streak', 'Badges', 'Leaderboard'];
 
-// ── Back icon ────────────────────────────────────────────
+// ── Info sheet content ───────────────────────────────────
 
-const ArrowLeft = () => (
+const INFO_POINTS: InfoSheetData = {
+  title: 'How points work',
+  bullets: [
+    '10 points for each step, the first time you finish a lesson.',
+    'Plus 5 for each question you get right on the first try.',
+    "Repeats and checks don't add points.",
+    'Points are never taken away.',
+  ],
+};
+
+const INFO_STREAK: InfoSheetData = {
+  title: 'How your streak works',
+  bullets: [
+    'Learn on 2 days a week, Monday to Sunday.',
+    'Every course counts, in a path or not.',
+    "One missed week in any eight is forgiven. That's the outlined week.",
+    "If there's no course left to take, your streak pauses.",
+  ],
+};
+
+const INFO_BADGES: InfoSheetData = {
+  title: 'How badges work',
+  bullets: [
+    'Every course has a badge. Finish its lessons and final check to earn it.',
+    'Every learning path has a badge too, for finishing all its courses.',
+    '30 days later, a check on the path earns one more.',
+    "Badges turn from grey to colour when earned. They're never taken away.",
+  ],
+};
+
+const INFO_LEADERBOARD: InfoSheetData = {
+  title: 'How the leaderboard works',
+  bullets: [
+    'Ranked by points earned this month. Everyone starts again on the 1st.',
+    'Your total stays on the Points tab.',
+    "Other drivers' names are hidden.",
+    "Drivers with no points this month aren't listed.",
+  ],
+};
+
+const INFO_MAP: Record<TabId, InfoSheetData> = {
+  Points: INFO_POINTS,
+  Streak: INFO_STREAK,
+  Badges: INFO_BADGES,
+  Leaderboard: INFO_LEADERBOARD,
+};
+
+// ── Icons ────────────────────────────────────────────────
+
+const CloseX = () => (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-    <path
-      d="M12.5 15L7.5 10L12.5 5"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
+    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
+
+// ── Helpers ──────────────────────────────────────────────
+
+const toOrdinal = (n: number): string => {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
+};
+
+const getResetsText = (resetsOn?: string): string => {
+  if (resetsOn) {
+    const d = new Date(resetsOn);
+    return `resets ${d.toLocaleString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}`;
+  }
+  const d = new Date();
+  d.setMonth(d.getMonth() + 1, 1);
+  return `resets 1 ${d.toLocaleString('en-US', { month: 'long' })}`;
+};
 
 // ── Points tab ───────────────────────────────────────────
 
@@ -72,12 +132,11 @@ const PointsCourseRow = ({
   course, artSrc, tintClass, gamificationPoints,
 }: CourseRowProps) => {
   const outlineQuery = useCourseOutline(course.courseId);
-  const { data: progressData } = useProgress(course.courseId);
   const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
   const totalLessons = allLessons.length;
   const storedIdx = totalLessons > 0 ? getStoredResumeIdx(course.courseId, allLessons) : -1;
   const completedLessons = storedIdx > 0 ? storedIdx : 0;
-  const pointsEarned = gamificationPoints ?? progressData?.points?.earned ?? 0;
+  const pointsEarned = gamificationPoints ?? 0;
 
   const statusText = totalLessons > 0
     ? `${completedLessons} of ${totalLessons} lessons complete`
@@ -109,11 +168,10 @@ interface PointsTabProps {
   totalPoints: number;
   monthPoints?: number;
   coursePointsByKey?: Record<string, number>;
-  onContinue: () => void;
 }
 
 const PointsTab = ({
-  courses, totalPoints, monthPoints, coursePointsByKey, onContinue,
+  courses, totalPoints, monthPoints, coursePointsByKey,
 }: PointsTabProps) => (
   <div className="lp-tab-content">
     {/* Hero card */}
@@ -129,33 +187,22 @@ const PointsTab = ({
     </div>
 
     {/* By course */}
-    <h2 className="lp-section-heading">By course</h2>
-    <div className="lp-course-list">
-      {courses.map((course, i) => (
-        <PointsCourseRow
-          key={course.courseId}
-          course={course}
-          artSrc={COURSE_ART[i % COURSE_ART.length].artSrc}
-          tintClass={COURSE_ART[i % COURSE_ART.length].tintClass}
-          gamificationPoints={coursePointsByKey?.[course.courseId]}
-        />
-      ))}
-    </div>
-
-    {/* Rules pill */}
-    <div className="lp-rules-wrap">
-      <button type="button" className="lp-rules-pill">
-        <img src={iconCircleInfo} alt="" className="lp-rules-pill__icon" aria-hidden="true" />
-        <span>How points work</span>
-      </button>
-    </div>
-
-    <div className="lp-spacer" />
-
-    {/* Footer CTA */}
-    <button type="button" className="btn-primary" onClick={onContinue}>
-      Continue learning
-    </button>
+    {courses.length > 0 && (
+      <>
+        <h2 className="lp-section-heading">By course</h2>
+        <div className="lp-course-list">
+          {courses.map((course, i) => (
+            <PointsCourseRow
+              key={course.courseId}
+              course={course}
+              artSrc={COURSE_ART[i % COURSE_ART.length].artSrc}
+              tintClass={COURSE_ART[i % COURSE_ART.length].tintClass}
+              gamificationPoints={coursePointsByKey?.[course.courseId]}
+            />
+          ))}
+        </div>
+      </>
+    )}
   </div>
 );
 
@@ -292,7 +339,6 @@ const StreakThisWeek = ({ streakState = 'none', apiSummary }: StreakThisWeekProp
   const days = apiWeek ? mapApiDaysToLp(apiWeek.days) : STREAK_THIS_WEEK_DAYS[streakState];
   const daysCompleted = apiWeek ? apiWeek.learning_days : STREAK_THIS_WEEK_CONFIG[streakState].completed;
   const goal = apiWeek ? apiWeek.goal : 2;
-  const showProgress = daysCompleted > 0;
   const currentStreak = apiSummary?.current_streak_weeks ?? 0;
 
   let heading: string;
@@ -307,14 +353,14 @@ const StreakThisWeek = ({ streakState = 'none', apiSummary }: StreakThisWeekProp
       desc = apiWeek.projected_streak_weeks > currentStreak
         ? `Your streak grows to ${apiWeek.projected_streak_weeks} weeks when the week ends.`
         : 'Keep learning — your streak is already growing.';
-    } else if (daysCompleted === 0) {
-      heading = 'Two days to go';
-      desc = 'Learn on 2 days this week to start a week streak.';
     } else {
-      heading = 'One more day to go';
-      desc = currentStreak > 0
-        ? `Learn on one more day this week to keep your ${currentStreak}-week streak.`
-        : 'Learn on one more day this week to start your first streak.';
+      const remaining = goal - daysCompleted;
+      heading = remaining === 1 ? 'One more day to go' : `${remaining} days to go`;
+      desc = remaining === 1
+        ? (currentStreak > 0
+          ? `Learn on one more day this week to keep your ${currentStreak}-week streak.`
+          : 'Learn on one more day this week to start your first streak.')
+        : `Learn on ${remaining} days this week to ${currentStreak > 0 ? 'keep your streak' : 'start a streak'}.`;
     }
   } else {
     const cfg = STREAK_THIS_WEEK_CONFIG[streakState];
@@ -325,13 +371,7 @@ const StreakThisWeek = ({ streakState = 'none', apiSummary }: StreakThisWeekProp
   return (
     <div className="lp-streak-this-week">
       <div className="lp-streak-this-week__goal">
-        <div className="lp-streak-this-week__ring" aria-label={`${daysCompleted} of ${goal} days done`}>
-          <img src={ringTrack} alt="" className="lp-streak-this-week__ring-track" aria-hidden="true" />
-          {showProgress && (
-            <img src={ringProgress} alt="" className="lp-streak-this-week__ring-progress" aria-hidden="true" />
-          )}
-          <span className="lp-streak-this-week__ring-label">{daysCompleted}/{goal}</span>
-        </div>
+        <GoalRing daysCompleted={daysCompleted} daysGoal={goal} />
         <div className="lp-streak-this-week__words">
           <span className="lp-streak-this-week__heading">{heading}</span>
           <span className="lp-streak-this-week__desc">{desc}</span>
@@ -350,10 +390,9 @@ const StreakThisWeek = ({ streakState = 'none', apiSummary }: StreakThisWeekProp
 interface StreakTabProps {
   streakState?: StreakState;
   apiSummary?: GamificationSummary;
-  onContinue: () => void;
 }
 
-const StreakTab = ({ streakState = 'none', apiSummary, onContinue }: StreakTabProps) => {
+const StreakTab = ({ streakState = 'none', apiSummary }: StreakTabProps) => {
   const streakCount = apiSummary?.current_streak_weeks ?? (streakState === 'reset' ? 0 : 0);
   const longestStreak = apiSummary?.longest_streak_weeks ?? (streakState === 'reset' ? 4 : 0);
   const weeks = apiSummary ? mapApiRecentWeeks(apiSummary) : (streakState === 'reset' ? STREAK_RESET_WEEKS : STREAK_NONE_WEEKS);
@@ -395,18 +434,6 @@ const StreakTab = ({ streakState = 'none', apiSummary, onContinue }: StreakTabPr
 
       {/* This week */}
       <StreakThisWeek streakState={streakState} apiSummary={apiSummary} />
-
-      <div className="lp-rules-wrap">
-        <button type="button" className="lp-rules-pill">
-          <img src={iconCircleInfo} alt="" className="lp-rules-pill__icon" aria-hidden="true" />
-          <span>How your streak works</span>
-        </button>
-      </div>
-
-      <div className="lp-spacer" />
-      <button type="button" className="btn-primary" onClick={onContinue}>
-        Continue learning
-      </button>
     </div>
   );
 };
@@ -493,10 +520,10 @@ const BadgeGridItem = ({ title, sub, ring, isNew, onClick }: {
 interface BadgesTabProps {
   curriculums?: LearnerCurriculum[];
   courses: EnrolledCourse[];
-  onContinue: () => void;
+  isCoursesLoading?: boolean;
 }
 
-const BadgesTab = ({ curriculums, courses, onContinue }: BadgesTabProps) => {
+const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) => {
   const [sheet, setSheet] = useState<SheetBadgeData | null>(null);
   const { data: badgesPage } = useBadges();
   const totalBadges = badgesPage?.count ?? 0;
@@ -518,12 +545,13 @@ const BadgesTab = ({ curriculums, courses, onContinue }: BadgesTabProps) => {
     const award = courseAwardMap.get(course.courseId);
     const artMeta = COURSE_ARTS[idx % COURSE_ARTS.length];
     const earned = Boolean(award);
+    const badgeImageUrl = award?.badge?.image_url;
     setSheet({
       kind: 'course',
       courseId: course.courseId,
       title: award?.badge.title ?? course.title,
       description: award?.badge.description ?? `Earned when you finish all lessons and the final check.`,
-      art: artMeta.art,
+      art: (earned && badgeImageUrl) ? badgeImageUrl : artMeta.art,
       tintColor: artMeta.tint,
       progress: 'In progress',
       earned,
@@ -557,15 +585,15 @@ const BadgesTab = ({ curriculums, courses, onContinue }: BadgesTabProps) => {
             {curriculums.map((c) => {
               const complete = c.milestones.complete;
               const retained = c.milestones.retained;
-              const isComplete = complete.reached_at !== null;
+              const isComplete = complete?.reached_at != null;
               const thirtyOpen = c.knowledge_check.is_open;
-              const thirtyEarned = retained.reached_at !== null;
+              const thirtyEarned = retained?.reached_at != null;
               const progress = c.courses_total > 0
-                ? c.courses_passed / c.courses_total
+                ? c.courses_finished / c.courses_total
                 : 0;
               const sub = isComplete
-                ? new Date(complete.reached_at!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-                : `${c.courses_passed}/${c.courses_total} courses`;
+                ? new Date(complete!.reached_at!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                : `${c.courses_finished}/${c.courses_total} courses`;
 
               return (
                 <BadgeGridItem
@@ -576,7 +604,7 @@ const BadgesTab = ({ curriculums, courses, onContinue }: BadgesTabProps) => {
                   ring={
                     <GridSealRing
                       progress={progress}
-                      art={complete.badge?.image_url ?? iconBadgeCheck}
+                      art={complete?.badge?.image_url ?? iconBadgeCheck}
                       tintColor="var(--u-learning-course-tint-blue)"
                       earned={isComplete}
                       hasThirty={!thirtyEarned}
@@ -591,6 +619,18 @@ const BadgesTab = ({ curriculums, courses, onContinue }: BadgesTabProps) => {
       )}
 
       {/* Courses section */}
+      {isCoursesLoading && courses.length === 0 && (
+        <>
+          <h2 className="lp-section-heading lp-section-heading--badges lp-section-heading--with-divider">Courses</h2>
+          <div className="lp-badge-grid lp-badge-grid--loading">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="lp-badge-grid-item">
+                <div className="lp-badge-grid-ring__skeleton" />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
       {courses.length > 0 && (
         <>
           <h2 className="lp-section-heading lp-section-heading--badges lp-section-heading--with-divider">Courses</h2>
@@ -603,6 +643,7 @@ const BadgesTab = ({ curriculums, courses, onContinue }: BadgesTabProps) => {
               const sub = earned
                 ? new Date(award!.awarded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
                 : 'In progress';
+              const artSrc = (earned && award?.badge?.image_url) ? award.badge.image_url : artMeta.art;
 
               return (
                 <BadgeGridItem
@@ -614,7 +655,7 @@ const BadgesTab = ({ curriculums, courses, onContinue }: BadgesTabProps) => {
                   ring={
                     <GridSealRing
                       progress={earned ? 1 : 0.2}
-                      art={artMeta.art}
+                      art={artSrc}
                       tintColor={artMeta.tint}
                       earned={earned}
                     />
@@ -625,18 +666,6 @@ const BadgesTab = ({ curriculums, courses, onContinue }: BadgesTabProps) => {
           </div>
         </>
       )}
-
-      <div className="lp-rules-wrap">
-        <button type="button" className="lp-rules-pill">
-          <img src={iconCircleInfo} alt="" className="lp-rules-pill__icon" aria-hidden="true" />
-          <span>How badges work</span>
-        </button>
-      </div>
-
-      <div className="lp-spacer" />
-      <button type="button" className="btn-primary" onClick={onContinue}>
-        Continue learning
-      </button>
 
       <BadgeDetailSheet data={sheet} onClose={() => setSheet(null)} />
     </div>
@@ -654,86 +683,55 @@ const PersonIcon = () => (
 
 interface LeaderboardTabProps {
   apiData?: LeaderboardData;
-  onContinue: () => void;
 }
 
-const LeaderboardTab = ({ apiData, onContinue }: LeaderboardTabProps) => {
+const LeaderboardTab = ({ apiData }: LeaderboardTabProps) => {
   const isRanked = apiData?.status === 'ranked';
   const myRank = apiData?.my_rank ?? null;
   const totalDrivers = apiData?.total_drivers ?? 0;
-  const topPct = myRank && totalDrivers > 0
-    ? Math.round((myRank / totalDrivers) * 100)
-    : null;
-
   const displayRows = apiData?.rows ?? [];
+
+  const heroLabel = 'Your rank this month';
+  const heroValue = isRanked && myRank ? toOrdinal(myRank) : '0';
+  const heroSub = isRanked && myRank
+    ? `of ${totalDrivers} drivers · ${getResetsText(apiData?.resets_on)}`
+    : 'Finish a lesson this month to join';
 
   return (
     <div className="lp-tab-content">
-      {isRanked ? (
-        <>
-          <div className="lp-leaderboard-hero">
-            <span className="lp-points-hero__label">Your rank</span>
-            <span className="lp-points-hero__value">#{myRank}</span>
-            {topPct !== null && (
-              <span className="lp-points-hero__sub">Top {topPct}% this month</span>
-            )}
-          </div>
-          <h2 className="lp-section-heading">This month</h2>
-          <div className="lp-leaderboard-list">
-            {displayRows.map((row) => (
-              <div
-                key={row.rank}
-                className={`lp-leaderboard-row${row.is_me ? ' lp-leaderboard-row--you' : ''}`}
-              >
-                <span className="lp-leaderboard-row__rank">{row.rank}</span>
-                <span className="lp-leaderboard-row__name">{row.is_me ? 'You' : (row.display_name ?? '')}</span>
-                <span className="lp-leaderboard-row__points">{row.points}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="lp-leaderboard-hero--hifi">
-            <div className="lp-leaderboard-hero__figure">
-              <span className="lp-points-hero__label">Your rank this month</span>
-              <span className="lp-points-hero__value">Not yet</span>
-              <span className="lp-points-hero__sub">Finish a lesson this month to join</span>
-            </div>
-            <div className="lp-podium" aria-hidden="true">
-              <div className="lp-podium__bar lp-podium__bar--silver" />
-              <div className="lp-podium__bar lp-podium__bar--gold" />
-              <div className="lp-podium__bar lp-podium__bar--bronze" />
-            </div>
-          </div>
-
-          <h2 className="lp-section-heading">This month</h2>
-          <div className="lp-leaderboard-list--hifi">
-            {displayRows.map((row) => (
-              <div key={row.rank} className="lp-leaderboard-row--hifi">
-                <span className="lp-leaderboard-row__rank--hifi">{row.rank}</span>
-                <div className="lp-leaderboard-avatar">
-                  <span className="lp-leaderboard-avatar__icon"><PersonIcon /></span>
-                </div>
-                <span className="lp-leaderboard-row__name--hifi">{row.display_name ?? ''}</span>
-                <span className="lp-leaderboard-row__points--hifi">{row.points}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      <div className="lp-rules-wrap">
-        <button type="button" className="lp-rules-pill">
-          <img src={iconCircleInfo} alt="" className="lp-rules-pill__icon" aria-hidden="true" />
-          <span>How the leaderboard works</span>
-        </button>
+      <div className="lp-leaderboard-hero--hifi">
+        <div className="lp-leaderboard-hero__figure">
+          <span className="lp-points-hero__label">{heroLabel}</span>
+          <span className="lp-points-hero__value">{heroValue}</span>
+          <span className="lp-points-hero__sub">{heroSub}</span>
+        </div>
+        <div className="lp-podium" aria-hidden="true">
+          <div className="lp-podium__bar lp-podium__bar--silver" />
+          <div className="lp-podium__bar lp-podium__bar--gold" />
+          <div className="lp-podium__bar lp-podium__bar--bronze" />
+        </div>
       </div>
 
-      <div className="lp-spacer" />
-      <button type="button" className="btn-primary" onClick={onContinue}>
-        Continue learning
-      </button>
+      <div className="lp-leaderboard-list--hifi">
+        {displayRows.map((row, i) => {
+          const prev = displayRows[i - 1];
+          const hasGap = prev && row.rank - prev.rank > 1;
+          return (
+            <React.Fragment key={row.rank}>
+              {hasGap && <div className="lp-leaderboard-gap">···</div>}
+              <div className={`lp-leaderboard-row--hifi${row.is_me ? ' lp-leaderboard-row--you' : ''}`}>
+                <span className="lp-leaderboard-row__rank--hifi">{row.rank}</span>
+                <div className={`lp-leaderboard-avatar${row.is_me ? ' lp-leaderboard-avatar--me' : ''}`}>
+                  <span className="lp-leaderboard-avatar__icon"><PersonIcon /></span>
+                </div>
+                <span className="lp-leaderboard-row__name--hifi">{row.is_me ? 'You' : (row.display_name ?? '')}</span>
+                <span className="lp-leaderboard-row__points--hifi">{row.points}</span>
+              </div>
+            </React.Fragment>
+          );
+        })}
+      </div>
+
     </div>
   );
 };
@@ -742,9 +740,14 @@ const LeaderboardTab = ({ apiData, onContinue }: LeaderboardTabProps) => {
 
 export const LearningProgress = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabId>('Points');
+  const location = useLocation();
+  const initialTab = (TABS as readonly string[]).includes(location.state?.tab)
+    ? (location.state.tab as TabId)
+    : 'Points';
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+  const [infoSheet, setInfoSheet] = useState<InfoSheetData | null>(null);
 
-  const { data: courses } = useQuery({
+  const { data: courses, isLoading: isCoursesLoading } = useQuery({
     queryKey: ['enrolled-courses'],
     queryFn: getEnrolledCourses,
     staleTime: 5 * 60_000,
@@ -756,10 +759,7 @@ export const LearningProgress = () => {
 
   const enrolledCourses = courses ?? [];
   const firstCourseId = enrolledCourses[0]?.courseId;
-  const { data: progressData } = useProgress(firstCourseId ?? '');
-
-  // Use gamification API for points; fall back to legacy progress API while loading
-  const totalPoints = gamification?.lifetime_points ?? progressData?.points?.earned ?? 0;
+  const totalPoints = gamification?.lifetime_points ?? 0;
   const monthPoints = gamification?.month_points;
 
   // Build course_key → gamification points map for PointsTab rows
@@ -780,14 +780,21 @@ export const LearningProgress = () => {
       <header className="lp-nav">
         <button
           type="button"
-          className="lp-nav__back"
-          aria-label="Go back"
+          className="lp-nav__close"
+          aria-label="Close"
           onClick={() => navigate(-1)}
         >
-          <ArrowLeft />
+          <CloseX />
         </button>
         <span className="lp-nav__title">Your progress</span>
-        <div className="lp-nav__spacer" aria-hidden="true" />
+        <button
+          type="button"
+          className="lp-nav__info"
+          aria-label="How this works"
+          onClick={() => setInfoSheet(INFO_MAP[activeTab])}
+        >
+          <img src={iconCircleInfo} alt="" aria-hidden="true" />
+        </button>
       </header>
 
       {/* Tabs */}
@@ -815,29 +822,29 @@ export const LearningProgress = () => {
             totalPoints={totalPoints}
             monthPoints={monthPoints}
             coursePointsByKey={coursePointsByKey}
-            onContinue={handleContinue}
           />
         )}
         {activeTab === 'Streak' && (
-          <StreakTab
-            apiSummary={gamification}
-            onContinue={handleContinue}
-          />
+          <StreakTab apiSummary={gamification} />
         )}
         {activeTab === 'Badges' && (
-          <BadgesTab
-            curriculums={curriculums}
-            courses={enrolledCourses}
-            onContinue={handleContinue}
-          />
+          <BadgesTab curriculums={curriculums} courses={enrolledCourses} isCoursesLoading={isCoursesLoading} />
         )}
         {activeTab === 'Leaderboard' && (
-          <LeaderboardTab
-            apiData={leaderboardData}
-            onContinue={handleContinue}
-          />
+          <LeaderboardTab apiData={leaderboardData} />
         )}
       </div>
+
+      {/* Sticky footer — only when enrolled in at least one course */}
+      {enrolledCourses.length > 0 && (
+        <footer className="lp-footer">
+          <button type="button" className="btn-primary" onClick={handleContinue}>
+            Continue learning
+          </button>
+        </footer>
+      )}
+
+      <InfoSheet data={infoSheet} onClose={() => setInfoSheet(null)} />
     </div>
   );
 };

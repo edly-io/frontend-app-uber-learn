@@ -15,7 +15,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   submitAssessment, type AssessmentResponse,
 } from '../api/progress';
-import { qk } from '../api/queries';
 import { generateUUID } from '../lib/uuid';
 
 export type AssessmentType = 'baseline' | 'final' | 'retention';
@@ -29,10 +28,10 @@ export interface UseAssessmentSubmitResult {
 }
 
 export function useAssessmentSubmit(): UseAssessmentSubmitResult {
-  const queryClient = useQueryClient();
   // Idempotency key: initialized at mount, refreshed only in resetResult.
   // This ensures network retries reuse the same key (idempotent re-submission).
   const idempotencyKeyRef = useRef<string>(generateUUID());
+  const queryClient = useQueryClient();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<AssessmentResponse | null>(null);
@@ -44,8 +43,7 @@ export function useAssessmentSubmit(): UseAssessmentSubmitResult {
     try {
       const response = await submitAssessment(courseId, assessmentType, idempotencyKeyRef.current);
       setResult(response);
-      // Invalidate cached progress so the next GET reflects the completed attempt
-      queryClient.invalidateQueries({ queryKey: qk.progress(courseId) });
+      queryClient.invalidateQueries({ queryKey: ['progress', courseId] });
     } catch (err: unknown) {
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {

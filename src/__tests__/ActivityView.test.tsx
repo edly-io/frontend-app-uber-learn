@@ -82,43 +82,6 @@ const MOCK_SEQUENCE_DATA = {
   ],
 };
 
-// Progress for a course where this sequence is regular content (no assessments).
-const MOCK_PROGRESS: progressApi.UberLearnProgress = {
-  completedActivities: 0,
-  totalActivities: 2,
-  fraction: 0,
-  assessments: { baseline: null, final: null, retention: null },
-  points: { earned: null, possible: null },
-  streak: { currentDays: 0, longestDays: 0 },
-  courseComplete: false,
-  badges: [],
-};
-
-// Progress where this sequence is the baseline assessment.
-const ASSESSMENT_PROGRESS: progressApi.UberLearnProgress = {
-  ...MOCK_PROGRESS,
-  assessments: {
-    baseline: {
-      configured: true,
-      usageKey: SEQ_ID,
-      sequenceKey: SEQ_ID,
-      firstUnitKey: 'unit-1',
-      attemptCount: 0,
-      passed: null,
-      firstPassedAt: null,
-      canAttempt: true,
-      blockedReason: null,
-      retryAfterSeconds: 0,
-      nextAttemptAvailableAt: null,
-      unlocked: true,
-      unlocksAt: null,
-      latestAttempt: null,
-    },
-    final: null,
-    retention: null,
-  },
-};
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -167,7 +130,6 @@ beforeEach(() => {
   mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '0' });
   jest.mocked(coursewareApi.getSequenceMetadata).mockResolvedValue(MOCK_SEQUENCE_DATA);
   jest.mocked(progressApi.recordActivity).mockResolvedValue(undefined);
-  jest.mocked(progressApi.getUberLearnProgress).mockResolvedValue(MOCK_PROGRESS);
 });
 
 // ---------------------------------------------------------------------------
@@ -370,10 +332,14 @@ describe('ActivityView', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /finish/i }));
 
-      expect(mockNavigate).toHaveBeenCalledWith(
-        `/course/${COURSE_ID}/lesson-complete`,
-        { state: expect.objectContaining({ lessonTitle: 'Driver Basics', nextSequenceId: null }) },
-      );
+      // After the last unit, the component navigates to the lesson-complete page
+      // (with lesson metadata in state) rather than directly to the course overview.
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith(
+          `/course/${COURSE_ID}/lesson-complete`,
+          { state: expect.objectContaining({ lessonTitle: 'Driver Basics', nextSequenceId: null }) },
+        );
+      });
     });
   });
 
@@ -451,7 +417,7 @@ describe('ActivityView', () => {
     });
   });
 
-  describe('completion depends on progress and the assessment flag', () => {
+  describe('completion of problem units and step changes', () => {
     beforeEach(() => mergeConfig({ UBER_LIGHTWEIGHT_IFRAMES: true }));
     afterEach(() => mergeConfig({ UBER_LIGHTWEIGHT_IFRAMES: false }));
 
@@ -465,56 +431,67 @@ describe('ActivityView', () => {
         data: { type: 'plugin.resize', payload: { width: 400, height: 600 } },
       }));
     });
-    const deferredProgress = () => {
-      let resolve!: (progress: progressApi.UberLearnProgress) => void;
-      jest.mocked(progressApi.getUberLearnProgress).mockReturnValue(new Promise((r) => { resolve = r; }));
-      return (progress: progressApi.UberLearnProgress) => act(async () => { resolve(progress); });
-    };
 
-    // The last unit's button reads "Submit" only once progress says it is an assessment,
-    // which proves progress has loaded before Continue is checked.
-    it('keeps an assessment step locked after its content shows, until plugin.completed', async () => {
-      jest.mocked(progressApi.getUberLearnProgress).mockResolvedValue(ASSESSMENT_PROGRESS);
+    // unit-2 is a graded problem unit and the last step ("Finish").
+    it('keeps a problem unit locked after its content shows, until plugin.completed', async () => {
       mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
       renderComponent();
-      const submit = await screen.findByRole('button', { name: /submit/i });
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
 
       showContent();
       fireEvent.load(getFrame());
 
       expect(spinner()).not.toBeInTheDocument();
-      expect(submit).toBeDisabled();
+      expect(screen.getByRole('button', { name: /finish/i })).toBeDisabled();
 
       dispatchPluginMessage('plugin.completed', { correct: true });
-      await waitFor(() => expect(screen.getByRole('button', { name: /submit/i })).not.toBeDisabled());
+      await waitFor(() => expect(screen.getByRole('button', { name: /finish/i })).not.toBeDisabled());
     });
 
-    it('locks an assessment step whose content shows before progress loads', async () => {
-      const resolveProgress = deferredProgress();
+    it('unlocks a problem unit the learner completed on an earlier visit', async () => {
+      jest.mocked(coursewareApi.getSequenceMetadata).mockResolvedValue({
+        ...MOCK_SEQUENCE_DATA,
+        units: MOCK_SEQUENCE_DATA.units.map((u) => (u.id === 'unit-2' ? { ...u, complete: true } : u)),
+      });
       mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
       renderComponent();
       await waitFor(() => expect(getFrame()).toBeInTheDocument());
 
-      showContent();
-      expect(spinner()).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /finish/i })).toBeDisabled();
-
-      await resolveProgress(ASSESSMENT_PROGRESS);
-
-      expect(await screen.findByRole('button', { name: /submit/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /finish/i })).not.toBeDisabled();
     });
 
-    it('completes regular content once progress confirms it is not an assessment', async () => {
-      const resolveProgress = deferredProgress();
-      renderComponent();
+    it('does not record the previous step\'s answer against the next step', async () => {
+      // Two non-problem steps, so the second completes on load without plugin.completed.
+      jest.mocked(coursewareApi.getSequenceMetadata).mockResolvedValue({
+        ...MOCK_SEQUENCE_DATA,
+        units: [
+          MOCK_SEQUENCE_DATA.units[0],
+          {
+            ...MOCK_SEQUENCE_DATA.units[0], id: 'unit-3', title: 'Recap', contentType: 'html',
+          },
+        ],
+      });
+      const queryClient = makeQueryClient();
+      const view = () => (
+        <QueryClientProvider client={queryClient}>
+          <ActivityView />
+        </QueryClientProvider>
+      );
+      const { rerender } = render(view());
       await waitFor(() => expect(getFrame()).toBeInTheDocument());
-
-      showContent();
-      expect(screen.getByRole('button', { name: /continue/i })).toBeDisabled();
-
-      await resolveProgress(MOCK_PROGRESS);
-
+      dispatchPluginMessage('plugin.completed', { correct: true });
       await waitFor(() => expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled());
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+
+      mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
+      rerender(view());
+      await waitFor(() => expect(getFrame().dataset.usageKey).toBe('unit-3'));
+      showContent();
+      fireEvent.click(await screen.findByRole('button', { name: /finish/i }));
+
+      expect(progressApi.recordActivity).toHaveBeenLastCalledWith({
+        courseId: COURSE_ID, unitId: 'unit-3', correct: null,
+      });
     });
 
     it('shows the spinner again when returning to a step whose iframe is reloading', async () => {

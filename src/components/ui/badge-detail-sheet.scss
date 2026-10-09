@@ -1,0 +1,161 @@
+/* ── Badge detail sheet ───────────────────────────────── */
+
+.bds-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 200;
+}
+
+.bds-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 201;
+  background: var(--u-background-primary);
+  border-radius: 24px 24px 0 0;
+  padding: 8px 24px calc(24px + env(safe-area-inset-bottom, 0px));
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.bds-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--u-background-tertiary);
+  border-radius: 2px;
+  margin: 0 auto 20px;
+}
+
+/* ── Content ─────────────────────────────────────────── */
+
+.bds-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.bds-type-label {
+  margin: 16px 0 4px;
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.43;
+  color: var(--u-content-secondary);
+}
+
+.bds-title {
+  margin: 0 0 8px;
+  font-family: var(--u-font-display);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.27;
+  color: var(--u-content-primary);
+}
+
+.bds-desc {
+  margin: 0 0 8px;
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.57;
+  color: var(--u-content-secondary);
+}
+
+.bds-progress {
+  margin: 0 0 20px;
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.43;
+  color: var(--u-content-primary);
+}
+
+.bds-cta {
+  width: 100%;
+}
+
+/* ── Seal ring ───────────────────────────────────────── */
+
+.bds-seal-ring {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.bds-seal-ring__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.bds-seal-ring__inner {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  border: 4px solid var(--u-background-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.bds-seal-ring__art {
+  width: 55%;
+  height: 55%;
+  object-fit: contain;
+}
+
+.bds-seal-ring__art--locked {
+  filter: grayscale(100%) opacity(0.5);
+}
+
+/* ── 30-day check info card ──────────────────────────── */
+
+.bds-thirty-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--u-background-secondary);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.bds-thirty-card__icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--u-content-secondary);
+}
+
+.bds-thirty-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.bds-thirty-card__title {
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.43;
+  color: var(--u-content-primary);
+  margin: 0 0 4px;
+}
+
+.bds-thirty-card__desc {
+  font-family: var(--u-font-body);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.54;
+  color: var(--u-content-secondary);
+  margin: 0;
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import './button-dock.css';
+import './button-dock.scss';
 
 interface ButtonDockProps {
   onContinue: () => void;

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { getConfig } from '@edx/frontend-platform';
 import { usePostMessage } from '../../hooks/usePostMessage';
 import { buildXBlockUrl } from '../../lib/xblock-url';
-import './content-iframe.css';
+import './content-iframe.scss';
 
 function getLmsOrigin(): string {
   return new URL(getConfig().LMS_BASE_URL).origin;

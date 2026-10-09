@@ -6,13 +6,12 @@ export function generateUUID(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  // RFC 4122 v4 fallback for non-secure contexts (dev over HTTP). The bit operations set the
-  // version and variant fields, so no-bitwise doesn't apply.
-  /* eslint-disable no-bitwise */
+  // RFC 4122 v4 fallback for non-secure contexts (dev over HTTP)
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    // eslint-disable-next-line no-bitwise
     const r = (Math.random() * 16) | 0;
+    // eslint-disable-next-line no-bitwise
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
-  /* eslint-enable no-bitwise */
 }

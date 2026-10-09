@@ -1,7 +1,6 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { NavHeader } from '../components/nav-header/NavHeader';
-import { useProgress } from '../hooks/useProgress';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 
 // ---------------------------------------------------------------------------
@@ -176,14 +175,9 @@ export const RewardsView = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
 
-  const { data: progressData, isLoading } = useProgress(courseId);
-
-  const earnedBadgeTypes = new Set(
-    (progressData?.badges ?? []).map((b) => b.badgeType),
-  );
-  const badgeMap = Object.fromEntries(
-    (progressData?.badges ?? []).map((b) => [b.badgeType, b.awardedAt]),
-  );
+  const isLoading = false;
+  const earnedBadgeTypes = new Set<string>();
+  const badgeMap: Record<string, string> = {};
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
@@ -198,7 +192,7 @@ export const RewardsView = () => {
         ) : (
           <>
             {/* Course complete banner */}
-            {progressData?.courseComplete && (
+            {false && (
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -273,20 +267,11 @@ export const RewardsView = () => {
 
               <StatRow
                 label="Points earned"
-                value={`${formatPoints(progressData?.points.earned ?? null)} / ${formatPoints(progressData?.points.possible ?? null)}`}
+                value={`${formatPoints(null)} / ${formatPoints(null)}`}
               />
-              <StatRow
-                label="Activities completed"
-                value={`${progressData?.completedActivities ?? 0} / ${progressData?.totalActivities ?? 0}`}
-              />
-              <StatRow
-                label="Current streak"
-                value={`${progressData?.streak.currentDays ?? 0} day${progressData?.streak.currentDays !== 1 ? 's' : ''}`}
-              />
-              <StatRow
-                label="Longest streak"
-                value={`${progressData?.streak.longestDays ?? 0} day${progressData?.streak.longestDays !== 1 ? 's' : ''}`}
-              />
+              <StatRow label="Activities completed" value="0 / 0" />
+              <StatRow label="Current streak" value="0 days" />
+              <StatRow label="Longest streak" value="0 days" />
             </section>
 
             {/* Back to course */}

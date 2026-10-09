@@ -1,0 +1,7 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="node">
+<circle id="halo" cx="24" cy="24" r="24" fill="#EFF4FE"/>
+<circle id="disc" cx="24" cy="24" r="16" fill="#276EF1"/>
+<circle id="dot" cx="24" cy="24" r="6" fill="white"/>
+</g>
+</svg>

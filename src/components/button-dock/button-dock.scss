@@ -1,0 +1,33 @@
+.button-dock {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--u-background-primary);
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 16px 20px;
+  background: var(--u-background-always-dark);
+  color: var(--u-content-on-color);
+  border: none;
+  border-radius: 8px;
+  font-family: var(--u-font-body);
+  font-weight: 500;
+  font-size: 1.125rem;
+  line-height: 1.33;
+  cursor: pointer;
+  transition: opacity var(--u-duration-fast);
+  min-height: 44px;
+}
+
+.btn-primary:disabled {
+  background: var(--u-background-state-disabled);
+  color: var(--u-content-state-disabled);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.btn-primary:not(:disabled):hover {
+  opacity: 0.85;
+}

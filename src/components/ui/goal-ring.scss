@@ -1,0 +1,29 @@
+.goal-ring {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--u-background-positive) 0% var(--goal-pct, 0%), var(--u-background-positive-light) var(--goal-pct, 0%) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* inner circle punches the donut hole; white so the track is visible */
+.goal-ring__inner {
+  width: 51px;
+  height: 51px;
+  border-radius: 50%;
+  background: var(--u-background-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.goal-ring__label {
+  font-family: var(--u-font-body);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.33;
+  color: var(--u-content-primary);
+}

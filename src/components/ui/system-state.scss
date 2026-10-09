@@ -1,0 +1,104 @@
+/* ── System state full-page layout ──────────────────────────────── */
+.ss-page {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--u-background-primary);
+}
+
+/* ── Content area ────────────────────────────────────────────────── */
+.ss-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ── State spot tile ─────────────────────────────────────────────── */
+.ss-tile {
+  flex-shrink: 0;
+  width: 100%;
+  height: 140px;
+  background: var(--u-background-secondary);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ss-tile__art {
+  width: 80px;
+  height: 80px;
+  display: block;
+}
+
+/* ── Heading block ───────────────────────────────────────────────── */
+.ss-heading-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.ss-heading {
+  font-family: var(--u-font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.25;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.ss-body {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────── */
+.ss-footer {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--u-background-primary);
+}
+
+.ss-footer__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 16px 20px;
+  background: var(--u-background-always-dark);
+  color: var(--u-content-on-color);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.33;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.ss-footer__btn:hover,
+.ss-footer__btn:focus-visible {
+  opacity: 0.85;
+}
+
+.ss-footer__btn:active {
+  opacity: 0.7;
+}
+
+.ss-footer__btn:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}

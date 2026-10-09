@@ -1,7 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { NavHeader } from '../components/nav-header/NavHeader';
-import './knowledge-check.css';
+import { StepIndicator } from '../components/step-indicator/StepIndicator';
+import courseArtBook from '../assets/icons/course-art-book.svg';
+import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
+import iconClockFilled from '../assets/icons/icon-clock-filled.svg';
+import iconCircleCheck from '../assets/icons/icon-circle-check.svg';
+import iconCircleX from '../assets/icons/icon-circle-x.svg';
+import iconChartBar from '../assets/icons/icon-chart-bar.svg';
+import './knowledge-check.scss';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -23,28 +30,50 @@ interface KnowledgeCheckState {
 
 // ── Answer option component ────────────────────────────────────────────────
 
+type AnswerState = 'idle' | 'selected' | 'incorrect' | 'disabled';
+
 interface AnswerOptionProps {
   optionKey: string;
   label: string;
-  selected: boolean;
+  answerState: AnswerState;
   onSelect: () => void;
 }
 
 const AnswerOption = ({
-  optionKey, label, selected, onSelect,
-}: AnswerOptionProps) => (
-  <button
-    type="button"
-    className={`kc-option${selected ? ' kc-option--selected' : ''}`}
-    onClick={onSelect}
-    aria-pressed={selected}
-  >
-    <span className={`kc-option__key${selected ? ' kc-option__key--selected' : ''}`}>
-      {optionKey}
-    </span>
-    <span className="kc-option__label">{label}</span>
-  </button>
-);
+  optionKey, label, answerState, onSelect,
+}: AnswerOptionProps) => {
+  const isDisabled = answerState === 'disabled' || answerState === 'incorrect';
+  return (
+    <button
+      type="button"
+      className={[
+        'kc-option',
+        answerState === 'selected' ? 'kc-option--selected' : '',
+        answerState === 'incorrect' ? 'kc-option--incorrect' : '',
+        answerState === 'disabled' ? 'kc-option--disabled' : '',
+      ].filter(Boolean).join(' ')}
+      onClick={isDisabled ? undefined : onSelect}
+      aria-pressed={answerState === 'selected'}
+      disabled={isDisabled}
+    >
+      <span className={[
+        'kc-option__key',
+        answerState === 'selected' ? 'kc-option__key--selected' : '',
+        answerState === 'incorrect' ? 'kc-option__key--incorrect' : '',
+        answerState === 'disabled' ? 'kc-option__key--disabled' : '',
+      ].filter(Boolean).join(' ')}
+      >
+        {optionKey}
+      </span>
+      <span className={`kc-option__label${answerState === 'disabled' ? ' kc-option__label--disabled' : ''}`}>
+        {label}
+      </span>
+      {answerState === 'incorrect' && (
+        <img src={iconCircleX} alt="" aria-hidden="true" className="kc-option__result-icon" />
+      )}
+    </button>
+  );
+};
 
 // ── KnowledgeCheckPage (question flow) ─────────────────────────────────────
 
@@ -114,22 +143,34 @@ export const KnowledgeCheckPage = () => {
 
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [answered, setAnswered] = useState(false);
   const [answers, setAnswers] = useState<number[]>([]);
 
   const currentQuestion = questions[currentIdx];
   const isLastQuestion = currentIdx === questions.length - 1;
-  const buttonLabel = isLastQuestion ? 'Check answer' : 'Next question';
+  const hasCorrectIndex = currentQuestion.correctIndex !== undefined;
+  const isBaseline = checkType === 'baseline';
+
+  // After answering a final-check question, check if the selected answer is wrong
+  const isIncorrect = answered && hasCorrectIndex && selectedOption !== currentQuestion.correctIndex;
+
   const canProceed = selectedOption !== null;
+  const buttonLabel = answered ? 'Continue' : 'Check answer';
 
   const handleBack = () => navigate(`/course/${courseId}`);
 
   const handleNext = useCallback(() => {
     if (selectedOption === null) { return; }
 
+    // First click on "Check answer": reveal feedback (for non-baseline questions)
+    if (!answered && !isBaseline && hasCorrectIndex) {
+      setAnswered(true);
+      return;
+    }
+
     const newAnswers = [...answers, selectedOption];
 
     if (isLastQuestion) {
-      // Calculate score
       const correctCount = newAnswers.filter(
         (ans, idx) => questions[idx].correctIndex === undefined || ans === questions[idx].correctIndex,
       ).length;
@@ -137,73 +178,90 @@ export const KnowledgeCheckPage = () => {
       navigate(`/course/${courseId}/check-result/${checkType}`, {
         state: {
           checkType,
-          score: checkType === 'baseline' ? Math.floor(questions.length * 0.4) : correctCount,
+          score: isBaseline ? Math.floor(questions.length * 0.4) : correctCount,
           total: questions.length,
-          baselineScore: checkType === 'final' ? (baselineScore ?? Math.floor(questions.length * 0.4)) : undefined,
-          baselineTotal: checkType === 'final' ? (baselineTotal ?? questions.length) : undefined,
+          baselineScore: !isBaseline ? (baselineScore ?? Math.floor(questions.length * 0.4)) : undefined,
+          baselineTotal: !isBaseline ? (baselineTotal ?? questions.length) : undefined,
         },
       });
     } else {
       setAnswers(newAnswers);
       setCurrentIdx((i) => i + 1);
       setSelectedOption(null);
+      setAnswered(false);
     }
-  }, [
-    selectedOption, answers, isLastQuestion, questions, checkType, courseId, baselineScore, baselineTotal, navigate,
-  ]);
+  }, [selectedOption, answered, answers, isLastQuestion, questions, checkType, isBaseline,
+    hasCorrectIndex, courseId, baselineScore, baselineTotal, navigate]);
 
   const headerLabel = checkType === 'final' ? 'Final check' : 'Quick check';
-  const progressPercent = questions.length > 0
-    ? ((currentIdx + 1) / questions.length) * 100
-    : 0;
 
   return (
     <div className="kc-page">
       <NavHeader title={headerLabel} onBack={handleBack} />
+      <StepIndicator current={currentIdx} total={questions.length} />
 
       <main className="kc-content">
-        {/* Progress */}
-        <div className="kc-progress">
-          <div className="kc-progress-labels">
-            <span className="kc-progress-label">{headerLabel}</span>
-            <span className="kc-progress-position">
-              {currentIdx + 1}
-              {' '}
-              /
-              {' '}
-              {questions.length}
-            </span>
-          </div>
-          <div className="kc-progress-track">
-            <div className="kc-progress-fill" style={{ width: `${progressPercent}%` }} />
-          </div>
-        </div>
-
-        {/* Kicker */}
-        <p className="kc-kicker">Knowledge check</p>
+        {/* Progress label */}
+        <p className="kc-progress-label">
+          Question
+          {' '}
+          {currentIdx + 1}
+          {' '}
+          of
+          {' '}
+          {questions.length}
+        </p>
 
         {/* Question */}
         <h1 className="kc-question">{currentQuestion.text}</h1>
 
         {/* Lead */}
         <p className="kc-lead">
-          {checkType === 'baseline'
+          {isBaseline
             ? 'Choose the best answer. This establishes your starting knowledge.'
             : 'Choose the best answer. Your result does not change your points.'}
         </p>
 
         {/* Options */}
         <div className="kc-options" role="group" aria-label="Answer options">
-          {currentQuestion.options.map((option, idx) => (
-            <AnswerOption
-              key={option.key}
-              optionKey={option.key}
-              label={option.label}
-              selected={selectedOption === idx}
-              onSelect={() => setSelectedOption(idx)}
-            />
-          ))}
+          {currentQuestion.options.map((option, idx) => {
+            let answerState: AnswerState = 'idle';
+            if (!answered) {
+              answerState = selectedOption === idx ? 'selected' : 'idle';
+            } else if (idx === selectedOption && isIncorrect) {
+              answerState = 'incorrect';
+            } else if (idx !== selectedOption) {
+              answerState = 'disabled';
+            } else {
+              answerState = 'selected';
+            }
+            return (
+              <AnswerOption
+                key={option.key}
+                optionKey={option.key}
+                label={option.label}
+                answerState={answerState}
+                onSelect={() => !answered && setSelectedOption(idx)}
+              />
+            );
+          })}
         </div>
+
+        {/* Feedback card (shown when answer is incorrect) */}
+        {isIncorrect && (
+          <div className="kc-feedback" role="alert">
+            <div className="kc-feedback__head">
+              <div className="kc-feedback__mark" aria-hidden="true">
+                <img src={iconCircleX} alt="" className="kc-feedback__mark-icon" />
+              </div>
+              <p className="kc-feedback__title">Not quite</p>
+            </div>
+            <p className="kc-feedback__body">
+              If you are unsure how someone might respond to a question or comment,
+              it is best not to say it.
+            </p>
+          </div>
+        )}
       </main>
 
       <footer className="kc-footer">
@@ -245,23 +303,17 @@ export const KnowledgeCheckResultPage = () => {
   const passed = state.passed ?? score >= Math.ceil(total * 0.8);
 
   const isBaseline = checkType === 'baseline';
+  const isFinalNotPassed = !isBaseline && !passed;
 
-  const kicker = isBaseline ? 'Baseline recorded' : 'Final knowledge check';
-  const resultTitle = passed ? 'Ready to complete' : 'Keep going';
-  const resultBody = passed
-    ? `You answered ${score} of ${total} questions correctly.`
-    : `You answered ${score} of ${total} questions correctly. Review and try again.`;
-  const statusTitle = isBaseline ? 'Your starting point is recorded' : resultTitle;
-  const statusBody = isBaseline
-    ? `You answered ${score} of ${total} questions. This sets your starting knowledge level.`
-    : resultBody;
-
-  const scoreDisplay = isBaseline ? `${score} / ${total}` : `${score} / ${total}`;
+  let statusTitle: string;
+  if (isBaseline) { statusTitle = 'Your starting point is recorded'; } else if (passed) { statusTitle = 'Ready to complete'; } else { statusTitle = 'Review, then try again'; }
 
   const handleBack = () => navigate(`/course/${courseId}`);
   const handlePrimary = () => {
     if (isBaseline) {
       navigate(`/course/${courseId}`);
+    } else if (isFinalNotPassed) {
+      navigate(`/course/${courseId}/check/${checkType}`);
     } else {
       navigate(`/course/${courseId}/complete`, {
         state: { courseTitle: 'Course complete' },
@@ -269,59 +321,76 @@ export const KnowledgeCheckResultPage = () => {
     }
   };
 
-  const primaryLabel = isBaseline ? 'Start course' : 'Complete course';
+  let primaryLabel: string;
+  if (isBaseline) { primaryLabel = 'Start course'; } else if (isFinalNotPassed) { primaryLabel = 'Try final check again'; } else { primaryLabel = 'Complete course'; }
+
+  // Art panel color: warning (yellow) for final-not-passed, green otherwise
+  const artPanelClass = `kcr-art-panel${isFinalNotPassed ? ' kcr-art-panel--warning' : ''}`;
+
+  // Right tile: positive-light (green) when passed, grey/neutral when not passed
+  const rightTileClass = `kcr-gain__tile${passed && !isBaseline ? ' kcr-gain__tile--positive' : ''}`;
+  const rightIcon = passed && !isBaseline ? iconCircleCheck : iconChartBar;
+  const rightIconClass = `kcr-gain__icon${passed && !isBaseline ? ' kcr-gain__icon--positive' : ''}`;
 
   return (
-    <div className="kc-page">
-      <NavHeader title="Knowledge check result" onBack={handleBack} />
+    <div className="kc-page kc-page--result">
+      <div className={artPanelClass}>
+        <div className="kcr-art-panel__halo">
+          <div className="kcr-art-panel__disc">
+            <img src={courseArtBook} alt="" aria-hidden="true" className="kcr-art-panel__art" />
+          </div>
+        </div>
+        <button
+          type="button"
+          className="kcr-art-panel__back"
+          onClick={handleBack}
+          aria-label="Back"
+        >
+          <img src={iconArrowLeft} alt="" aria-hidden="true" width={24} height={24} />
+        </button>
+      </div>
 
       <main className="kc-content">
-        {/* Result card */}
-        <div className={`kcr-result-card${passed || isBaseline ? ' kcr-result-card--positive' : ' kcr-result-card--neutral'}`}>
-          <p className="kcr-kicker">{kicker}</p>
-          <p className={`kcr-score${passed && !isBaseline ? ' kcr-score--positive' : ''}`}>
-            {scoreDisplay}
-          </p>
-          <p className="kcr-title">{statusTitle}</p>
-          <p className="kcr-body">{statusBody}</p>
-        </div>
+        <h1 className="kcr-heading">{statusTitle}</h1>
 
-        {/* Before / Now comparison — final check only */}
-        {!isBaseline && (
-          <div className="kcr-gain">
-            <div className="kcr-gain__tile">
-              <p className="kcr-gain__label">Before</p>
-              <p className="kcr-gain__score">
-                {baselineScore}
-                /
-                {baselineTotal}
-              </p>
-            </div>
-            <div className="kcr-gain__tile">
-              <p className="kcr-gain__label">Now</p>
-              <p className="kcr-gain__score">
-                {score}
-                /
-                {total}
-              </p>
-            </div>
+        {/* Before / after learning gain tiles */}
+        <div className="kcr-gain">
+          <div className="kcr-gain__tile">
+            <img src={iconClockFilled} alt="" aria-hidden="true" className="kcr-gain__icon" />
+            <p className="kcr-gain__score">
+              {baselineScore}
+              /
+              {baselineTotal}
+            </p>
+            <p className="kcr-gain__label">before the course</p>
           </div>
-        )}
+          <div className={rightTileClass}>
+            <img src={rightIcon} alt="" aria-hidden="true" className={rightIconClass} />
+            <p className="kcr-gain__score">
+              {score}
+              /
+              {total}
+            </p>
+            <p className="kcr-gain__label">after the course</p>
+          </div>
+        </div>
 
         {/* Measurement note */}
         <p className="kcr-note">
-          Knowledge checks measure learning gain and do not award points.
+          {isFinalNotPassed
+            ? "There's no penalty. Go over these topics, then take the check again."
+            : 'Knowledge checks measure learning gain and do not award points.'}
         </p>
 
-        {/* Care note */}
-        <div className="kcr-care-note">
-          <p className="kcr-care-note__title">Your learning is recorded</p>
-          <p className="kcr-care-note__body">
-            {isBaseline
-              ? 'Your starting knowledge level is saved to your learning record.'
-              : 'Your result and course completion are saved to your learning record.'}
-          </p>
-        </div>
+        {/* Care note (final check not passed) */}
+        {isFinalNotPassed && (
+          <div className="kcr-care-note">
+            <p className="kcr-care-note__title">Review these topics</p>
+            <p className="kcr-care-note__body">
+              Respecting boundaries · Consent and personal space · Safe reporting
+            </p>
+          </div>
+        )}
       </main>
 
       <footer className="kc-footer">

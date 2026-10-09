@@ -1,0 +1,1103 @@
+/* ── Shared page shell ────────────────────────────────────────────────────── */
+.course-page {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--u-background-primary);
+}
+
+/* ── Scroll container (hero + content) ────────────────────────────────────── */
+.course-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Padded content below the hero ───────────────────────────────────────── */
+.course-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  padding-bottom: 32px;
+}
+
+/* ── Shared footer ────────────────────────────────────────────────────────── */
+.course-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 12px 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--u-background-primary);
+}
+
+.course-footer__primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 16px 20px;
+  background: var(--u-background-always-dark);
+  color: var(--u-content-on-color);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.33;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.course-footer__primary:hover,
+.course-footer__primary:focus-visible {
+  opacity: 0.85;
+}
+
+.course-footer__primary:active {
+  opacity: 0.7;
+}
+
+.course-footer__primary:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
+
+.course-footer__secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 16px 20px;
+  background: transparent;
+  color: var(--u-content-primary);
+  border: none;
+  cursor: pointer;
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.33;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.course-footer__secondary:hover,
+.course-footer__secondary:focus-visible {
+  opacity: 0.7;
+}
+
+.course-footer__secondary:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Course Details (cd-*)                                                        */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── Safety hero ──────────────────────────────────────────────────────────── */
+.cd-hero {
+  position: relative;
+  width: 100%;
+  height: 180px;
+  background: #002661;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.cd-hero__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Kicker ───────────────────────────────────────────────────────────────── */
+.cd-kicker {
+  font-family: var(--u-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.33;
+  margin: 0;
+}
+
+/* ── Title ────────────────────────────────────────────────────────────────── */
+.cd-title {
+  font-family: var(--u-font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.25;
+  margin: 0;
+  text-wrap: balance;
+}
+
+/* ── Lead ─────────────────────────────────────────────────────────────────── */
+.cd-lead {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Course progress row (Figma: label + bar + badge seal) ───────────────── */
+.cd-course-progress {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.cd-course-progress__bar-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cd-progress-points {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+.cd-course-progress__seal {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cd-badge-seal {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--u-background-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cd-badge-seal__icon {
+  width: 24px;
+  height: 24px;
+  opacity: 0.6;
+  filter: grayscale(1);
+}
+
+.cd-progress-label {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.14;
+  margin: 0;
+}
+
+.cd-progress-track {
+  width: 100%;
+  height: 4px;
+  background: var(--u-border-opaque);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.cd-progress-fill {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  background: var(--u-background-accent);
+  border-radius: 2px;
+}
+
+/* ── Learning record card ─────────────────────────────────────────────────── */
+.cd-record-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--u-background-state-disabled);
+  border-radius: 12px;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  border: none;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.cd-record-card:hover {
+  opacity: 0.85;
+}
+
+.cd-record-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cd-record-card__label {
+  font-family: var(--u-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--u-content-tertiary);
+  line-height: 1.33;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.cd-record-card__title {
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.33;
+  margin: 0;
+}
+
+.cd-record-card__desc {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-tertiary);
+  line-height: 1.43;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* ── Lesson section group ─────────────────────────────────────────────────── */
+.cd-section {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+  padding-top: 8px;
+}
+
+.cd-section__heading {
+  font-family: var(--u-font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.33;
+  margin: 0 0 0 0;
+}
+
+/* ── Lesson row ───────────────────────────────────────────────────────────── */
+.cd-lesson-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  cursor: pointer;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 0;
+  position: relative;
+}
+
+.cd-lesson-row--upcoming {
+  cursor: default;
+}
+
+.cd-lesson-row__status {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cd-lesson-row__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0;
+  position: relative;
+}
+
+.cd-lesson-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cd-lesson-row__title {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.25;
+  margin: 0;
+  word-break: break-word;
+}
+
+.cd-lesson-row__title--dim {
+  color: var(--u-content-secondary);
+}
+
+.cd-lesson-row__desc {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+.cd-lesson-row__desc--dim {
+  color: var(--u-content-secondary);
+}
+
+.cd-lesson-row__chevron {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cd-lesson-row__divider {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--u-border-opaque);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Course Introduction (ci-*)                                                   */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.ci-kicker {
+  font-family: var(--u-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.33;
+  margin: 0;
+}
+
+.ci-title {
+  font-family: var(--u-font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.25;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.ci-lead {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Steps list ───────────────────────────────────────────────────────────── */
+.ci-steps {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+}
+
+.ci-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--u-border-opaque);
+}
+
+.ci-step:last-child {
+  border-bottom: 1px solid var(--u-border-opaque);
+}
+
+.ci-step__num {
+  font-family: var(--u-font-mono);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--u-background-accent);
+  line-height: 1.14;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ci-step__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ci-step__title {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.25;
+  margin: 0;
+}
+
+.ci-step__desc {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+/* ── Warning banner ───────────────────────────────────────────────────────── */
+.ci-banner {
+  display: flex;
+  align-items: flex-start;
+  background: #fdf2dc;
+  border-radius: 12px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.ci-banner__icon-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  padding: 16px;
+}
+
+.ci-banner__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 16px 16px 0;
+}
+
+.ci-banner__title {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.25;
+  margin: 0;
+}
+
+.ci-banner__desc {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--u-content-primary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Save and Resume (sr-*)                                                       */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.sr-kicker {
+  font-family: var(--u-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--u-content-secondary);
+  line-height: 1.33;
+  margin: 0;
+}
+
+.sr-title {
+  font-family: var(--u-font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.25;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.sr-lead {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sr-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.sr-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sr-progress-label {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.14;
+}
+
+.sr-progress-percent {
+  font-family: var(--u-font-mono);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.14;
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-progress-track {
+  width: 100%;
+  height: 4px;
+  background: var(--u-border-opaque);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.sr-progress-fill {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  background: var(--u-background-accent);
+  border-radius: 2px;
+  min-width: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* Hi-fi course page shared (cp-*)                                             */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Scene header (required courses — photo + blue bg) ─────────────────── */
+.cp-scene-header {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  background: var(--u-background-accent-light);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.cp-scene-header__photo {
+  position: absolute;
+  left: 0;
+  top: -75px;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Art panel (optional / intro / save-resume pages) ───────────────────── */
+.cp-art-panel {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.cp-art-panel--blue  { background: var(--u-background-accent); }
+.cp-art-panel--green { background: var(--u-background-positive); }
+
+.cp-art-panel__halo {
+  width: 196px;
+  height: 196px;
+  border-radius: 50%;
+  background: var(--u-background-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cp-art-panel__disc {
+  width: 144px;
+  height: 144px;
+  border-radius: 50%;
+  background: var(--u-background-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cp-art-panel__art {
+  width: 96px;
+  height: 96px;
+  display: block;
+}
+
+/* ── Back button (shared overlay button on headers) ─────────────────────── */
+.cp-back-btn {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background: var(--u-background-primary);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.cp-back-btn:hover,
+.cp-back-btn:focus-visible { opacity: 0.8; }
+.cp-back-btn:active         { opacity: 0.6; }
+.cp-back-btn:focus-visible  { outline: 2px solid var(--u-content-primary); outline-offset: 2px; }
+
+.cp-back-btn__icon {
+  width: 24px;
+  height: 24px;
+}
+
+/* ── Learning record card (yellow, hi-fi) ───────────────────────────────── */
+.cp-record-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--u-background-warning-light);
+  border-radius: 16px;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  border: none;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.cp-record-card:hover { opacity: 0.9; }
+.cp-record-card:active { opacity: 0.75; }
+
+.cp-record-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cp-record-card__title {
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.33;
+  margin: 0;
+}
+
+.cp-record-card__desc {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-tertiary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+.cp-record-card__chevron {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+/* ── Unit section wrapper ───────────────────────────────────────────────── */
+.cp-unit-section {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding-top: 8px;
+}
+
+/* ── Unit banner ────────────────────────────────────────────────────────── */
+.cp-unit-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+  word-break: break-word;
+}
+
+.cp-unit-banner--done     { background: var(--u-background-positive-light); }
+.cp-unit-banner--current  { background: var(--u-background-accent-light); }
+.cp-unit-banner--upcoming { background: var(--u-background-secondary); }
+
+.cp-unit-banner__words {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.cp-unit-banner__label {
+  font-family: var(--u-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--u-content-secondary);
+  line-height: 1.33;
+  margin: 0;
+}
+
+.cp-unit-banner__name {
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.33;
+  margin: 0;
+}
+
+.cp-unit-banner__status {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Lessons heading (for optional courses with no unit banners) ─────────── */
+.cp-lessons-heading {
+  font-family: var(--u-font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.33;
+  margin: 0 0 0 0;
+}
+
+/* ── Path step rail system ──────────────────────────────────────────────── */
+.cp-path-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 0;
+  cursor: default;
+}
+
+button.cp-path-step {
+  cursor: pointer;
+}
+
+.cp-path-step__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  align-self: stretch;
+  flex-shrink: 0;
+  width: 32px;
+}
+
+.cp-path-step__rail-above {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  width: 32px;
+  height: 12px;
+}
+
+.cp-path-step__rail-above--sm {
+  height: 8px;
+}
+
+.cp-path-step__rail-below {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  flex: 1;
+  min-height: 1px;
+  width: 32px;
+}
+
+.cp-path-step__rail-line {
+  flex: 1;
+  min-height: 1px;
+  width: 2px;
+  background: var(--u-border-opaque);
+}
+
+/* Complete / upcoming circular node (32×32) */
+.cp-path-step__node {
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.cp-path-step__node--complete { background: var(--u-background-positive); }
+.cp-path-step__node--upcoming { background: var(--u-background-secondary); }
+
+.cp-path-step__node-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+/* Current step special ring node (48×48 SVG in 32px rail) */
+.cp-path-step__node-current {
+  position: relative;
+  width: 32px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.cp-path-step__node-current-img {
+  position: absolute;
+  top: 0;
+  left: -25%;
+  width: 150%;
+  height: 100%;
+  display: block;
+}
+
+/* Step body (text content) */
+.cp-path-step__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 14px;
+  padding-bottom: 16px;
+  word-break: break-word;
+  overflow: hidden;
+}
+
+.cp-path-step__body--dim { color: var(--u-content-secondary); }
+
+.cp-path-step__title {
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.33;
+  color: var(--u-content-primary);
+  margin: 0;
+}
+
+.cp-path-step__body--dim .cp-path-step__title {
+  color: var(--u-content-secondary);
+}
+
+.cp-path-step__detail {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.43;
+  color: var(--u-content-secondary);
+  margin: 0;
+}
+
+.cp-path-step__detail--complete { color: var(--u-content-positive); }
+
+/* Chevron (for complete steps) */
+.cp-path-step__chevron-wrap {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding-top: 16px;
+}
+
+.cp-path-step__chevron-img {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+/* "Up next" card (current step) */
+.cp-up-next-wrap {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding-top: 4px;
+  padding-bottom: 12px;
+}
+
+.cp-up-next-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: var(--u-background-primary);
+  border: 2px solid var(--u-content-primary);
+  border-radius: 16px;
+  padding: 12px 12px 12px 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.cp-up-next-card:hover { opacity: 0.85; }
+
+.cp-up-next-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.cp-up-next-card__label {
+  font-family: var(--u-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--u-background-accent);
+  line-height: 1.33;
+  margin: 0;
+}
+
+.cp-up-next-card__title {
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.33;
+  margin: 0;
+}
+
+.cp-up-next-card__detail {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+/* ── Numbered step (intro page) ─────────────────────────────────────────── */
+.cp-numbered-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.cp-numbered-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+}
+
+.cp-numbered-step__num-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  background: var(--u-background-accent-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cp-numbered-step__num {
+  font-family: var(--u-font-mono);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--u-background-accent);
+  line-height: 1;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.cp-numbered-step__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 4px;
+  word-break: break-word;
+  overflow: hidden;
+}
+
+.cp-numbered-step__title {
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.33;
+  margin: 0;
+}
+
+.cp-numbered-step__desc {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}

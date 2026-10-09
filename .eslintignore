@@ -1,3 +1,7 @@
 coverage/
 dist/
 node_modules/
+# Config/build files not included in tsconfig — linting them causes TS parser errors
+.eslintrc.js
+src/setupTest.js
+webpack.dev-tutor.config.js

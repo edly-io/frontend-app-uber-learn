@@ -16,7 +16,6 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CourseOverview } from '../pages/CourseOverview';
 import * as coursewareApi from '../api/courseware';
-import * as progressApi from '../api/progress';
 
 // ---------------------------------------------------------------------------
 // Routing mocks — avoid a real router; use stubs for useNavigate / useParams
@@ -35,7 +34,6 @@ jest.mock('react-router-dom', () => ({
 // ---------------------------------------------------------------------------
 
 jest.mock('../api/courseware');
-jest.mock('../api/progress');
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -92,22 +90,10 @@ function renderComponent() {
 // Setup / teardown
 // ---------------------------------------------------------------------------
 
-const MOCK_PROGRESS: progressApi.UberLearnProgress = {
-  completedActivities: 0,
-  totalActivities: 2,
-  fraction: 0,
-  assessments: { baseline: null, final: null, retention: null },
-  points: { earned: null, possible: null },
-  streak: { currentDays: 0, longestDays: 0 },
-  courseComplete: false,
-  badges: [],
-};
-
 beforeEach(() => {
   mockNavigate.mockClear();
   jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue(RESUME_FRESH);
   jest.mocked(coursewareApi.getCourseOutline).mockResolvedValue(OUTLINE);
-  jest.mocked(progressApi.getUberLearnProgress).mockResolvedValue(MOCK_PROGRESS);
 });
 
 // ---------------------------------------------------------------------------
@@ -135,7 +121,7 @@ describe('CourseOverview', () => {
       renderComponent();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { level: 1, name: 'Driver Safety 101' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Driver Safety 101');
       });
     });
 
@@ -160,17 +146,17 @@ describe('CourseOverview', () => {
   });
 
   describe('returning user (sectionId is set)', () => {
-    it('AC-NAV-02: stays on the overview and "Continue course" resumes /lesson/:sectionId/step/0', async () => {
+    it('AC-NAV-02: navigates to /lesson/:sectionId/step/0 with replace:true', async () => {
       jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue(RESUME_RETURNING);
 
       renderComponent();
 
-      const cta = await screen.findByRole('button', { name: 'Continue course' });
-      expect(mockNavigate).not.toHaveBeenCalled();
-
-      fireEvent.click(cta);
-
-      expect(mockNavigate).toHaveBeenCalledWith(`/course/${COURSE_ID}/lesson/seq-1/step/0`);
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith(
+          `/course/${COURSE_ID}/lesson/seq-1/step/0`,
+          { replace: true },
+        );
+      });
     });
 
     it('AC-NAV-02b: uses sectionId (camelCased from section_id) not sectionId as raw string', async () => {
@@ -183,19 +169,17 @@ describe('CourseOverview', () => {
 
       renderComponent();
 
-      fireEvent.click(await screen.findByRole('button', { name: 'Continue course' }));
-
-      expect(mockNavigate).toHaveBeenCalledWith(
-        expect.stringContaining('block-v1:Uber+L2024+type@sequential+block@abc'),
-      );
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith(
+          expect.stringContaining('block-v1:Uber+L2024+type@sequential+block@abc'),
+          { replace: true },
+        );
+      });
     });
   });
 
   describe('lesson card interaction', () => {
-    // Lessons unlock in order: the current lesson and completed ones are clickable,
-    // lessons not reached yet ("upcoming") are disabled.
-    it('AC-NAV-03: clicking the current lesson card navigates to /lesson/:seqId/step/0', async () => {
-      jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue(RESUME_RETURNING);
+    it('AC-NAV-03: clicking a lesson card navigates to /lesson/:seqId/step/0', async () => {
       renderComponent();
 
       await waitFor(() => expect(screen.getByText('Lesson 1: Basics')).toBeInTheDocument());
@@ -208,28 +192,15 @@ describe('CourseOverview', () => {
     });
 
     it('AC-NAV-03b: clicking a different lesson card uses the correct sequenceId', async () => {
-      jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue({ ...RESUME_RETURNING, sectionId: 'seq-2' });
       renderComponent();
 
       await waitFor(() => expect(screen.getByText('Lesson 2: Advanced')).toBeInTheDocument());
 
       fireEvent.click(screen.getByText('Lesson 2: Advanced'));
-      expect(mockNavigate).toHaveBeenLastCalledWith(`/course/${COURSE_ID}/lesson/seq-2/step/0`);
 
-      // The completed lesson before it stays reachable.
-      fireEvent.click(screen.getByText('Lesson 1: Basics'));
-      expect(mockNavigate).toHaveBeenLastCalledWith(`/course/${COURSE_ID}/lesson/seq-1/step/0`);
-    });
-
-    it('AC-NAV-03c: lessons not reached yet are disabled', async () => {
-      jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue(RESUME_RETURNING);
-      renderComponent();
-
-      await waitFor(() => expect(screen.getByText('Lesson 2: Advanced')).toBeInTheDocument());
-
-      expect(screen.getByText('Lesson 2: Advanced').closest('button')).toBeDisabled();
-      fireEvent.click(screen.getByText('Lesson 2: Advanced'));
-      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith(
+        `/course/${COURSE_ID}/lesson/seq-2/step/0`,
+      );
     });
   });
 

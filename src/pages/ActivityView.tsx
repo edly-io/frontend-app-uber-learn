@@ -40,8 +40,13 @@ export const ActivityView = () => {
   const queryClient = useQueryClient();
   const unitIdx = parseInt(unitIdxParam, 10);
 
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [isIframeLoaded, setIsIframeLoaded] = useState(false);
+  // Completion and visibility are tied to the step rather than kept as booleans reset in an
+  // effect: the effect only runs after the first render of a new step, so for that render the
+  // previous step's "completed"/"loaded" state would leak through (enabled Continue, no spinner).
+  // completedUnitId: the unit whose iframe sent plugin.completed. shownVisit: the visit (below)
+  // whose iframe content is on screen.
+  const [completedUnitId, setCompletedUnitId] = useState<string | null>(null);
+  const [shownVisit, setShownVisit] = useState<number | null>(null);
   const lastCorrectRef = useRef<boolean | null>(null);
 
   // Capture server_time when the lesson mounts so it can be used as the `since`
@@ -92,40 +97,60 @@ export const ActivityView = () => {
   } = useAssessmentSubmit();
 
   const currentUnit = units[unitIdx];
+  const currentUnitId = currentUnit?.id ?? null;
 
   // Gate Continue on plugin.completed for units that require interaction:
   // standard CAPA (contentType === 'problem') and graded custom XBlocks like
-  // sortable/DnD-v2 (graded === true). Plain HTML/text units auto-enable on load.
+  // sortable/DnD-v2 (graded === true). Plain HTML/text units auto-enable once shown.
   const isProblemUnit = currentUnit?.contentType === 'problem' || currentUnit?.graded === true;
 
-  // Reset completion + loading state whenever the unit changes.
-  // For problem units that were already completed on a previous visit,
-  // initialise isCompleted from the API flag so returning learners aren't stuck
-  // waiting for plugin.completed (which CAPA XBlocks may not re-fire on revisit).
+  // Reset correctness whenever the unit changes, so an answer from a previous
+  // step is never recorded against this one.
+  // Also record this as the furthest-reached sequence so CourseOverview and
+  // SaveAndResumePage can show accurate progress even when the LMS resume
+  // block hasn't caught up (common with demo courses).
   useEffect(() => {
-    setIsCompleted(isProblemUnit ? Boolean(currentUnit?.complete) : false);
-    setIsIframeLoaded(false);
+    lastCorrectRef.current = null;
     if (sequenceId && courseId) {
       storeResumeSequence(courseId, sequenceId);
     }
-  // currentUnit reference changes on every render; key on its id + complete flag instead.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sequenceId, unitIdx, courseId, isProblemUnit, currentUnit?.complete]);
+  }, [sequenceId, unitIdx, courseId]);
+
+  // Each visit to a step gets its own number, so coming back to a step (A → B → A before B
+  // showed) still shows the spinner while that step's iframe reloads.
+  const visitRef = useRef<{ unitId: string | null; visit: number }>({ unitId: null, visit: 0 });
+  if (visitRef.current.unitId !== currentUnitId) {
+    visitRef.current = { unitId: currentUnitId, visit: visitRef.current.visit + 1 };
+  }
+  const currentVisit = visitRef.current.visit;
+  const isIframeLoaded = currentUnitId !== null && shownVisit === currentVisit;
+
+  // Worked out on every render rather than stored. A step is complete when its iframe sent
+  // plugin.completed, or when it is a problem unit the learner already completed on an earlier
+  // visit (CAPA XBlocks may not re-fire plugin.completed on revisit), or when it is any other
+  // unit and its content is on screen. Problem units otherwise wait for plugin.completed, even
+  // after their content shows.
+  const isCompleted = currentUnitId !== null && (
+    completedUnitId === currentUnitId
+    || (isProblemUnit ? Boolean(currentUnit?.complete) : (!isAssessmentSequence && isIframeLoaded))
+  );
 
   const handleCompleted = useCallback((correct: boolean | null) => {
     lastCorrectRef.current = correct;
-    setIsCompleted(true);
-  }, []);
+    setCompletedUnitId(currentUnitId);
+  }, [currentUnitId]);
 
-  // Called when the iframe finishes loading. Auto-enables Continue for all
-  // non-problem content (HTML, video via plugin.videoEnded, etc.). Problem
-  // units gate Continue on plugin.completed so learners must submit first.
-  const handleIframeLoad = useCallback(() => {
-    setIsIframeLoaded(true);
-    if (!isAssessmentSequence && !isProblemUnit) {
-      setIsCompleted(true);
-    }
-  }, [isAssessmentSequence, isProblemUnit]);
+  // Called when the unit's content is on screen: its iframe's load event or, in lightweight mode,
+  // the iframe's first plugin.resize if that comes first (load also waits for e.g. a video's first
+  // frame, which can take seconds on mobile). Marks the frame visible, which also completes
+  // non-problem content (HTML, video, ...) — standard Open edX XBlocks don't send plugin.completed.
+  // Lightweight mode is per site: MFE_CONFIG_OVERRIDES["uber-learn"].UBER_LIGHTWEIGHT_IFRAMES
+  // (see tutor-contrib-uber), the same flag that trims what the LMS loads in these iframes.
+  // The flag must be a JSON boolean: the string "true" leaves it off.
+  const isLightweightMode = getConfig().UBER_LIGHTWEIGHT_IFRAMES === true;
+  const handleContentShown = useCallback(() => {
+    setShownVisit(currentVisit);
+  }, [currentVisit]);
 
   const handleContinue = useCallback(async () => {
     if (!isCompleted) { return; }
@@ -345,7 +370,8 @@ export const ActivityView = () => {
           key={currentUnit.id}
           usageKey={currentUnit.id}
           onCompleted={handleCompleted}
-          onLoad={handleIframeLoad}
+          onContentReady={isLightweightMode ? handleContentShown : undefined}
+          onLoad={handleContentShown}
         />
       </main>
 

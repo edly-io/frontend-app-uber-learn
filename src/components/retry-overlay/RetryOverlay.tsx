@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/Button';
-import './retry-overlay.css';
+import './retry-overlay.scss';
 
 type BlockedReason = 'cooldown' | 'already_passed' | 'final_not_passed' | 'retention_locked';
 

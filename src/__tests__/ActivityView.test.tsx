@@ -315,7 +315,7 @@ describe('ActivityView', () => {
       fireEvent.click(screen.getByRole('button', { name: /continue/i }));
 
       expect(mockNavigate).toHaveBeenCalledWith(
-        `/uber-learn/course/${COURSE_ID}/lesson/${SEQ_ID}/step/1`,
+        `/course/${COURSE_ID}/lesson/${SEQ_ID}/step/1`,
       );
     });
 
@@ -331,13 +331,13 @@ describe('ActivityView', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /finish/i }));
 
-      // The non-assessment last-unit flow shows LessonCompleteOverlay before navigating.
-      // Dismiss the overlay by clicking it, which triggers handleLessonCompleteDismiss.
-      await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument());
-      fireEvent.click(screen.getByRole('status'));
-
+      // After the last unit, the component navigates to the lesson-complete page
+      // (with lesson metadata in state) rather than directly to the course overview.
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith(`/uber-learn/course/${COURSE_ID}`);
+        expect(mockNavigate).toHaveBeenCalledWith(
+          `/course/${COURSE_ID}/lesson-complete`,
+          expect.any(Object),
+        );
       });
     });
   });

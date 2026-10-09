@@ -7,29 +7,39 @@ interface StepIndicatorProps {
   total: number;
 }
 
-export const StepIndicator = ({ current, total }: StepIndicatorProps) => (
-  <div
-    aria-label={`Step ${current + 1} of ${total}`}
-    style={{
-      display: 'flex',
-      gap: '4px',
-      padding: '0 var(--u-page-gutter) 0.5rem',
-    }}
-  >
-    {Array.from({ length: total }, (_, i) => (
+export const StepIndicator = ({ current, total }: StepIndicatorProps) => {
+  const pct = total > 0 ? Math.round(((current + 1) / total) * 100) : 0;
+  return (
+    <div
+      aria-label={`Step ${current + 1} of ${total}`}
+      style={{
+        padding: '4px 16px',
+        flexShrink: 0,
+      }}
+    >
       <div
-        key={i}
-        aria-hidden="true"
         style={{
-          flex: 1,
           height: '4px',
           borderRadius: '2px',
-          background: i <= current
-            ? 'var(--u-background-accent)'
-            : 'var(--u-background-state-disabled)',
-          transition: 'background var(--u-duration-normal) var(--u-ease-out)',
+          background: 'var(--u-background-state-disabled)',
+          position: 'relative',
+          overflow: 'hidden',
         }}
-      />
-    ))}
-  </div>
-);
+      >
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: `${pct}%`,
+            background: 'var(--u-background-accent)',
+            borderRadius: '2px',
+            transition: 'width var(--u-duration-normal) var(--u-ease-out)',
+          }}
+        />
+      </div>
+    </div>
+  );
+};

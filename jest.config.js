@@ -11,7 +11,7 @@ const mergedConfig = createConfig('jest', {
   testTimeout: 30000,
   testEnvironment: 'jsdom',
   moduleNameMapper: {
-    '\\.css$': 'identity-obj-proxy',
+    '\\.(css|scss)$': 'identity-obj-proxy',
   },
 });
 

@@ -1,15 +1,16 @@
 import React, {
-  useState, useCallback, useEffect, useMemo,
+  useState, useCallback, useEffect, useMemo, useRef,
 } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { getConfig } from '@edx/frontend-platform';
 import { useSequence } from '../hooks/useSequence';
-import { useProgress } from '../hooks/useProgress';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
 import { useAssessmentSubmit } from '../hooks/useAssessmentSubmit';
-import { recordActivity, AlreadyPassedError } from '../api/progress';
+import { AlreadyPassedError, AssessmentIncompleteError, recordActivity } from '../api/progress';
+import { getLessonResults } from '../api/gamification';
+import { useGamification } from '../hooks/useGamification';
 import { qk } from '../api/queries';
 import { ContentIFrame } from '../components/content-iframe/ContentIFrame';
 import { ButtonDock } from '../components/button-dock/ButtonDock';
@@ -28,23 +29,6 @@ function getLmsOrigin(): string {
   return new URL(getConfig().LMS_BASE_URL).origin;
 }
 
-type AssessmentSequenceType = 'baseline' | 'final' | 'retention';
-
-function detectAssessmentSequenceType(
-  sequenceId: string,
-  assessments: {
-    baseline: { sequenceKey: string | null } | null;
-    final: { sequenceKey: string | null } | null;
-    retention: { sequenceKey: string | null } | null;
-  } | null | undefined,
-): AssessmentSequenceType | null {
-  if (!assessments || !sequenceId) { return null; }
-  if (assessments.baseline?.sequenceKey === sequenceId) { return 'baseline'; }
-  if (assessments.final?.sequenceKey === sequenceId) { return 'final'; }
-  if (assessments.retention?.sequenceKey === sequenceId) { return 'retention'; }
-  return null;
-}
-
 export const ActivityView = () => {
   const {
     courseId = '',
@@ -58,8 +42,20 @@ export const ActivityView = () => {
 
   const [isCompleted, setIsCompleted] = useState(false);
   const [isIframeLoaded, setIsIframeLoaded] = useState(false);
-  // Track correctness from plugin.completed so it can be forwarded to the Progress API.
-  const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
+  const lastCorrectRef = useRef<boolean | null>(null);
+
+  // Capture server_time when the lesson mounts so it can be used as the `since`
+  // value for the lesson results endpoint. Using server_time (not device clock)
+  // prevents a fast device clock from making a first run look like a repeat.
+  const { data: gamificationData } = useGamification();
+  const serverTimeRef = useRef<string>(new Date().toISOString());
+  useEffect(() => {
+    if (gamificationData?.server_time) {
+      serverTimeRef.current = gamificationData.server_time;
+    }
+  // Only capture on mount (sequenceId change = new lesson)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sequenceId]);
 
   // Network availability — drives the offline error screen
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -78,21 +74,14 @@ export const ActivityView = () => {
     sequence, units, isLoading, isError, error,
   } = useSequence(sequenceId);
 
-  // Read assessments from the progress query to detect assessment sequences.
-  const { data: progressData } = useProgress(courseId);
-
   // Course outline — needed to find the next sequence after this one
   const outlineQuery = useCourseOutline(courseId);
   const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
   const currentLessonIdx = allLessons.findIndex((l) => l.sequenceId === sequenceId);
   const nextLesson = currentLessonIdx >= 0 ? allLessons[currentLessonIdx + 1] : null;
 
-  // Determine if this sequence is an assessment sequence
-  const currentAssessmentType = useMemo(
-    () => detectAssessmentSequenceType(sequenceId, progressData?.assessments ?? null),
-    [sequenceId, progressData?.assessments],
-  );
-  const isAssessmentSequence = currentAssessmentType !== null;
+  const currentAssessmentType = null;
+  const isAssessmentSequence = false;
 
   const {
     submit: submitAssessmentResult,
@@ -102,51 +91,43 @@ export const ActivityView = () => {
     resetResult,
   } = useAssessmentSubmit();
 
+  const currentUnit = units[unitIdx];
+
+  // Gate Continue on plugin.completed for units that require interaction:
+  // standard CAPA (contentType === 'problem') and graded custom XBlocks like
+  // sortable/DnD-v2 (graded === true). Plain HTML/text units auto-enable on load.
+  const isProblemUnit = currentUnit?.contentType === 'problem' || currentUnit?.graded === true;
+
   // Reset completion + loading state whenever the unit changes.
-  // Also record this as the furthest-reached sequence so CourseOverview and
-  // SaveAndResumePage can show accurate progress even when the LMS resume
-  // block hasn't caught up (common with demo courses).
+  // For problem units that were already completed on a previous visit,
+  // initialise isCompleted from the API flag so returning learners aren't stuck
+  // waiting for plugin.completed (which CAPA XBlocks may not re-fire on revisit).
   useEffect(() => {
-    setIsCompleted(false);
-    setLastCorrect(null);
+    setIsCompleted(isProblemUnit ? Boolean(currentUnit?.complete) : false);
     setIsIframeLoaded(false);
     if (sequenceId && courseId) {
       storeResumeSequence(courseId, sequenceId);
     }
-  }, [sequenceId, unitIdx, courseId]);
-
-  const currentUnit = units[unitIdx];
-
-  const recordMutation = useMutation({
-    mutationFn: (correct: boolean | null) => recordActivity({
-      courseId,
-      unitId: currentUnit?.id ?? '',
-      correct,
-    }),
-    onSuccess: () => {
-      // Invalidate progress so the progress bar and assessment keys stay current
-      queryClient.invalidateQueries({ queryKey: qk.progress(courseId) });
-    },
-  });
+  // currentUnit reference changes on every render; key on its id + complete flag instead.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sequenceId, unitIdx, courseId, isProblemUnit, currentUnit?.complete]);
 
   const handleCompleted = useCallback((correct: boolean | null) => {
-    // eslint-disable-next-line no-console
-    console.debug('[ActivityView] plugin.completed received, correct=', correct);
-    setLastCorrect(correct);
+    lastCorrectRef.current = correct;
     setIsCompleted(true);
   }, []);
 
-  // Called when the iframe finishes loading. Marks the frame visible and
-  // auto-enables Continue for regular (non-assessment) content — standard
-  // Open edX XBlocks don't send plugin.completed.
+  // Called when the iframe finishes loading. Auto-enables Continue for all
+  // non-problem content (HTML, video via plugin.videoEnded, etc.). Problem
+  // units gate Continue on plugin.completed so learners must submit first.
   const handleIframeLoad = useCallback(() => {
     setIsIframeLoaded(true);
-    if (!isAssessmentSequence) {
+    if (!isAssessmentSequence && !isProblemUnit) {
       setIsCompleted(true);
     }
-  }, [isAssessmentSequence]);
+  }, [isAssessmentSequence, isProblemUnit]);
 
-  const handleContinue = useCallback(() => {
+  const handleContinue = useCallback(async () => {
     if (!isCompleted) { return; }
 
     // Notify iframe of continue click so XBlocks can trigger submission
@@ -158,40 +139,60 @@ export const ActivityView = () => {
       );
     }
 
+    // Record activity on the backend (fire-and-forget — don't block navigation on failure)
+    if (currentUnit) {
+      recordActivity({
+        courseId,
+        unitId: currentUnit.id,
+        correct: lastCorrectRef.current,
+      }).catch(() => {});
+    }
+
     const nextIdx = unitIdx + 1;
     const isLastUnit = nextIdx >= units.length;
 
     if (isLastUnit && isAssessmentSequence && currentAssessmentType) {
-      // Last unit of an assessment sequence: submit the assessment, do not navigate yet.
-      // Record the activity first, then submit assessment.
-      recordMutation.mutate(lastCorrect);
       submitAssessmentResult(courseId, currentAssessmentType);
       return;
     }
 
-    // Non-assessment: record activity and navigate
-    recordMutation.mutate(lastCorrect);
-
     if (nextIdx < units.length) {
       navigate(`/course/${courseId}/lesson/${sequenceId}/step/${nextIdx}`);
     } else {
-      // Last unit in a non-assessment sequence — navigate to lesson complete page
+      // Fetch real points/accuracy from the backend before showing the completion screen.
+      // Falls back to safe defaults if the request fails (e.g. no connectivity).
+      let isRepeat = false;
+
+      try {
+        const results = await getLessonResults(sequenceId, serverTimeRef.current);
+        isRepeat = results.already_completed_before;
+      } catch {
+        // Network failure or 404 (lesson not yet in DB) — proceed with defaults
+      }
+
+      // Advance the stored resume point to the next lesson so the catalog
+      // shows "Continue" (not "Start") as soon as this lesson finishes.
+      if (nextLesson) {
+        storeResumeSequence(courseId, nextLesson.sequenceId);
+      }
+
+      // Invalidate gamification cache so Points/Streak tabs reflect new totals.
+      queryClient.invalidateQueries({ queryKey: qk.gamification() });
+
       navigate(`/course/${courseId}/lesson-complete`, {
         state: {
           lessonTitle: sequence?.title ?? 'Lesson',
           lessonNumber: currentLessonIdx >= 0 ? currentLessonIdx + 1 : 1,
-          pointsEarned: 30,
-          accountTotal: (progressData?.points?.earned ?? 0) + 30,
           nextSequenceId: nextLesson?.sequenceId ?? null,
           nextLessonTitle: nextLesson?.lessonTitle ?? '',
           nextLessonSubtitle: nextLesson?.sectionTitle ?? '',
+          isRepeat,
         },
       });
     }
   }, [
     isCompleted,
-    lastCorrect,
-    recordMutation,
+    currentUnit,
     unitIdx,
     units.length,
     isAssessmentSequence,
@@ -201,9 +202,9 @@ export const ActivityView = () => {
     navigate,
     submitAssessmentResult,
     sequence,
-    progressData,
     currentLessonIdx,
     nextLesson,
+    queryClient,
   ]);
 
   // Back arrow: step back within the lesson; if on step 0, go to course overview
@@ -232,18 +233,22 @@ export const ActivityView = () => {
     navigate(`/course/${courseId}`);
   }, [resetResult, navigate, courseId]);
 
-  // Determine overlay assessment type — 409 maps to already_passed
   const overlayAssessmentType: OverlayAssessmentType | null = useMemo(() => {
     if (!assessmentResult && !assessmentError) { return null; }
     if (assessmentError instanceof AlreadyPassedError) { return 'already_passed'; }
+    if (assessmentError instanceof AssessmentIncompleteError) { return 'assessment_incomplete'; }
+    if (assessmentError) { return 'submission_error'; }
     return currentAssessmentType;
   }, [assessmentResult, assessmentError, currentAssessmentType]);
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
-        <NavHeader title="Loading…" onBack={handleBack} />
-        <LoadingSkeleton lines={5} />
+      <div style={{
+        display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden',
+      }}
+      >
+        <NavHeader title="Loading…" onBack={handleBack} onClose={handleClose} />
+        <LoadingSkeleton />
       </div>
     );
   }
@@ -269,9 +274,9 @@ export const ActivityView = () => {
   }
 
   const lessonTitle = sequence?.title ?? 'Lesson';
-  const lessonKicker = allLessons.length > 0 && currentLessonIdx >= 0
-    ? `LESSON ${currentLessonIdx + 1} / ${allLessons.length}`
-    : undefined;
+  const lessonNavTitle = allLessons.length > 0 && currentLessonIdx >= 0
+    ? `Lesson ${currentLessonIdx + 1} of ${allLessons.length}`
+    : lessonTitle;
 
   // Show the Figma offline screen when the device loses connectivity
   if (isOffline) {
@@ -304,9 +309,8 @@ export const ActivityView = () => {
     }}
     >
       <NavHeader
-        title={lessonTitle}
+        title={lessonNavTitle}
         onBack={handleBack}
-        kicker={lessonKicker}
         onClose={handleClose}
       />
 

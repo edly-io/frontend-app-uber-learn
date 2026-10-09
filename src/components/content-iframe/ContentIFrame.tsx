@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { usePostMessage } from '../../hooks/usePostMessage';
 import { buildXBlockUrl } from '../../lib/xblock-url';
-import './content-iframe.css';
+import './content-iframe.scss';
 
 interface ContentIFrameProps {
   usageKey: string;

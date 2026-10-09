@@ -1,9 +1,9 @@
 import React from 'react';
 import type { AssessmentAttempt } from '../../api/progress';
 import { Button } from '../ui/Button';
-import './assessment-result-overlay.css';
+import './assessment-result-overlay.scss';
 
-export type OverlayAssessmentType = 'baseline' | 'final' | 'retention' | 'already_passed';
+export type OverlayAssessmentType = 'baseline' | 'final' | 'retention' | 'already_passed' | 'assessment_incomplete' | 'submission_error';
 
 interface AssessmentResultOverlayProps {
   assessmentType: OverlayAssessmentType;
@@ -70,6 +70,8 @@ export const AssessmentResultOverlay = ({
 }: AssessmentResultOverlayProps) => {
   const isBaseline = assessmentType === 'baseline';
   const isAlreadyPassed = assessmentType === 'already_passed';
+  const isIncomplete = assessmentType === 'assessment_incomplete';
+  const isSubmissionError = assessmentType === 'submission_error';
   const isPassed = attempt?.passed === true;
   const isFailed = attempt?.passed === false;
 
@@ -136,6 +138,28 @@ export const AssessmentResultOverlay = ({
             <h2 id="aro-heading" className="aro-heading">Keep going</h2>
             <div className="aro-score" aria-label={`Score: ${scoreText}`}>{scoreText}</div>
             <p className="aro-sub">Review the material and try again when you&apos;re ready.</p>
+            <div className="aro-actions">
+              <Button fullWidth onClick={onClose}>Try again</Button>
+            </div>
+          </>
+        )}
+
+        {isIncomplete && (
+          <>
+            <FailIcon />
+            <h2 id="aro-heading" className="aro-heading">Answer all questions</h2>
+            <p className="aro-sub">Complete every question before submitting.</p>
+            <div className="aro-actions">
+              <Button fullWidth onClick={onClose}>Go back</Button>
+            </div>
+          </>
+        )}
+
+        {isSubmissionError && (
+          <>
+            <FailIcon />
+            <h2 id="aro-heading" className="aro-heading">Submission failed</h2>
+            <p className="aro-sub">Something went wrong. Please try again.</p>
             <div className="aro-actions">
               <Button fullWidth onClick={onClose}>Try again</Button>
             </div>

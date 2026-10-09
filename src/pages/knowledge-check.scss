@@ -2,8 +2,16 @@
 .kc-page {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--u-background-primary);
+}
+
+/* Result variant: art panel replaces NavHeader so no extra top treatment */
+.kc-page--result {
+  overflow-y: auto;
+  height: auto;
+  min-height: 100dvh;
 }
 
 /* ── Scrollable content ───────────────────────────────────────────────────── */
@@ -16,57 +24,19 @@
   overflow-y: auto;
 }
 
-/* ── Progress bar ─────────────────────────────────────────────────────────── */
-.kc-progress {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-  overflow: hidden;
+.kc-page--result .kc-content {
+  overflow-y: visible;
+  flex: none;
 }
 
-.kc-progress-labels {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  width: 100%;
-}
-
+/* ── Question progress label ──────────────────────────────────────────────── */
 .kc-progress-label {
   font-family: var(--u-font-body);
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--u-content-primary);
   line-height: 1.14;
-}
-
-.kc-progress-position {
-  font-family: var(--u-font-body);
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--u-content-primary);
-  line-height: 1.14;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-}
-
-.kc-progress-track {
-  width: 100%;
-  height: 4px;
-  background: var(--u-border-opaque);
-  border-radius: 2px;
-  position: relative;
-  overflow: hidden;
-}
-
-.kc-progress-fill {
-  position: absolute;
-  inset-block: 0;
-  left: 0;
-  background: var(--u-background-accent);
-  border-radius: 2px;
-  transition: width 0.3s var(--u-ease-out);
-  min-width: 4px;
+  margin: 0;
 }
 
 /* ── Kicker ───────────────────────────────────────────────────────────────── */
@@ -167,6 +137,10 @@
   line-height: 1.5;
 }
 
+.kc-option--selected .kc-option__label {
+  font-weight: 700;
+}
+
 /* ── Footer ───────────────────────────────────────────────────────────────── */
 .kc-footer {
   flex-shrink: 0;
@@ -197,8 +171,10 @@
 }
 
 .kc-footer__btn:disabled {
-  opacity: 0.4;
+  background: var(--u-background-state-disabled);
+  color: var(--u-content-state-disabled);
   cursor: not-allowed;
+  opacity: 1;
 }
 
 .kc-footer__btn:not(:disabled):hover,
@@ -246,71 +222,80 @@
 /* Check Result screen                                                          */
 /* ──────────────────────────────────────────────────────────────────────────── */
 
-/* ── Result card ──────────────────────────────────────────────────────────── */
-.kcr-result-card {
+/* ── Art panel header (green, 240px) ─────────────────────────────────────── */
+.kcr-art-panel {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 20px;
-  border-radius: 12px;
-  width: 100%;
+  align-items: center;
+  justify-content: center;
+  height: 240px;
+  flex-shrink: 0;
+  background: var(--u-background-positive);
+  overflow: hidden;
 }
 
-.kcr-result-card--positive {
-  background: #eaf6ed;
+.kcr-art-panel__halo {
+  width: 196px;
+  height: 196px;
+  border-radius: 50%;
+  background: var(--u-background-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.kcr-result-card--neutral {
-  background: var(--u-background-state-disabled);
+.kcr-art-panel__disc {
+  width: 144px;
+  height: 144px;
+  border-radius: 50%;
+  background: var(--u-background-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.kcr-kicker {
-  font-family: var(--u-font-body);
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #5e5e5e;
-  line-height: 1.33;
-  margin: 0;
-  white-space: nowrap;
+.kcr-art-panel__art {
+  width: 96px;
+  height: 96px;
+  display: block;
 }
 
-.kcr-score {
-  font-family: var(--u-font-body);
-  font-size: 1.75rem;
-  font-weight: 500;
+/* White 40×40 circle back button at top-left */
+.kcr-art-panel__back {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background: var(--u-background-primary);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--u-duration-fast);
+}
+
+.kcr-art-panel__back:hover {
+  opacity: 0.8;
+}
+
+/* ── Result screen heading ────────────────────────────────────────────────── */
+.kcr-heading {
+  font-family: var(--u-font-display);
+  font-size: 2rem;
+  font-weight: 700;
   color: var(--u-content-primary);
-  line-height: 1.29;
+  line-height: 1.25;
   margin: 0;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+  text-wrap: balance;
 }
 
-.kcr-score--positive {
-  color: #0e8345;
-}
-
-.kcr-title {
-  font-family: var(--u-font-body);
-  font-size: 1.125rem;
-  font-weight: 500;
-  color: var(--u-content-primary);
-  line-height: 1.33;
-  margin: 0;
-}
-
-.kcr-body {
-  font-family: var(--u-font-body);
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: var(--u-content-secondary);
-  line-height: 1.43;
-  margin: 0;
-}
-
-/* ── Before / Now learning gain ───────────────────────────────────────────── */
+/* ── Before / after learning gain tiles ──────────────────────────────────── */
 .kcr-gain {
   display: flex;
-  gap: 8px;
+  gap: 16px;
   width: 100%;
 }
 
@@ -322,8 +307,34 @@
   gap: 4px;
   padding: 16px;
   background: var(--u-background-state-disabled);
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
+}
+
+.kcr-gain__tile--positive {
+  background: var(--u-background-positive-light);
+}
+
+.kcr-gain__icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  flex-shrink: 0;
+}
+
+.kcr-gain__icon--positive {
+  /* circle_check is black; tint green via filter */
+  filter: invert(36%) sepia(76%) saturate(500%) hue-rotate(104deg) brightness(88%) contrast(92%);
+}
+
+.kcr-gain__score {
+  font-family: var(--u-font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.25;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .kcr-gain__label {
@@ -333,17 +344,6 @@
   color: var(--u-content-secondary);
   line-height: 1.14;
   margin: 0;
-}
-
-.kcr-gain__score {
-  font-family: var(--u-font-body);
-  font-size: 1.75rem;
-  font-weight: 500;
-  color: var(--u-content-primary);
-  line-height: 1.29;
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
 }
 
 /* ── Measurement note ─────────────────────────────────────────────────────── */
@@ -356,14 +356,20 @@
   margin: 0;
 }
 
-/* ── Care note card ───────────────────────────────────────────────────────── */
+/* ── Art panel warning colour (final check not passed) ───────────────────── */
+.kcr-art-panel--warning {
+  background: var(--u-background-warning);
+}
+
+/* ── Care note card (final check not passed) ─────────────────────────────── */
 .kcr-care-note {
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 16px;
-  background: var(--u-background-state-disabled);
+  background: var(--u-background-secondary);
   border-radius: 12px;
+  width: 100%;
 }
 
 .kcr-care-note__title {
@@ -380,6 +386,122 @@
   font-size: 0.875rem;
   font-weight: 400;
   color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+/* ── Answer option states (after answer is revealed) ─────────────────────── */
+.kc-option--incorrect {
+  background: var(--u-background-negative-light);
+  border: 2px solid var(--u-border-negative);
+}
+
+.kc-option--disabled {
+  cursor: default;
+}
+
+.kc-option__key--incorrect {
+  background: var(--u-background-negative);
+  color: var(--u-content-on-color);
+}
+
+.kc-option__key--disabled {
+  background: var(--u-background-state-disabled);
+  color: var(--u-content-state-disabled);
+}
+
+.kc-option__label--disabled {
+  color: var(--u-content-state-disabled);
+}
+
+.kc-option__result-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: block;
+}
+
+/* ── Activity chip ───────────────────────────────────────────────────────── */
+.kc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 999px;
+}
+
+.kc-chip--watch {
+  background: var(--u-background-warning-light);
+}
+
+.kc-chip__icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.kc-chip__label {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.14;
+  white-space: nowrap;
+}
+
+/* ── Feedback card (answer revealed, incorrect) ───────────────────────────── */
+.kc-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: var(--u-background-negative-light);
+  border-radius: 16px;
+  width: 100%;
+}
+
+.kc-feedback__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.kc-feedback__mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  background: var(--u-background-negative);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kc-feedback__mark-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  /* white icon on red bg */
+  filter: invert(1);
+}
+
+.kc-feedback__title {
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--u-content-negative);
+  line-height: 1.33;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.kc-feedback__body {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-primary);
   line-height: 1.43;
   margin: 0;
 }

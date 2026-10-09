@@ -1,0 +1,268 @@
+/* ── Video Step Page Shell ────────────────────────────────────────────────── */
+.vs-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--u-background-primary);
+}
+
+/* ── Scrollable content ───────────────────────────────────────────────────── */
+.vs-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+/* ── Lesson title ─────────────────────────────────────────────────────────── */
+.vs-title {
+  font-family: var(--u-font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.25;
+  margin: 0;
+}
+
+/* ── Video player box ─────────────────────────────────────────────────────── */
+.vs-player {
+  display: flex;
+  flex-direction: column;
+  height: 202px;
+  width: 100%;
+  background: var(--u-background-always-dark);
+  border-radius: 16px;
+  padding: 16px 16px 4px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* Error state */
+.vs-player__error {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.vs-player__error-icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+  flex-shrink: 0;
+  /* White icon on dark bg */
+  filter: invert(1);
+}
+
+.vs-player__error-title {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--u-content-on-color);
+  line-height: 1.25;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.vs-player__error-body {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.43;
+  margin: 0;
+  text-align: center;
+}
+
+/* Controls row */
+.vs-player__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.vs-player__timeline {
+  height: 4px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.vs-player__control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.vs-player__time {
+  font-family: var(--u-font-mono, monospace);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--u-content-on-color);
+  line-height: 1.33;
+  white-space: nowrap;
+}
+
+.vs-player__tools {
+  display: flex;
+  align-items: center;
+}
+
+.vs-player__tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.vs-player__tool-icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+  filter: invert(1);
+}
+
+/* ── CC pill button ───────────────────────────────────────────────────────── */
+.vs-cc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  background: var(--u-background-state-disabled);
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.14;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+
+/* ── Lesson body text ─────────────────────────────────────────────────────── */
+.vs-body {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--u-content-primary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Accordion ────────────────────────────────────────────────────────────── */
+.vs-accordion {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.vs-accordion__row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.vs-accordion__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 0;
+}
+
+.vs-accordion__title {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.25;
+  margin: 0;
+}
+
+.vs-accordion__subtitle {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+.vs-accordion__chevron-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 64px;
+  height: 100%;
+  padding: 20px 16px;
+}
+
+.vs-accordion__chevron {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+.vs-accordion__divider {
+  height: 1px;
+  width: 100%;
+  background: var(--u-border-opaque);
+}
+
+/* ── Unlock note ──────────────────────────────────────────────────────────── */
+.vs-unlock-note {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+.vs-footer {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--u-background-primary);
+}
+
+.vs-footer__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 16px 20px;
+  background: var(--u-background-state-disabled);
+  color: var(--u-content-state-disabled);
+  border: none;
+  border-radius: 8px;
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.33;
+  cursor: not-allowed;
+}

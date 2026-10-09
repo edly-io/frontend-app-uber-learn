@@ -16,7 +16,6 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CourseOverview } from '../pages/CourseOverview';
 import * as coursewareApi from '../api/courseware';
-import * as progressApi from '../api/progress';
 
 // ---------------------------------------------------------------------------
 // Routing mocks — avoid a real router; use stubs for useNavigate / useParams
@@ -35,7 +34,6 @@ jest.mock('react-router-dom', () => ({
 // ---------------------------------------------------------------------------
 
 jest.mock('../api/courseware');
-jest.mock('../api/progress');
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -92,22 +90,10 @@ function renderComponent() {
 // Setup / teardown
 // ---------------------------------------------------------------------------
 
-const MOCK_PROGRESS: progressApi.UberLearnProgress = {
-  completedActivities: 0,
-  totalActivities: 2,
-  fraction: 0,
-  assessments: { baseline: null, final: null, retention: null },
-  points: { earned: null, possible: null },
-  streak: { currentDays: 0, longestDays: 0 },
-  courseComplete: false,
-  badges: [],
-};
-
 beforeEach(() => {
   mockNavigate.mockClear();
   jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue(RESUME_FRESH);
   jest.mocked(coursewareApi.getCourseOutline).mockResolvedValue(OUTLINE);
-  jest.mocked(progressApi.getUberLearnProgress).mockResolvedValue(MOCK_PROGRESS);
 });
 
 // ---------------------------------------------------------------------------
@@ -167,7 +153,7 @@ describe('CourseOverview', () => {
 
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith(
-          `/uber-learn/course/${COURSE_ID}/lesson/seq-1/step/0`,
+          `/course/${COURSE_ID}/lesson/seq-1/step/0`,
           { replace: true },
         );
       });
@@ -201,7 +187,7 @@ describe('CourseOverview', () => {
       fireEvent.click(screen.getByText('Lesson 1: Basics'));
 
       expect(mockNavigate).toHaveBeenCalledWith(
-        `/uber-learn/course/${COURSE_ID}/lesson/seq-1/step/0`,
+        `/course/${COURSE_ID}/lesson/seq-1/step/0`,
       );
     });
 
@@ -213,7 +199,7 @@ describe('CourseOverview', () => {
       fireEvent.click(screen.getByText('Lesson 2: Advanced'));
 
       expect(mockNavigate).toHaveBeenCalledWith(
-        `/uber-learn/course/${COURSE_ID}/lesson/seq-2/step/0`,
+        `/course/${COURSE_ID}/lesson/seq-2/step/0`,
       );
     });
   });

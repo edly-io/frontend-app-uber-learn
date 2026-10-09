@@ -1,7 +1,6 @@
 import React from 'react';
 
 interface LoadingSkeletonProps {
-  lines?: number;
   className?: string;
 }
 
@@ -65,7 +64,7 @@ const RowBone = () => (
   </div>
 );
 
-export const LoadingSkeleton = ({ lines: _lines, className }: LoadingSkeletonProps) => (
+export const LoadingSkeleton = ({ className }: LoadingSkeletonProps) => (
   <div className={`skel-content${className ? ` ${className}` : ''}`} aria-busy="true" aria-label="Loading…">
     <style>{styles}</style>
     <div className="skel-bone skel-art" aria-hidden="true" />

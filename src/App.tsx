@@ -1,18 +1,13 @@
 import React, { Component } from 'react';
-import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import {
+  Routes, Route, Navigate, useParams,
+} from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CourseCatalog } from './pages/CourseCatalog';
 import { CourseLibrary } from './pages/CourseLibrary';
 import { LearningProgress } from './pages/LearningProgress';
 import { CourseOverview } from './pages/CourseOverview';
 import { ActivityView } from './pages/ActivityView';
-
-// Forces ActivityView to remount when the lesson changes so all state
-// (completion, iframe, step progress) resets cleanly for the new sequence.
-const ActivityViewRoute = () => {
-  const { sequenceId = '' } = useParams<{ sequenceId: string }>();
-  return <ActivityView key={sequenceId} />;
-};
 import { RewardsView } from './pages/RewardsView';
 import {
   LessonCompletePage,
@@ -36,7 +31,40 @@ import './styles/tokens.scss';
 import './styles/typography.scss';
 import './styles/global.scss';
 
+// Forces ActivityView to remount when the lesson changes so all state
+// (completion, iframe, step progress) resets cleanly for the new sequence.
+const ActivityViewRoute = () => {
+  const { sequenceId = '' } = useParams<{ sequenceId: string }>();
+  return <ActivityView key={sequenceId} />;
+};
+
 interface ErrorBoundaryState { hasError: boolean }
+
+const errorWrapStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: '100dvh',
+  gap: '16px',
+  padding: '24px',
+  textAlign: 'center',
+  fontFamily: 'var(--u-font-body, system-ui, sans-serif)',
+  background: 'var(--u-background-primary, #fff)',
+  color: 'var(--u-content-primary, #000)',
+};
+
+const errorBtnStyle: React.CSSProperties = {
+  padding: '14px 24px',
+  borderRadius: '999px',
+  border: 'none',
+  background: 'var(--u-background-always-dark, #000)',
+  color: 'var(--u-content-on-color, #fff)',
+  fontFamily: 'inherit',
+  fontSize: '16px',
+  fontWeight: 500,
+  cursor: 'pointer',
+};
 
 class AppErrorBoundary extends Component<{ children: React.ReactNode }, ErrorBoundaryState> {
   constructor(props: { children: React.ReactNode }) {
@@ -51,25 +79,12 @@ class AppErrorBoundary extends Component<{ children: React.ReactNode }, ErrorBou
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
-          justifyContent: 'center', height: '100dvh', gap: '16px',
-          padding: '24px', textAlign: 'center',
-          fontFamily: 'var(--u-font-body, system-ui, sans-serif)',
-          background: 'var(--u-background-primary, #fff)',
-          color: 'var(--u-content-primary, #000)',
-        }}
-        >
+        <div style={errorWrapStyle}>
           <p style={{ fontSize: '16px', fontWeight: 500 }}>Something went wrong.</p>
           <button
             type="button"
             onClick={() => window.location.reload()}
-            style={{
-              padding: '14px 24px', borderRadius: '999px', border: 'none',
-              background: 'var(--u-background-always-dark, #000)',
-              color: 'var(--u-content-on-color, #fff)',
-              fontFamily: 'inherit', fontSize: '16px', fontWeight: 500, cursor: 'pointer',
-            }}
+            style={errorBtnStyle}
           >
             Reload
           </button>

@@ -33,7 +33,9 @@ const PathCard = ({ curriculum, onClick }: { curriculum: LearnerCurriculum; onCl
           <circle cx="28" cy="28" r="24" stroke="var(--u-border-opaque)" strokeWidth="3" />
           {curriculum.courses_total > 0 && (
             <circle
-              cx="28" cy="28" r="24"
+              cx="28"
+              cy="28"
+              r="24"
               stroke="var(--u-content-accent)"
               strokeWidth="3"
               strokeLinecap="round"
@@ -86,7 +88,9 @@ const EmptyIllustration = () => (
 
 export const AllLearningPathsPage = () => {
   const navigate = useNavigate();
-  const { data: curriculums, isLoading, isError, refetch } = useCurriculums();
+  const {
+    data: curriculums, isLoading, isError, refetch,
+  } = useCurriculums();
 
   const hasPaths = !isLoading && !isError && curriculums && curriculums.length > 0;
   const isEmpty = !isLoading && !isError && (!curriculums || curriculums.length === 0);
@@ -106,7 +110,7 @@ export const AllLearningPathsPage = () => {
 
       {isLoading && (
         <div className="alp-loading">
-          <LoadingSkeleton lines={4} />
+          <LoadingSkeleton />
         </div>
       )}
 
@@ -115,7 +119,7 @@ export const AllLearningPathsPage = () => {
           <ErrorView
             title="Could not load learning paths"
             message="Please try again."
-            onRetry={() => void refetch()}
+            onRetry={() => { refetch(); }}
           />
         </div>
       )}

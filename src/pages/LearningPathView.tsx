@@ -89,7 +89,9 @@ interface CourseRowProps {
   onClick: () => void;
 }
 
-const CourseRow = ({ courseId, displayName, finished, position, onClick }: CourseRowProps) => (
+const CourseRow = ({
+  courseId, displayName, finished, position, onClick,
+}: CourseRowProps) => (
   <button type="button" className={`lpv-course-row${finished ? ' lpv-course-row--passed' : ''}`} onClick={onClick}>
     <div className="lpv-course-row__ring">
       {finished ? (
@@ -108,7 +110,9 @@ const CourseRow = ({ courseId, displayName, finished, position, onClick }: Cours
 export const LearningPathView = () => {
   const navigate = useNavigate();
   const { curriculumId } = useParams<{ curriculumId: string }>();
-  const { data: curriculums, isLoading, isError, refetch } = useCurriculums();
+  const {
+    data: curriculums, isLoading, isError, refetch,
+  } = useCurriculums();
 
   const curriculum = curriculums?.find((c) => c.uuid === curriculumId);
 
@@ -140,7 +144,7 @@ export const LearningPathView = () => {
 
       {isLoading && (
         <div className="lpv-loading">
-          <LoadingSkeleton lines={4} />
+          <LoadingSkeleton />
         </div>
       )}
 
@@ -149,7 +153,7 @@ export const LearningPathView = () => {
           <ErrorView
             title="Could not load learning path"
             message="Please try again."
-            onRetry={() => void refetch()}
+            onRetry={() => { refetch(); }}
           />
         </div>
       )}
@@ -180,7 +184,9 @@ export const LearningPathView = () => {
                 <circle cx="44" cy="44" r="38" stroke="var(--u-border-opaque)" strokeWidth="4" />
                 {curriculum.courses_total > 0 && (
                   <circle
-                    cx="44" cy="44" r="38"
+                    cx="44"
+                    cy="44"
+                    r="38"
                     stroke="var(--u-content-accent)"
                     strokeWidth="4"
                     strokeLinecap="round"

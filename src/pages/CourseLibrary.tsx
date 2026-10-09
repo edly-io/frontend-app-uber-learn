@@ -60,10 +60,10 @@ const STATUS_FILTERS: { key: CourseStatus; label: string }[] = [
 ];
 
 function passesFilters(status: CourseStatus, inPath: boolean, active: Set<FilterKey>): boolean {
-  if (active.size === 0) return true;
+  if (active.size === 0) { return true; }
   const statusActive = (['not-started', 'in-progress', 'completed'] as CourseStatus[]).filter((s) => active.has(s));
-  if (statusActive.length > 0 && !statusActive.includes(status)) return false;
-  if (active.has('in-paths') && !inPath) return false;
+  if (statusActive.length > 0 && !statusActive.includes(status)) { return false; }
+  if (active.has('in-paths') && !inPath) { return false; }
   return true;
 }
 
@@ -97,13 +97,17 @@ const ConnectedCourseCard = ({
   const resumeIdx = storedIdx > 0 ? storedIdx : 0;
   const nextLesson = allLessons[resumeIdx];
 
-  // Prefer real API progress; fall back to localStorage-derived fraction
-  const fraction = progressData != null
-    ? progressData.fraction
-    : storedIdx > 0 && allLessons.length > 0 ? storedIdx / allLessons.length : 0;
+  let fraction: number;
+  if (progressData != null) {
+    fraction = progressData.fraction;
+  } else if (storedIdx > 0 && allLessons.length > 0) {
+    fraction = storedIdx / allLessons.length;
+  } else {
+    fraction = 0;
+  }
 
-  // eslint-disable-next-line no-nested-ternary
-  const status: CourseStatus = fraction >= 1 ? 'completed' : fraction > 0 ? 'in-progress' : 'not-started';
+  let status: CourseStatus = 'not-started';
+  if (fraction >= 1) { status = 'completed'; } else if (fraction > 0) { status = 'in-progress'; }
 
   React.useEffect(() => {
     onResolved(course.courseId, status);
@@ -123,20 +127,20 @@ const ConnectedCourseCard = ({
       <div className="cl-card cl-card--loading" aria-busy="true">
         <div className={`cl-card__tile cl-card__tile--${tint}`} />
         <div className="cl-card__body">
-          <LoadingSkeleton lines={2} />
+          <LoadingSkeleton />
         </div>
       </div>
     );
   }
 
-  const subtitle =
-    status === 'completed'
-      ? 'Complete'
-      : status === 'in-progress' && nextLesson
-      ? `Next: ${nextLesson.lessonTitle}`
-      : allLessons.length > 0
-      ? `${allLessons.length} ${allLessons.length === 1 ? 'lesson' : 'lessons'}`
-      : null;
+  let subtitle: string | null = null;
+  if (status === 'completed') {
+    subtitle = 'Complete';
+  } else if (status === 'in-progress' && nextLesson) {
+    subtitle = `Next: ${nextLesson.lessonTitle}`;
+  } else if (allLessons.length > 0) {
+    subtitle = `${allLessons.length} ${allLessons.length === 1 ? 'lesson' : 'lessons'}`;
+  }
 
   return (
     <button type="button" className="cl-card" onClick={onClick}>
@@ -217,19 +221,22 @@ interface CheckboxRowProps {
   onChange: () => void;
 }
 
-const CheckboxRow = ({ label, checked, onChange }: CheckboxRowProps) => (
-  <label className="cl-sheet-checkbox">
-    <span className="cl-sheet-checkbox__label">{label}</span>
-    <span className={`cl-sheet-checkbox__box${checked ? ' cl-sheet-checkbox__box--checked' : ''}`} aria-hidden="true">
-      {checked && (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-          <path d="M2.5 7L5.5 10L11.5 4" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      )}
-    </span>
-    <input type="checkbox" className="cl-sheet-checkbox__input" checked={checked} onChange={onChange} />
-  </label>
-);
+const CheckboxRow = ({ label, checked, onChange }: CheckboxRowProps) => {
+  const id = `cl-checkbox-${label.toLowerCase().replace(/\s+/g, '-')}`;
+  return (
+    <div className="cl-sheet-checkbox">
+      <label htmlFor={id} className="cl-sheet-checkbox__label">{label}</label>
+      <span className={`cl-sheet-checkbox__box${checked ? ' cl-sheet-checkbox__box--checked' : ''}`} aria-hidden="true">
+        {checked && (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M2.5 7L5.5 10L11.5 4" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </span>
+      <input id={id} type="checkbox" className="cl-sheet-checkbox__input" checked={checked} onChange={onChange} />
+    </div>
+  );
+};
 
 interface FiltersSheetProps {
   active: Set<FilterKey>;
@@ -327,7 +334,9 @@ export const CourseLibrary = () => {
 
   const [resolvedStatuses, setResolvedStatuses] = useState<Record<string, CourseStatus>>({});
 
-  const { data: courses, isLoading, isError, refetch } = useQuery({
+  const {
+    data: courses, isLoading, isError, refetch,
+  } = useQuery({
     queryKey: ['enrolled-courses'],
     queryFn: getEnrolledCourses,
     staleTime: 5 * 60_000,
@@ -335,7 +344,7 @@ export const CourseLibrary = () => {
 
   const { data: curricula } = useCurriculums();
 
-  const enrolledCourses = courses ?? [];
+  const enrolledCourses = useMemo(() => courses ?? [], [courses]);
 
   // Build set of course IDs in any curriculum, and map courseId → curriculum title for category kicker
   const pathCourseIds = useMemo(() => {
@@ -347,7 +356,7 @@ export const CourseLibrary = () => {
   const courseCategoryMap = useMemo(() => {
     const map: Record<string, string> = {};
     curricula?.forEach((c) => c.courses.forEach((cc) => {
-      if (!map[cc.course_id]) map[cc.course_id] = c.title;
+      if (!map[cc.course_id]) { map[cc.course_id] = c.title; }
     }));
     return map;
   }, [curricula]);
@@ -371,7 +380,7 @@ export const CourseLibrary = () => {
 
   const handleStatusResolved = (courseId: string, status: CourseStatus) => {
     setResolvedStatuses((prev) => {
-      if (prev[courseId] === status) return prev;
+      if (prev[courseId] === status) { return prev; }
       return { ...prev, [courseId]: status };
     });
   };
@@ -379,7 +388,7 @@ export const CourseLibrary = () => {
   const toggleFilter = (key: FilterKey) => {
     setActiveFilters((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      if (next.has(key)) { next.delete(key); } else { next.add(key); }
       return next;
     });
   };
@@ -392,7 +401,7 @@ export const CourseLibrary = () => {
   const togglePending = (key: FilterKey) => {
     setPendingFilters((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      if (next.has(key)) { next.delete(key); } else { next.add(key); }
       return next;
     });
   };
@@ -409,7 +418,7 @@ export const CourseLibrary = () => {
   };
 
   const countVisible = (list: EnrolledCourse[], filters: Set<FilterKey>) => {
-    if (filters.size === 0) return list.length;
+    if (filters.size === 0) { return list.length; }
     return list.filter((c) => {
       const s = resolvedStatuses[c.courseId] ?? 'not-started';
       const inPath = pathCourseIds.has(c.courseId);
@@ -448,7 +457,7 @@ export const CourseLibrary = () => {
       )}
 
       <main className="cl-content">
-        {isLoading && <LoadingSkeleton lines={6} />}
+        {isLoading && <LoadingSkeleton />}
 
         {isError && (
           <ErrorView
@@ -471,9 +480,8 @@ export const CourseLibrary = () => {
               )}
             </p>
 
-            {showNoResults ? (
-              <NoResults onClear={clearFilters} />
-            ) : inPathCourses.length > 0 ? (
+            {showNoResults && <NoResults onClear={clearFilters} />}
+            {!showNoResults && inPathCourses.length > 0 && (
               <>
                 <SectionHeader title="In your paths" meta={pathMeta} />
                 <div className="cl-course-list">
@@ -509,7 +517,8 @@ export const CourseLibrary = () => {
                   </>
                 )}
               </>
-            ) : (
+            )}
+            {!showNoResults && inPathCourses.length === 0 && (
               <div className="cl-course-list">
                 {enrolledCourses.map((course, idx) => (
                   <ConnectedCourseCard

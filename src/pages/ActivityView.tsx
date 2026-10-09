@@ -29,7 +29,6 @@ function getLmsOrigin(): string {
   return new URL(getConfig().LMS_BASE_URL).origin;
 }
 
-
 export const ActivityView = () => {
   const {
     courseId = '',
@@ -112,6 +111,7 @@ export const ActivityView = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sequenceId, unitIdx, courseId, isProblemUnit, currentUnit?.complete]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleCompleted = useCallback((_correct: boolean | null) => {
     setIsCompleted(true);
   }, []);
@@ -125,7 +125,6 @@ export const ActivityView = () => {
       setIsCompleted(true);
     }
   }, [isAssessmentSequence, isProblemUnit]);
-
 
   const handleContinue = useCallback(async () => {
     if (!isCompleted) { return; }
@@ -233,9 +232,12 @@ export const ActivityView = () => {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
+      <div style={{
+        display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden',
+      }}
+      >
         <NavHeader title="Loading…" onBack={handleBack} onClose={handleClose} />
-        <LoadingSkeleton lines={5} />
+        <LoadingSkeleton />
       </div>
     );
   }

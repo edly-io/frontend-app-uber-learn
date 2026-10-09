@@ -44,9 +44,9 @@ interface CourseConfig {
 }
 
 const COURSE_CONFIG: Record<string, CourseConfig> = {
-  'getting-started':    { optional: true, art: courseArtSteering, kicker: 'Optional' },
-  'vehicle-maintenance': { optional: true, art: courseArtPurple,   kicker: 'Optional' },
-  'tough-situations':   { optional: true, art: courseArtMagenta,   kicker: 'Optional' },
+  'getting-started': { optional: true, art: courseArtSteering, kicker: 'Optional' },
+  'vehicle-maintenance': { optional: true, art: courseArtPurple, kicker: 'Optional' },
+  'tough-situations': { optional: true, art: courseArtMagenta, kicker: 'Optional' },
 };
 
 const DEFAULT_CONFIG: CourseConfig = {
@@ -250,7 +250,6 @@ export const CourseOverview = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
 
-
   const config = COURSE_CONFIG[courseId] ?? DEFAULT_CONFIG;
 
   const { data: gamification } = useGamification();
@@ -312,14 +311,16 @@ export const CourseOverview = () => {
     ? lessons[effectiveResumeIdx].sequenceId
     : (getStoredResumeSequenceId(courseId) ?? apiResumeSequenceId);
 
-  const completedLessons = courseComplete
-    ? lessons.length
-    : effectiveResumeIdx > 0 ? effectiveResumeIdx : 0;
+  let completedLessons: number;
+  if (courseComplete) {
+    completedLessons = lessons.length;
+  } else {
+    completedLessons = effectiveResumeIdx > 0 ? effectiveResumeIdx : 0;
+  }
   const totalLessons = lessons.length;
   const derivedFraction = totalLessons > 0 && completedLessons > 0
     ? completedLessons / totalLessons : 0;
   const effectiveFraction = derivedFraction > 0 ? derivedFraction : fraction;
-  const percentDisplay = `${Math.round(effectiveFraction * 100)}%`;
 
   const handleContinue = () => {
     if (courseComplete) {
@@ -337,11 +338,8 @@ export const CourseOverview = () => {
     navigate(`/course/${courseId}/lesson/${sequenceId}/step/0`);
   };
 
-  const ctaLabel = courseComplete
-    ? 'Review course'
-    : resumeSequenceId
-      ? 'Continue course'
-      : 'Start course';
+  let ctaLabel = 'Start course';
+  if (courseComplete) { ctaLabel = 'Review course'; } else if (resumeSequenceId) { ctaLabel = 'Continue course'; }
 
   const showProgress = !config.optional;
   const showLearningRecord = pointsEarned > 0 && !config.optional;
@@ -359,7 +357,7 @@ export const CourseOverview = () => {
             <p className="cd-kicker">{config.kicker}</p>
             <h1 className="cd-title">{outline?.title ?? 'Course'}</h1>
             <p className="cd-lead">
-              {'Practical guidance for respectful boundaries, awareness, and safe reporting.'}
+              Practical guidance for respectful boundaries, awareness, and safe reporting.
             </p>
           </div>
 
@@ -421,8 +419,8 @@ export const CourseOverview = () => {
 
           {/* Units / path steps */}
           {sections.map((section, sectionIdx) => {
-            const sectionLessonStates = section.lessons.map((lesson) =>
-              getLessonState(lesson, resumeSequenceId, lessons, courseComplete),
+            const sectionLessonStates = section.lessons.map(
+              (lesson) => getLessonState(lesson, resumeSequenceId, lessons, courseComplete),
             );
             const unitState = getUnitState(section.lessons, sectionLessonStates);
             const showUnitBanner = !config.optional && sections.length >= 1;

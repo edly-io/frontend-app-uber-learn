@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getAuthenticatedUser } from '@edx/frontend-platform/auth';
 import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
@@ -11,7 +10,7 @@ import { useSequence } from '../hooks/useSequence';
 import { qk } from '../api/queries';
 import { useGamification } from '../hooks/useGamification';
 import { useCurriculums } from '../hooks/useCurriculums';
-import type { GamificationDay, ThisWeekStatus, WeekdayKey } from '../api/gamification';
+import type { GamificationDay, WeekdayKey } from '../api/gamification';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
 import { GoalRing } from '../components/ui/GoalRing';
@@ -22,16 +21,10 @@ import iconCalendar from '../assets/icons/icon-calendar.svg';
 import iconBadgeCheck from '../assets/icons/icon-badge-check.svg';
 import iconCircleCheck from '../assets/icons/icon-circle-check.svg';
 import courseArtBlue from '../assets/icons/course-art-blue.svg';
-import courseArtTeal from '../assets/icons/course-art-teal.svg';
 import courseArtLime from '../assets/icons/course-art-steering.svg';
 import courseArtPurple from '../assets/icons/course-art-toolbox.svg';
 import sceneSafetyCar from '../assets/scenes/safety-car.png';
-import sceneSafetyEducation from '../assets/scenes/scene-safety-education.png';
-import iconDismiss from '../assets/icons/icon-dismiss.svg';
 import iconChevronRight from '../assets/icons/chevron-right.svg';
-import badgeHalfwayEarned from '../assets/badges/badge-halfway-earned.svg';
-import badgeCompleteEarned from '../assets/badges/badge-complete-earned.svg';
-import badgeRetainedLocked from '../assets/badges/badge-retained-locked.svg';
 
 import './course-catalog.scss';
 
@@ -39,19 +32,9 @@ import './course-catalog.scss';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
+  if (hour < 12) { return 'Good morning'; }
+  if (hour < 18) { return 'Good afternoon'; }
   return 'Good evening';
-}
-
-function getUserFirstName(): string {
-  try {
-    const user = getAuthenticatedUser() as { name?: string; username?: string } | null;
-    const name = user?.name || user?.username || '';
-    return name.split(/[\s_]/)[0] || 'there';
-  } catch {
-    return 'there';
-  }
 }
 
 // ── Discovery header ─────────────────────────────────────
@@ -63,7 +46,9 @@ interface StatChipProps {
   label: string;
 }
 
-const StatChip = ({ icon, value, onClick, label }: StatChipProps) => (
+const StatChip = ({
+  icon, value, onClick, label,
+}: StatChipProps) => (
   <button type="button" className="stat-chip" onClick={onClick} aria-label={label}>
     <img src={icon} alt="" className="stat-chip__icon" aria-hidden="true" />
     <span className="stat-chip__value">{value}</span>
@@ -120,7 +105,7 @@ interface ProgressBarProps {
 const ProgressBar = ({ completed, total }: ProgressBarProps) => {
   const pct = total > 0 ? Math.min((completed / total) * 100, 100) : 0;
   return (
-    <div className="progress-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+    <div className="progress-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${Math.round(pct)}% complete`}>
       <div className="progress-bar__fill" style={{ width: `${pct}%` }} />
     </div>
   );
@@ -131,7 +116,6 @@ const ProgressBar = ({ completed, total }: ProgressBarProps) => {
 type ContinueVariant = 'lesson' | 'finalCheck' | 'thirtyDayCheck';
 
 interface ContinueCardProps {
-  course: EnrolledCourse;
   lessonTitle: string;
   lessonPosition: string;
   courseMeta: string;
@@ -155,14 +139,17 @@ const ContinueCard = ({
   const isFinalCheck = variant === 'finalCheck';
   const is30DayCheck = variant === 'thirtyDayCheck';
 
-  const displayKicker = isFinalCheck ? 'Last step' : is30DayCheck ? '30 days on' : lessonPosition;
-  const displayTitle = isFinalCheck ? 'Final check' : is30DayCheck ? 'Your 30-day check' : lessonTitle;
-  const displayMeta = isFinalCheck
-    ? 'Sexual misconduct education · 5 questions · about 3 min'
-    : is30DayCheck
-    ? '5 questions · about 3 min'
-    : courseMeta;
-  const buttonLabel = isFinalCheck ? 'Start final check' : is30DayCheck ? 'Start 30-day check' : hasStarted ? 'Continue' : 'Start';
+  let displayKicker = lessonPosition;
+  if (isFinalCheck) { displayKicker = 'Last step'; } else if (is30DayCheck) { displayKicker = '30 days on'; }
+
+  let displayTitle = lessonTitle;
+  if (isFinalCheck) { displayTitle = 'Final check'; } else if (is30DayCheck) { displayTitle = 'Your 30-day check'; }
+
+  let displayMeta = courseMeta;
+  if (isFinalCheck) { displayMeta = 'Sexual misconduct education · 5 questions · about 3 min'; } else if (is30DayCheck) { displayMeta = '5 questions · about 3 min'; }
+
+  let buttonLabel = hasStarted ? 'Continue' : 'Start';
+  if (isFinalCheck) { buttonLabel = 'Start final check'; } else if (is30DayCheck) { buttonLabel = 'Start 30-day check'; }
   const showProgress = !is30DayCheck && (isFinalCheck || hasStarted);
   const displayCompleted = isFinalCheck ? totalLessons : completedLessons;
 
@@ -194,94 +181,6 @@ const ContinueCard = ({
 };
 
 // ── Required course tile ─────────────────────────────────
-
-interface CourseTileProps {
-  course: EnrolledCourse;
-  tintClass: string;
-  artSrc: string;
-  completedLessons: number;
-  totalLessons: number;
-  isComplete?: boolean;
-  category?: string;
-  onClick: () => void;
-}
-
-const CourseTile = ({
-  course,
-  tintClass,
-  artSrc,
-  completedLessons,
-  totalLessons,
-  isComplete = false,
-  category = 'Safety',
-  onClick,
-}: CourseTileProps) => {
-  const statusLabel = isComplete
-    ? 'Complete'
-    : totalLessons > 0
-    ? `${completedLessons} of ${totalLessons} lessons`
-    : `${totalLessons} lessons`;
-  const showProgress = !isComplete && completedLessons > 0 && totalLessons > 0;
-
-  return (
-    <button type="button" className="course-tile" onClick={onClick}>
-      <div className={`course-tile__band ${tintClass}`}>
-        <img src={artSrc} alt="" className="course-tile__art" aria-hidden="true" />
-      </div>
-      <div className="course-tile__body">
-        <div className="course-tile__info">
-          <span className="course-tile__category">{category}</span>
-          <span className="course-tile__title">{course.title}</span>
-        </div>
-        <div className="course-tile__footer">
-          {showProgress && (
-            <ProgressBar completed={completedLessons} total={totalLessons} />
-          )}
-          <span className={`course-tile__status${isComplete ? ' course-tile__status--positive' : ''}`}>
-            {statusLabel}
-          </span>
-        </div>
-      </div>
-    </button>
-  );
-};
-
-// ── Connected course tile (fetches its own outline) ───────
-
-const COURSE_TINTS = [
-  { tintClass: 'course-tile__band--blue', artSrc: courseArtBlue },
-  { tintClass: 'course-tile__band--teal', artSrc: courseArtTeal },
-];
-
-interface ConnectedCourseTileProps {
-  course: EnrolledCourse;
-  index: number;
-  onClick: () => void;
-}
-
-const ConnectedCourseTile = ({ course, index, onClick }: ConnectedCourseTileProps) => {
-  const outlineQuery = useCourseOutline(course.courseId);
-
-  const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
-  const totalLessons = allLessons.length;
-  const storedIdx = allLessons.length > 0 ? getStoredResumeIdx(course.courseId, allLessons) : -1;
-  const completedLessons = storedIdx > 0 ? storedIdx : 0;
-  const isComplete = false;
-
-  const tint = COURSE_TINTS[index % COURSE_TINTS.length];
-
-  return (
-    <CourseTile
-      course={course}
-      tintClass={tint.tintClass}
-      artSrc={tint.artSrc}
-      completedLessons={completedLessons}
-      totalLessons={totalLessons}
-      isComplete={isComplete}
-      onClick={onClick}
-    />
-  );
-};
 
 // ── Connected continue card (picks first in-progress course) ─
 
@@ -332,11 +231,10 @@ const ConnectedContinueCard = ({ courses, onContinue, variant = 'lesson' }: Conn
     ? `${firstCourse.title}${stepCount > 0 ? ` · ${stepCount} step${stepCount !== 1 ? 's' : ''}` : ` · ${totalLessons} lessons`}`
     : '';
 
-  if (!firstCourse) return null;
+  if (!firstCourse) { return null; }
 
   return (
     <ContinueCard
-      course={firstCourse}
       lessonTitle={lessonTitle}
       lessonPosition={lessonPosition}
       courseMeta={courseMeta}
@@ -477,58 +375,6 @@ const ThisWeekCard = ({ weekState, apiWeek, currentStreak = 0 }: ThisWeekCardPro
   );
 };
 
-// ── Notice card ──────────────────────────────────────────
-
-type NoticeVariant = 'newCurriculum' | 'caughtUp';
-
-interface NoticeCardProps {
-  variant?: NoticeVariant;
-  onDismiss?: () => void;
-}
-
-const NoticeCard = ({ variant = 'newCurriculum', onDismiss }: NoticeCardProps) => {
-  const isCaughtUp = variant === 'caughtUp';
-  return (
-    <div className={`notice-card${isCaughtUp ? ' notice-card--caught-up' : ''}`}>
-      <div className="notice-card__band">
-        <img src={sceneSafetyEducation} alt="" className="notice-card__scene" aria-hidden="true" />
-        {!isCaughtUp && onDismiss && (
-          <button
-            type="button"
-            className="notice-card__dismiss"
-            aria-label="Dismiss notice"
-            onClick={onDismiss}
-          >
-            <img src={iconDismiss} alt="" className="notice-card__dismiss-icon" aria-hidden="true" />
-          </button>
-        )}
-      </div>
-      <div className="notice-card__body">
-        {isCaughtUp ? (
-          <>
-            <p className="notice-card__title">You&#39;re all caught up</p>
-            <p className="notice-card__desc">
-              Every required course is done, and your 30-day check is open.
-            </p>
-            <div className="notice-card__badges">
-              <img src={badgeHalfwayEarned} alt="Halfway badge" className="notice-card__badge-icon" />
-              <img src={badgeCompleteEarned} alt="Complete badge" className="notice-card__badge-icon" />
-              <img src={badgeRetainedLocked} alt="Retained badge (locked)" className="notice-card__badge-icon" />
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="notice-card__title">New required courses</p>
-            <p className="notice-card__desc">
-              Find them under Required. Your points, streak and earlier badges stay.
-            </p>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
 // ── Learning path card ───────────────────────────────────
 
 interface LearningPathCardProps {
@@ -549,7 +395,9 @@ const LearningPathCard = ({ curriculum, onClick }: LearningPathCardProps) => {
           <circle cx="28" cy="28" r="24" stroke="var(--u-border-opaque)" strokeWidth="3" />
           {curriculum.courses_total > 0 && (
             <circle
-              cx="28" cy="28" r="24"
+              cx="28"
+              cy="28"
+              r="24"
               stroke="var(--u-content-accent)"
               strokeWidth="3"
               strokeLinecap="round"
@@ -612,25 +460,12 @@ const AllCoursesCard = ({
 
 // ── Main page ────────────────────────────────────────────
 
-const NOTICE_DISMISSED_KEY = 'uber-learn:notice-new-curriculum-dismissed';
-
 export const CourseCatalog = () => {
   const navigate = useNavigate();
 
-  const [noticeVisible, setNoticeVisible] = useState(() => {
-    try {
-      return localStorage.getItem(NOTICE_DISMISSED_KEY) !== 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  const handleDismissNotice = () => {
-    try { localStorage.setItem(NOTICE_DISMISSED_KEY, 'true'); } catch { /* ignore */ }
-    setNoticeVisible(false);
-  };
-
-  const { data: courses, isLoading, isError, refetch } = useQuery({
+  const {
+    data: courses, isLoading, isError, refetch,
+  } = useQuery({
     queryKey: ['enrolled-courses'],
     queryFn: getEnrolledCourses,
     staleTime: 5 * 60_000,
@@ -652,8 +487,8 @@ export const CourseCatalog = () => {
   const curriculum = curriculums?.[0];
   const badgesEarned = curriculum
     ? (['halfway', 'complete', 'retained'] as const).filter(
-        (s) => curriculum.milestones[s]?.reached_at != null,
-      ).length
+      (s) => curriculum.milestones[s]?.reached_at != null,
+    ).length
     : 0;
   const badgesTotal = curriculum ? 3 : 3;
   const badgesValue = `${badgesEarned}/${badgesTotal}`;
@@ -670,7 +505,6 @@ export const CourseCatalog = () => {
   })();
 
   const continueVariant: ContinueVariant = allCoursesComplete ? 'thirtyDayCheck' : 'lesson';
-  const noticeVariant: NoticeVariant = allCoursesComplete ? 'caughtUp' : 'newCurriculum';
 
   return (
     <div className="home-page">
@@ -703,7 +537,7 @@ export const CourseCatalog = () => {
       <main className="home-content">
         <h1 className="home-greeting">{greeting}</h1>
 
-        {isLoading && <LoadingSkeleton lines={4} />}
+        {isLoading && <LoadingSkeleton />}
 
         {isError && (
           <ErrorView

@@ -64,7 +64,6 @@ export interface ActivityRecord {
   correct: boolean | null;
 }
 
-
 function parseAssessmentResponse(data: Record<string, unknown>): AssessmentResponse {
   const rawAttempt = (data.attempt ?? {}) as Record<string, unknown>;
   const rawResults = Array.isArray(rawAttempt.question_results)
@@ -159,4 +158,3 @@ export const submitAssessment = async (
     throw err;
   }
 };
-

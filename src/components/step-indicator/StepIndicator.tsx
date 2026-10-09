@@ -36,7 +36,7 @@ export const StepIndicator = ({ current, total }: StepIndicatorProps) => {
             width: `${pct}%`,
             background: 'var(--u-background-accent)',
             borderRadius: '2px',
-            transition: `width var(--u-duration-normal) var(--u-ease-out)`,
+            transition: 'width var(--u-duration-normal) var(--u-ease-out)',
           }}
         />
       </div>

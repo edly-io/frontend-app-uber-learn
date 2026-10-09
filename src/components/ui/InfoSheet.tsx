@@ -12,7 +12,7 @@ interface InfoSheetProps {
 }
 
 export const InfoSheet = ({ data, onClose }: InfoSheetProps) => {
-  if (!data) return null;
+  if (!data) { return null; }
 
   return (
     <>

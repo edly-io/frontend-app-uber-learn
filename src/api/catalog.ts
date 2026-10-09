@@ -63,9 +63,9 @@ export async function getEnrolledCourses(): Promise<EnrolledCourse[]> {
 
   const lmsBase = getConfig().LMS_BASE_URL as string;
 
-  const toAbsoluteUrl = (url: string | undefined | null): string | null => {
-    if (!url) return null;
-    return url.startsWith('http') ? url : `${lmsBase}${url}`;
+  const toAbsoluteUrl = (relUrl: string | undefined | null): string | null => {
+    if (!relUrl) { return null; }
+    return relUrl.startsWith('http') ? relUrl : `${lmsBase}${relUrl}`;
   };
 
   return enrollments

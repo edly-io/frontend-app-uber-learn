@@ -111,10 +111,10 @@ export const LessonCompletePage = () => {
 
   const lessonTitle = state.lessonTitle ?? 'Lesson complete';
   const lessonNumber = state.lessonNumber ?? 1;
-  const nextSequenceId = state.nextSequenceId;
+  const { nextSequenceId } = state;
   const isRepeat = state.isRepeat ?? false;
   const isLastLesson = state.isLastLesson ?? false;
-  const finalCheckSequenceId = state.finalCheckSequenceId;
+  const { finalCheckSequenceId } = state;
 
   const totalCount = allLessons.length > 0 ? allLessons.length : 7;
   const completedCount = lessonNumber;

@@ -61,7 +61,8 @@ const AnswerOption = ({
         answerState === 'selected' ? 'kc-option__key--selected' : '',
         answerState === 'incorrect' ? 'kc-option__key--incorrect' : '',
         answerState === 'disabled' ? 'kc-option__key--disabled' : '',
-      ].filter(Boolean).join(' ')}>
+      ].filter(Boolean).join(' ')}
+      >
         {optionKey}
       </span>
       <span className={`kc-option__label${answerState === 'disabled' ? ' kc-option__label--disabled' : ''}`}>
@@ -137,8 +138,8 @@ export const KnowledgeCheckPage = () => {
 
   const checkType = (state.checkType ?? type) as CheckType;
   const questions = state.questions ?? PLACEHOLDER_QUESTIONS;
-  const baselineScore = state.baselineScore;
-  const baselineTotal = state.baselineTotal;
+  const { baselineScore } = state;
+  const { baselineTotal } = state;
 
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
@@ -304,9 +305,8 @@ export const KnowledgeCheckResultPage = () => {
   const isBaseline = checkType === 'baseline';
   const isFinalNotPassed = !isBaseline && !passed;
 
-  const statusTitle = isBaseline
-    ? 'Your starting point is recorded'
-    : (passed ? 'Ready to complete' : 'Review, then try again');
+  let statusTitle: string;
+  if (isBaseline) { statusTitle = 'Your starting point is recorded'; } else if (passed) { statusTitle = 'Ready to complete'; } else { statusTitle = 'Review, then try again'; }
 
   const handleBack = () => navigate(`/course/${courseId}`);
   const handlePrimary = () => {
@@ -321,9 +321,8 @@ export const KnowledgeCheckResultPage = () => {
     }
   };
 
-  const primaryLabel = isBaseline
-    ? 'Start course'
-    : (isFinalNotPassed ? 'Try final check again' : 'Complete course');
+  let primaryLabel: string;
+  if (isBaseline) { primaryLabel = 'Start course'; } else if (isFinalNotPassed) { primaryLabel = 'Try final check again'; } else { primaryLabel = 'Complete course'; }
 
   // Art panel color: warning (yellow) for final-not-passed, green otherwise
   const artPanelClass = `kcr-art-panel${isFinalNotPassed ? ' kcr-art-panel--warning' : ''}`;

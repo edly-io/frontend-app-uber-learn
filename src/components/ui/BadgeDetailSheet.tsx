@@ -33,7 +33,9 @@ interface BadgeDetailSheetProps {
 
 // ── SealRing ──────────────────────────────────────────────
 
-const SealRing = ({ size, progress, art, tintColor, earned }: {
+const SealRing = ({
+  size, progress, art, tintColor, earned,
+}: {
   size: number; progress: number; art: string; tintColor: string; earned: boolean;
 }) => {
   const r = (size - 12) / 2;
@@ -46,9 +48,12 @@ const SealRing = ({ size, progress, art, tintColor, earned }: {
         <circle cx={c} cy={c} r={r} stroke="var(--u-border-opaque)" strokeWidth="4" fill="none" />
         {progress > 0 && (
           <circle
-            cx={c} cy={c} r={r}
+            cx={c}
+            cy={c}
+            r={r}
             stroke="var(--u-background-accent)"
-            strokeWidth="4" fill="none"
+            strokeWidth="4"
+            fill="none"
             strokeLinecap="round"
             strokeDasharray={circ}
             strokeDashoffset={offset}
@@ -116,8 +121,8 @@ const TrophyIcon = () => (
 const PathBadgeSheet = ({ data, onClose }: { data: PathBadgeData; onClose: () => void }) => {
   const navigate = useNavigate();
   const { curriculum } = data;
-  const complete = curriculum.milestones.complete;
-  const retained = curriculum.milestones.retained;
+  const { complete } = curriculum.milestones;
+  const { retained } = curriculum.milestones;
   const isComplete = complete.reached_at !== null;
   const thirtyDayOpen = curriculum.knowledge_check.is_open;
   const thirtyDayEarned = retained.reached_at !== null;
@@ -172,7 +177,7 @@ const PathBadgeSheet = ({ data, onClose }: { data: PathBadgeData; onClose: () =>
 // ── Main component ────────────────────────────────────────
 
 export const BadgeDetailSheet = ({ data, onClose }: BadgeDetailSheetProps) => {
-  if (!data) return null;
+  if (!data) { return null; }
 
   return (
     <>

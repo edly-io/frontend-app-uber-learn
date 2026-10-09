@@ -45,11 +45,11 @@ export const BadgeEarned = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { type } = useParams<{ type: string }>();
-  const badgeType: BadgeType =
-    type === 'halfway' ? 'halfway' : type === 'retained' ? 'retained' : 'complete';
+  let badgeType: BadgeType = 'complete';
+  if (type === 'halfway') { badgeType = 'halfway'; } else if (type === 'retained') { badgeType = 'retained'; }
 
   const state = (location.state as NavState | null) ?? {};
-  const awardId = state.awardId;
+  const { awardId } = state;
   const fallback = FALLBACK[badgeType];
 
   const title = state.badgeTitle ?? fallback.title;
@@ -63,8 +63,8 @@ export const BadgeEarned = () => {
   const { mutate: markSeen } = useMutation({
     mutationFn: (ids: string[]) => markBadgesSeen(ids),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: qk.badges(true) });
-      void queryClient.invalidateQueries({ queryKey: qk.curriculums() });
+      queryClient.invalidateQueries({ queryKey: qk.badges(true) });
+      queryClient.invalidateQueries({ queryKey: qk.curriculums() });
     },
   });
 

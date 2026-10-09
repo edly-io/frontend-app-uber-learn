@@ -22,12 +22,6 @@ import iconLightningLarge from '../assets/icons/icon-lightning-large.svg';
 import iconCircleCheck from '../assets/icons/icon-circle-check.svg';
 import iconCalendar from '../assets/icons/icon-calendar.svg';
 import iconBadgeCheck from '../assets/icons/icon-badge-check.svg';
-import badgeHalfwayEarned from '../assets/badges/badge-halfway-earned.svg';
-import badgeCompleteEarned from '../assets/badges/badge-complete-earned.svg';
-import badgeCompleteLocked from '../assets/badges/badge-complete-locked.svg';
-import badgeRetainedEarned from '../assets/badges/badge-retained-earned.svg';
-import badgeRetainedLocked from '../assets/badges/badge-retained-locked.svg';
-
 import courseArtBlue1 from '../assets/icons/course-art-blue.svg';
 import courseArtOrange from '../assets/icons/course-art-orange.svg';
 import courseArtMagenta from '../assets/icons/course-art-magenta.svg';
@@ -235,12 +229,8 @@ function mapApiDaysToLp(apiDays: GamificationDay[]): Array<{ label: string; stat
 
 function mapApiRecentWeeks(summary: GamificationSummary): WeekCellData[] {
   const result: WeekCellData[] = summary.recent_weeks.map((week, idx) => {
-    const state: WeekCellState = (
-      week.status === 'streak' ? 'met'
-        : week.status === 'forgiven' ? 'forgiven'
-          : week.status === 'missed' ? 'missed'
-            : 'empty'
-    );
+    let state: WeekCellState = 'empty';
+    if (week.status === 'streak') { state = 'met'; } else if (week.status === 'forgiven') { state = 'forgiven'; } else if (week.status === 'missed') { state = 'missed'; }
     const d = new Date(week.week_start);
     const day = String(d.getUTCDate());
     const prevMonth = idx > 0 ? new Date(summary.recent_weeks[idx - 1].week_start).getUTCMonth() : -1;
@@ -356,11 +346,13 @@ const StreakThisWeek = ({ streakState = 'none', apiSummary }: StreakThisWeekProp
     } else {
       const remaining = goal - daysCompleted;
       heading = remaining === 1 ? 'One more day to go' : `${remaining} days to go`;
-      desc = remaining === 1
-        ? (currentStreak > 0
+      if (remaining === 1) {
+        desc = currentStreak > 0
           ? `Learn on one more day this week to keep your ${currentStreak}-week streak.`
-          : 'Learn on one more day this week to start your first streak.')
-        : `Learn on ${remaining} days this week to ${currentStreak > 0 ? 'keep your streak' : 'start a streak'}.`;
+          : 'Learn on one more day this week to start your first streak.';
+      } else {
+        desc = `Learn on ${remaining} days this week to ${currentStreak > 0 ? 'keep your streak' : 'start a streak'}.`;
+      }
     }
   } else {
     const cfg = STREAK_THIS_WEEK_CONFIG[streakState];
@@ -395,7 +387,8 @@ interface StreakTabProps {
 const StreakTab = ({ streakState = 'none', apiSummary }: StreakTabProps) => {
   const streakCount = apiSummary?.current_streak_weeks ?? (streakState === 'reset' ? 0 : 0);
   const longestStreak = apiSummary?.longest_streak_weeks ?? (streakState === 'reset' ? 4 : 0);
-  const weeks = apiSummary ? mapApiRecentWeeks(apiSummary) : (streakState === 'reset' ? STREAK_RESET_WEEKS : STREAK_NONE_WEEKS);
+  let weeks: WeekCellData[];
+  if (apiSummary) { weeks = mapApiRecentWeeks(apiSummary); } else if (streakState === 'reset') { weeks = STREAK_RESET_WEEKS; } else { weeks = STREAK_NONE_WEEKS; }
   const subLine = longestStreak > streakCount
     ? `weeks in a row · longest ${longestStreak}`
     : 'weeks in a row';
@@ -452,7 +445,9 @@ const COURSE_ARTS = [
 
 // ── Badge grid seal ring ──────────────────────────────────
 
-const GridSealRing = ({ progress, art, tintColor, earned, hasThirty, thirtyOpen }: {
+const GridSealRing = ({
+  progress, art, tintColor, earned, hasThirty, thirtyOpen,
+}: {
   progress: number; art: string; tintColor: string; earned: boolean;
   hasThirty?: boolean; thirtyOpen?: boolean;
 }) => {
@@ -468,9 +463,15 @@ const GridSealRing = ({ progress, art, tintColor, earned, hasThirty, thirtyOpen 
         <circle cx={c} cy={c} r={r} stroke="var(--u-border-opaque)" strokeWidth="4" fill="none" />
         {progress > 0 && (
           <circle
-            cx={c} cy={c} r={r}
-            stroke="var(--u-background-accent)" strokeWidth="4" fill="none"
-            strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset}
+            cx={c}
+            cy={c}
+            r={r}
+            stroke="var(--u-background-accent)"
+            strokeWidth="4"
+            fill="none"
+            strokeLinecap="round"
+            strokeDasharray={circ}
+            strokeDashoffset={offset}
             transform={`rotate(-90 ${c} ${c})`}
           />
         )}
@@ -480,7 +481,8 @@ const GridSealRing = ({ progress, art, tintColor, earned, hasThirty, thirtyOpen 
         style={{ background: earned ? tintColor : 'var(--u-background-tertiary)' }}
       >
         <img
-          src={art} alt=""
+          src={art}
+          alt=""
           className={`lp-badge-grid-ring__art${earned ? '' : ' lp-badge-grid-ring__art--locked'}`}
           aria-hidden="true"
         />
@@ -502,7 +504,9 @@ const GridSealRing = ({ progress, art, tintColor, earned, hasThirty, thirtyOpen 
 
 // ── Badge grid item ───────────────────────────────────────
 
-const BadgeGridItem = ({ title, sub, ring, isNew, onClick }: {
+const BadgeGridItem = ({
+  title, sub, ring, isNew, onClick,
+}: {
   title: string; sub: string; ring: React.ReactNode; isNew?: boolean; onClick: () => void;
 }) => (
   <button type="button" className="lp-badge-grid-item" onClick={onClick}>
@@ -550,7 +554,7 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
       kind: 'course',
       courseId: course.courseId,
       title: award?.badge.title ?? course.title,
-      description: award?.badge.description ?? `Earned when you finish all lessons and the final check.`,
+      description: award?.badge.description ?? 'Earned when you finish all lessons and the final check.',
       art: (earned && badgeImageUrl) ? badgeImageUrl : artMeta.art,
       tintColor: artMeta.tint,
       progress: 'In progress',
@@ -583,8 +587,8 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
           <h2 className="lp-section-heading lp-section-heading--badges">Learning paths</h2>
           <div className="lp-badge-grid">
             {curriculums.map((c) => {
-              const complete = c.milestones.complete;
-              const retained = c.milestones.retained;
+              const { complete } = c.milestones;
+              const { retained } = c.milestones;
               const isComplete = complete?.reached_at != null;
               const thirtyOpen = c.knowledge_check.is_open;
               const thirtyEarned = retained?.reached_at != null;
@@ -601,7 +605,7 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
                   title={c.title}
                   sub={sub}
                   onClick={() => handlePathClick(c)}
-                  ring={
+                  ring={(
                     <GridSealRing
                       progress={progress}
                       art={complete?.badge?.image_url ?? iconBadgeCheck}
@@ -610,7 +614,7 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
                       hasThirty={!thirtyEarned}
                       thirtyOpen={thirtyOpen}
                     />
-                  }
+                  )}
                 />
               );
             })}
@@ -652,14 +656,14 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
                   sub={sub}
                   isNew={Boolean(isNew)}
                   onClick={() => handleCourseClick(course, idx)}
-                  ring={
+                  ring={(
                     <GridSealRing
                       progress={earned ? 1 : 0.2}
                       art={artSrc}
                       tintColor={artMeta.tint}
                       earned={earned}
                     />
-                  }
+                  )}
                 />
               );
             })}

@@ -68,7 +68,7 @@ const ChevronRight = () => (
 
 function searchCourses(courses: EnrolledCourse[], query: string) {
   const q = query.toLowerCase().trim();
-  if (!q) return [];
+  if (!q) { return []; }
   return courses.filter(
     (c) => c.title.toLowerCase().includes(q),
   );
@@ -111,7 +111,7 @@ export const SearchPage = () => {
 
   const handleSubmit = (q: string) => {
     const trimmed = q.trim();
-    if (!trimmed) return;
+    if (!trimmed) { return; }
     saveRecentSearch(trimmed);
     setRecents(getRecentSearches());
     setQuery(trimmed);
@@ -157,7 +157,7 @@ export const SearchPage = () => {
             placeholder="Search courses and lessons"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(query); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { handleSubmit(query); } }}
             aria-label="Search courses and lessons"
           />
           {query.length > 0 && (
@@ -191,7 +191,7 @@ export const SearchPage = () => {
             ) : (
               /* ── No results ── */
               <div className="sp-empty">
-                <p className="sp-empty__title">No results for "{submitted}"</p>
+                <p className="sp-empty__title">No results for &ldquo;{submitted}&rdquo;</p>
                 <p className="sp-empty__sub">Try a different keyword or browse topics below.</p>
                 <div className="sp-topics">
                   {TOPICS.map((t) => (

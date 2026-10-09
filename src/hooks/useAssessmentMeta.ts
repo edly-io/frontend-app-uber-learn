@@ -8,6 +8,7 @@ export interface AssessmentMetaResult {
   isError: boolean;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const useAssessmentMeta = (_courseId: string): AssessmentMetaResult => ({
   baseline: null,
   final: null,

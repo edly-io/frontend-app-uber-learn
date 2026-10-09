@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getResumeBlock } from '../api/courseware';
@@ -160,9 +160,9 @@ const PathStep = ({
     );
   }
 
-  // Upcoming
+  // Upcoming — still clickable so learners can open any lesson
   return (
-    <div className="cp-path-step">
+    <button type="button" className="cp-path-step" onClick={onClick}>
       <div className="cp-path-step__rail">
         <div className="cp-path-step__rail-above">
           {lineAbove && <div className="cp-path-step__rail-line" />}
@@ -178,7 +178,7 @@ const PathStep = ({
         <p className="cp-path-step__title">{title}</p>
         {detail && <p className="cp-path-step__detail">{detail}</p>}
       </div>
-    </div>
+    </button>
   );
 };
 
@@ -262,6 +262,14 @@ export const CourseOverview = () => {
   });
 
   const outlineQuery = useCourseOutline(courseId);
+
+  // Auto-navigate returning users to their last position — must be before early returns.
+  const apiResumeSequenceIdForEffect = resumeQuery.data?.sectionId ?? null;
+  useEffect(() => {
+    if (apiResumeSequenceIdForEffect) {
+      navigate(`/course/${courseId}/lesson/${apiResumeSequenceIdForEffect}/step/0`, { replace: true });
+    }
+  }, [apiResumeSequenceIdForEffect, courseId, navigate]);
 
   const handleBack = () => navigate('/');
 

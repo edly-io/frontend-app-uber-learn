@@ -8,7 +8,7 @@ import { useSequence } from '../hooks/useSequence';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
 import { useAssessmentSubmit } from '../hooks/useAssessmentSubmit';
-import { AlreadyPassedError, AssessmentIncompleteError } from '../api/progress';
+import { AlreadyPassedError, AssessmentIncompleteError, recordActivity } from '../api/progress';
 import { getLessonResults } from '../api/gamification';
 import { useGamification } from '../hooks/useGamification';
 import { qk } from '../api/queries';
@@ -42,6 +42,7 @@ export const ActivityView = () => {
 
   const [isCompleted, setIsCompleted] = useState(false);
   const [isIframeLoaded, setIsIframeLoaded] = useState(false);
+  const lastCorrectRef = useRef<boolean | null>(null);
 
   // Capture server_time when the lesson mounts so it can be used as the `since`
   // value for the lesson results endpoint. Using server_time (not device clock)
@@ -111,8 +112,8 @@ export const ActivityView = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sequenceId, unitIdx, courseId, isProblemUnit, currentUnit?.complete]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleCompleted = useCallback((_correct: boolean | null) => {
+  const handleCompleted = useCallback((correct: boolean | null) => {
+    lastCorrectRef.current = correct;
     setIsCompleted(true);
   }, []);
 
@@ -136,6 +137,15 @@ export const ActivityView = () => {
         { type: 'uber.continueClicked', version: 1 },
         getLmsOrigin(),
       );
+    }
+
+    // Record activity on the backend (fire-and-forget — don't block navigation on failure)
+    if (currentUnit) {
+      recordActivity({
+        courseId,
+        unitId: currentUnit.id,
+        correct: lastCorrectRef.current,
+      }).catch(() => {});
     }
 
     const nextIdx = unitIdx + 1;
@@ -182,6 +192,7 @@ export const ActivityView = () => {
     }
   }, [
     isCompleted,
+    currentUnit,
     unitIdx,
     units.length,
     isAssessmentSequence,

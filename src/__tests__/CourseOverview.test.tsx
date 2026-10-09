@@ -153,7 +153,7 @@ describe('CourseOverview', () => {
 
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith(
-          `/uber-learn/course/${COURSE_ID}/lesson/seq-1/step/0`,
+          `/course/${COURSE_ID}/lesson/seq-1/step/0`,
           { replace: true },
         );
       });
@@ -187,7 +187,7 @@ describe('CourseOverview', () => {
       fireEvent.click(screen.getByText('Lesson 1: Basics'));
 
       expect(mockNavigate).toHaveBeenCalledWith(
-        `/uber-learn/course/${COURSE_ID}/lesson/seq-1/step/0`,
+        `/course/${COURSE_ID}/lesson/seq-1/step/0`,
       );
     });
 
@@ -199,7 +199,7 @@ describe('CourseOverview', () => {
       fireEvent.click(screen.getByText('Lesson 2: Advanced'));
 
       expect(mockNavigate).toHaveBeenCalledWith(
-        `/uber-learn/course/${COURSE_ID}/lesson/seq-2/step/0`,
+        `/course/${COURSE_ID}/lesson/seq-2/step/0`,
       );
     });
   });

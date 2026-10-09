@@ -8,10 +8,11 @@ describe('StepIndicator', () => {
     expect(screen.getByLabelText('Step 2 of 5')).toBeInTheDocument();
   });
 
-  it('renders the correct number of step segments', () => {
+  it('renders a progress fill bar for the current step', () => {
     const { container } = render(<StepIndicator current={0} total={3} />);
-    // Each step segment is a div inside the indicator
-    const segments = container.querySelectorAll('[aria-hidden="true"]');
-    expect(segments).toHaveLength(3);
+    // Progress bar: single fill div with aria-hidden, width reflects step 1/3
+    const fill = container.querySelectorAll('[aria-hidden="true"]');
+    expect(fill).toHaveLength(1);
+    expect((fill[0] as HTMLElement).style.width).toBe('33%');
   });
 });

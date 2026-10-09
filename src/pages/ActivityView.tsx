@@ -1,5 +1,5 @@
 import React, {
-  useState, useCallback, useEffect, useMemo,
+  useState, useCallback, useEffect, useMemo, useRef,
 } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -56,11 +56,13 @@ export const ActivityView = () => {
   const queryClient = useQueryClient();
   const unitIdx = parseInt(unitIdxParam, 10);
 
-  // Completion and visibility are tracked per unit id rather than as booleans reset in an
+  // Completion and visibility are tied to the step rather than kept as booleans reset in an
   // effect: the effect only runs after the first render of a new step, so for that render the
   // previous step's "completed"/"loaded" state would leak through (enabled Continue, no spinner).
+  // completedUnitId: the unit whose iframe sent plugin.completed. shownVisit: the visit (below)
+  // whose iframe content is on screen.
   const [completedUnitId, setCompletedUnitId] = useState<string | null>(null);
-  const [shownUnitId, setShownUnitId] = useState<string | null>(null);
+  const [shownVisit, setShownVisit] = useState<number | null>(null);
   // Track correctness from plugin.completed so it can be forwarded to the Progress API.
   const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
 
@@ -82,7 +84,7 @@ export const ActivityView = () => {
   } = useSequence(sequenceId);
 
   // Read assessments from the progress query to detect assessment sequences.
-  const { data: progressData } = useProgress(courseId);
+  const { data: progressData, isSuccess: isProgressLoaded } = useProgress(courseId);
 
   // Course outline — needed to find the next sequence after this one
   const outlineQuery = useCourseOutline(courseId);
@@ -118,8 +120,24 @@ export const ActivityView = () => {
 
   const currentUnit = units[unitIdx];
   const currentUnitId = currentUnit?.id ?? null;
-  const isCompleted = currentUnitId !== null && completedUnitId === currentUnitId;
-  const isIframeLoaded = currentUnitId !== null && shownUnitId === currentUnitId;
+
+  // Each visit to a step gets its own number, so coming back to a step (A → B → A before B
+  // showed) still shows the spinner while that step's iframe reloads.
+  const visitRef = useRef<{ unitId: string | null; visit: number }>({ unitId: null, visit: 0 });
+  if (visitRef.current.unitId !== currentUnitId) {
+    visitRef.current = { unitId: currentUnitId, visit: visitRef.current.visit + 1 };
+  }
+  const currentVisit = visitRef.current.visit;
+  const isIframeLoaded = currentUnitId !== null && shownVisit === currentVisit;
+
+  // Worked out on every render rather than stored, so it follows the progress query: regular
+  // content completes once it is shown, but only after progress has loaded and confirmed this is
+  // not an assessment sequence. Assessment steps need plugin.completed. If progress loads (or
+  // turns out to be an assessment) after the content showed, the button locks again.
+  const isCompleted = currentUnitId !== null && (
+    completedUnitId === currentUnitId
+    || (isProgressLoaded && !isAssessmentSequence && isIframeLoaded)
+  );
 
   const recordMutation = useMutation({
     mutationFn: (correct: boolean | null) => recordActivity({
@@ -142,17 +160,15 @@ export const ActivityView = () => {
 
   // Called when the unit's content is on screen: its iframe's load event or, in lightweight mode,
   // the iframe's first plugin.resize if that comes first (load also waits for e.g. a video's first
-  // frame, which can take seconds on mobile). Marks the frame visible and auto-enables Continue for
+  // frame, which can take seconds on mobile). Marks the frame visible, which also completes
   // regular (non-assessment) content — standard Open edX XBlocks don't send plugin.completed.
   // Lightweight mode is per site: MFE_CONFIG_OVERRIDES["uber-learn"].UBER_LIGHTWEIGHT_IFRAMES
   // (see tutor-contrib-uber), the same flag that trims what the LMS loads in these iframes.
+  // The flag must be a JSON boolean: the string "true" leaves it off.
   const isLightweightMode = getConfig().UBER_LIGHTWEIGHT_IFRAMES === true;
   const handleContentShown = useCallback(() => {
-    setShownUnitId(currentUnitId);
-    if (!isAssessmentSequence) {
-      setCompletedUnitId(currentUnitId);
-    }
-  }, [currentUnitId, isAssessmentSequence]);
+    setShownVisit(currentVisit);
+  }, [currentVisit]);
 
   const handleContinue = useCallback(() => {
     if (!isCompleted) { return; }

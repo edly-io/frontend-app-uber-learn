@@ -6,7 +6,7 @@
  *   - AC-ACT-COMPLETE-02: plugin.completed from wrong origin does NOT enable Continue
  *   - AC-ACT-RECORD-01: Continue calls recordActivity with correct unit id and correctness
  *   - AC-ACT-NAV-01: Continue on non-last unit navigates to next step
- *   - AC-ACT-NAV-02: Continue on last unit navigates to course overview
+ *   - AC-ACT-NAV-02: Continue on last unit navigates to the lesson-complete page
  *   - AC-ACT-PM-01: Continue sends uber.continueClicked postMessage to LMS iframe
  *   - AC-ACT-RESET-01: Completion state resets when unit changes
  *   - AC-ACT-LOAD-01: Loading skeleton while sequence is fetching
@@ -82,6 +82,43 @@ const MOCK_SEQUENCE_DATA = {
   ],
 };
 
+// Progress for a course where this sequence is regular content (no assessments).
+const MOCK_PROGRESS: progressApi.UberLearnProgress = {
+  completedActivities: 0,
+  totalActivities: 2,
+  fraction: 0,
+  assessments: { baseline: null, final: null, retention: null },
+  points: { earned: null, possible: null },
+  streak: { currentDays: 0, longestDays: 0 },
+  courseComplete: false,
+  badges: [],
+};
+
+// Progress where this sequence is the baseline assessment.
+const ASSESSMENT_PROGRESS: progressApi.UberLearnProgress = {
+  ...MOCK_PROGRESS,
+  assessments: {
+    baseline: {
+      configured: true,
+      usageKey: SEQ_ID,
+      sequenceKey: SEQ_ID,
+      firstUnitKey: 'unit-1',
+      attemptCount: 0,
+      passed: null,
+      firstPassedAt: null,
+      canAttempt: true,
+      blockedReason: null,
+      retryAfterSeconds: 0,
+      nextAttemptAvailableAt: null,
+      unlocked: true,
+      unlocksAt: null,
+      latestAttempt: null,
+    },
+    final: null,
+    retention: null,
+  },
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -130,6 +167,7 @@ beforeEach(() => {
   mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '0' });
   jest.mocked(coursewareApi.getSequenceMetadata).mockResolvedValue(MOCK_SEQUENCE_DATA);
   jest.mocked(progressApi.recordActivity).mockResolvedValue(undefined);
+  jest.mocked(progressApi.getUberLearnProgress).mockResolvedValue(MOCK_PROGRESS);
 });
 
 // ---------------------------------------------------------------------------
@@ -341,7 +379,7 @@ describe('ActivityView', () => {
 
   describe('showing the unit before the iframe load event', () => {
     beforeEach(() => mergeConfig({ UBER_LIGHTWEIGHT_IFRAMES: true }));
-    afterEach(() => mergeConfig({ UBER_LIGHTWEIGHT_IFRAMES: undefined }));
+    afterEach(() => mergeConfig({ UBER_LIGHTWEIGHT_IFRAMES: false }));
 
     /** Simulate the unversioned plugin.resize the LMS posts once the unit's DOM is built. */
     function dispatchFrameResize(source: MessageEventSource | null, origin: string = LMS_ORIGIN) {
@@ -410,6 +448,95 @@ describe('ActivityView', () => {
 
       await waitFor(() => expect(spinner()).not.toBeInTheDocument());
       expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled();
+    });
+  });
+
+  describe('completion depends on progress and the assessment flag', () => {
+    beforeEach(() => mergeConfig({ UBER_LIGHTWEIGHT_IFRAMES: true }));
+    afterEach(() => mergeConfig({ UBER_LIGHTWEIGHT_IFRAMES: false }));
+
+    const getFrame = () => document.querySelector<HTMLIFrameElement>('.content-iframe-frame')!;
+    const spinner = () => document.querySelector('.content-iframe-spinner');
+    /** The unversioned plugin.resize the LMS posts once the unit's DOM is built. */
+    const showContent = () => act(() => {
+      window.dispatchEvent(new MessageEvent('message', {
+        origin: LMS_ORIGIN,
+        source: getFrame().contentWindow,
+        data: { type: 'plugin.resize', payload: { width: 400, height: 600 } },
+      }));
+    });
+    const deferredProgress = () => {
+      let resolve!: (progress: progressApi.UberLearnProgress) => void;
+      jest.mocked(progressApi.getUberLearnProgress).mockReturnValue(new Promise((r) => { resolve = r; }));
+      return (progress: progressApi.UberLearnProgress) => act(async () => { resolve(progress); });
+    };
+
+    // The last unit's button reads "Submit" only once progress says it is an assessment,
+    // which proves progress has loaded before Continue is checked.
+    it('keeps an assessment step locked after its content shows, until plugin.completed', async () => {
+      jest.mocked(progressApi.getUberLearnProgress).mockResolvedValue(ASSESSMENT_PROGRESS);
+      mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
+      renderComponent();
+      const submit = await screen.findByRole('button', { name: /submit/i });
+
+      showContent();
+      fireEvent.load(getFrame());
+
+      expect(spinner()).not.toBeInTheDocument();
+      expect(submit).toBeDisabled();
+
+      dispatchPluginMessage('plugin.completed', { correct: true });
+      await waitFor(() => expect(screen.getByRole('button', { name: /submit/i })).not.toBeDisabled());
+    });
+
+    it('locks an assessment step whose content shows before progress loads', async () => {
+      const resolveProgress = deferredProgress();
+      mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
+      renderComponent();
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+
+      showContent();
+      expect(spinner()).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /finish/i })).toBeDisabled();
+
+      await resolveProgress(ASSESSMENT_PROGRESS);
+
+      expect(await screen.findByRole('button', { name: /submit/i })).toBeDisabled();
+    });
+
+    it('completes regular content once progress confirms it is not an assessment', async () => {
+      const resolveProgress = deferredProgress();
+      renderComponent();
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+
+      showContent();
+      expect(screen.getByRole('button', { name: /continue/i })).toBeDisabled();
+
+      await resolveProgress(MOCK_PROGRESS);
+
+      await waitFor(() => expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled());
+    });
+
+    it('shows the spinner again when returning to a step whose iframe is reloading', async () => {
+      const queryClient = makeQueryClient();
+      const view = () => (
+        <QueryClientProvider client={queryClient}>
+          <ActivityView />
+        </QueryClientProvider>
+      );
+      const { rerender } = render(view());
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+      showContent();
+      expect(spinner()).not.toBeInTheDocument();
+
+      // To step 1 and straight back to step 0, before step 1's content showed.
+      mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
+      rerender(view());
+      mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '0' });
+      rerender(view());
+
+      expect(getFrame().dataset.usageKey).toBe('unit-1');
+      expect(spinner()).toBeInTheDocument();
     });
   });
 

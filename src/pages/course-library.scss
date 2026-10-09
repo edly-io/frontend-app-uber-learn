@@ -185,16 +185,16 @@
 /* ── Section header ───────────────────────────────────── */
 .cl-section-header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  padding: 4px 0 12px;
+  padding: 8px 0 12px;
 }
 
 .cl-section-header__title {
   font-family: var(--u-font-display);
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.25;
   color: var(--u-content-primary);
   margin: 0;
 }
@@ -241,9 +241,9 @@
 
 /* Art tile */
 .cl-card__tile {
-  width: 64px;
-  height: 64px;
-  border-radius: 12px;
+  width: 72px;
+  height: 72px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -260,9 +260,16 @@
 .cl-card__tile--orange  { background: var(--u-learning-course-tint-orange); }
 
 .cl-card__art {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   object-fit: contain;
+  display: block;
+}
+
+.cl-card__thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
 }
 
@@ -270,7 +277,7 @@
 .cl-card__body {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   flex: 1;
   min-width: 0;
 }
@@ -278,23 +285,23 @@
 .cl-card__category {
   font-family: var(--u-font-body);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.33;
   color: var(--u-content-secondary);
   display: block;
+  margin-bottom: 1px;
 }
 
 .cl-card__title {
   font-family: var(--u-font-body);
-  font-size: 18px;
-  font-weight: 500;
-  line-height: 1.33;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
   color: var(--u-content-primary);
-  display: block;
-  overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .cl-card__next {
@@ -304,6 +311,17 @@
   line-height: 1.43;
   color: var(--u-content-secondary);
   display: block;
+}
+
+.cl-card__next--done {
+  color: var(--u-content-positive);
+  font-weight: 500;
+}
+
+.cl-card--loading {
+  cursor: default;
+  pointer-events: none;
+  min-height: 88px;
 }
 
 /* Progress bar */
@@ -338,11 +356,13 @@
 
 /* ── No results state ─────────────────────────────────── */
 .cl-no-results {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 12px;
-  padding: 48px 16px 24px;
+  padding: 24px 16px;
 }
 
 .cl-no-results__spot {
@@ -367,6 +387,16 @@
   font-weight: 500;
   line-height: 1.5;
   color: var(--u-content-primary);
+  text-align: center;
+  margin: 0;
+}
+
+.cl-no-results__subtitle {
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.43;
+  color: var(--u-content-secondary);
   text-align: center;
   margin: 0;
 }

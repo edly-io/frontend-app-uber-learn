@@ -6,15 +6,12 @@ import stateSpotNoRequiredCourses from '../assets/icons/state-spot-no-required-c
 export const NoRequiredCoursesPage = () => {
   const navigate = useNavigate();
   const handleBack = () => navigate(-1);
-  const handleSeeAll = () => navigate('/');
 
   return (
     <SystemStateView
       art={stateSpotNoRequiredCourses}
-      title="No required courses yet"
-      message="They'll appear here when Uber assigns them. Optional courses are open any time."
-      buttonLabel="See all courses"
-      onAction={handleSeeAll}
+      title="No courses yet"
+      message="Courses for the city you drive in will appear here."
       onBack={handleBack}
     />
   );

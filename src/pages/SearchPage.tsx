@@ -8,7 +8,7 @@ import iconDismiss from '../assets/icons/icon-dismiss.svg';
 import iconCircleX from '../assets/icons/icon-circle-x.svg';
 import courseArtBlue from '../assets/icons/course-art-blue.svg';
 
-import './search-page.css';
+import './search-page.scss';
 
 // ── Recent searches (localStorage) ───────────────────────
 

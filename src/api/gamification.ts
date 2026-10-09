@@ -68,6 +68,16 @@ export interface LeaderboardData {
   rows: LeaderboardRow[];
 }
 
+export interface LessonResults {
+  sequence_key: string;
+  course_key: string;
+  points_earned: number;
+  correct_percent: number | null;
+  questions: number;
+  already_completed_before: boolean;
+  steps_count: number | null;
+}
+
 // ---------------------------------------------------------------------------
 // Fetch functions
 // ---------------------------------------------------------------------------
@@ -84,4 +94,15 @@ export async function getLeaderboard(): Promise<LeaderboardData> {
     `${getConfig().LMS_BASE_URL}/api/uber/gamification/v1/leaderboard/`,
   );
   return data as LeaderboardData;
+}
+
+export async function getLessonResults(
+  sequenceKey: string,
+  since: string,
+): Promise<LessonResults> {
+  const { data } = await getAuthenticatedHttpClient().get(
+    `${getConfig().LMS_BASE_URL}/api/uber/gamification/v1/lessons/${encodeURIComponent(sequenceKey)}/results/`,
+    { params: { since } },
+  );
+  return data as LessonResults;
 }

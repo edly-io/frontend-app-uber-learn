@@ -1,38 +1,29 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getResumeBlock } from '../api/courseware';
 import { qk } from '../api/queries';
 import { useCourseOutline } from '../hooks/useCourseOutline';
-import { useProgress } from '../hooks/useProgress';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
 import type { LessonDescriptor } from '../lib/outline-mapper';
 import { getStoredResumeIdx, getStoredResumeSequenceId } from '../lib/resume-storage';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
-import { RetryOverlay } from '../components/retry-overlay/RetryOverlay';
-import type { AssessmentState } from '../api/progress';
+import { useGamification } from '../hooks/useGamification';
 import scenePhoto from '../assets/images/scene-safety-education.png';
 import iconCheckWhite from '../assets/icons/icon-check-white.svg';
 import iconLock from '../assets/icons/icon-lock.svg';
 import iconNodeCurrent from '../assets/icons/icon-node-current.svg';
 import iconChevronRight from '../assets/icons/chevron-right.svg';
 import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
+import courseArtBook from '../assets/icons/course-art-book.svg';
 import courseArtSteering from '../assets/icons/course-art-steering.svg';
 import courseArtLime from '../assets/icons/course-art-lime.svg';
 import courseArtMagenta from '../assets/icons/course-art-magenta.svg';
 import courseArtPurple from '../assets/icons/course-art-purple.svg';
-import './course-page.css';
+import './course-page.scss';
 
 // ── Types ──────────────────────────────────────────────────────────────────
-
-type BlockedReason = NonNullable<AssessmentState['blockedReason']>;
-
-interface BlockedAssessmentState {
-  reason: BlockedReason;
-  retryAfterSeconds: number;
-  unlocksAt: string | null;
-}
 
 type LessonState = 'complete' | 'current' | 'upcoming';
 
@@ -65,27 +56,6 @@ const DEFAULT_CONFIG: CourseConfig = {
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-function findBlockedAssessment(
-  sequenceId: string,
-  assessments: {
-    baseline: AssessmentState | null;
-    final: AssessmentState | null;
-    retention: AssessmentState | null;
-  } | undefined,
-): BlockedAssessmentState | null {
-  if (!assessments) { return null; }
-  const candidates = [assessments.baseline, assessments.final, assessments.retention];
-  const match = candidates.find(
-    (a) => a !== null && a.sequenceKey === sequenceId && !a.canAttempt,
-  );
-  if (!match || !match.blockedReason) { return null; }
-  return {
-    reason: match.blockedReason,
-    retryAfterSeconds: match.retryAfterSeconds,
-    unlocksAt: match.unlocksAt,
-  };
-}
 
 function groupBySection(lessons: LessonDescriptor[]): LessonSection[] {
   const map = new Map<string, LessonSection>();
@@ -280,9 +250,10 @@ export const CourseOverview = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
 
-  const [blockedAssessment, setBlockedAssessment] = useState<BlockedAssessmentState | null>(null);
 
   const config = COURSE_CONFIG[courseId] ?? DEFAULT_CONFIG;
+
+  const { data: gamification } = useGamification();
 
   const resumeQuery = useQuery({
     queryKey: qk.resume(courseId),
@@ -292,7 +263,6 @@ export const CourseOverview = () => {
   });
 
   const outlineQuery = useCourseOutline(courseId);
-  const { data: progressData } = useProgress(courseId);
 
   const handleBack = () => navigate('/');
 
@@ -329,9 +299,9 @@ export const CourseOverview = () => {
   const sections = groupBySection(lessons);
 
   const apiResumeSequenceId = resumeQuery.data?.sectionId ?? null;
-  const fraction = progressData?.fraction ?? 0;
-  const courseComplete = progressData?.courseComplete ?? false;
-  const pointsEarned = progressData?.points?.earned ?? 0;
+  const fraction = 0;
+  const courseComplete = false;
+  const pointsEarned = 0;
 
   const apiResumeIdx = apiResumeSequenceId
     ? lessons.findIndex((r) => r.sequenceId === apiResumeSequenceId)
@@ -357,17 +327,6 @@ export const CourseOverview = () => {
       return;
     }
     if (resumeSequenceId) {
-      const assessments = progressData?.assessments;
-      if (assessments) {
-        if (assessments.baseline?.sequenceKey === resumeSequenceId && assessments.baseline.canAttempt) {
-          navigate(`/course/${courseId}/check/baseline`);
-          return;
-        }
-        if (assessments.final?.sequenceKey === resumeSequenceId && assessments.final.canAttempt) {
-          navigate(`/course/${courseId}/check/final`);
-          return;
-        }
-      }
       navigate(`/course/${courseId}/lesson/${resumeSequenceId}/step/0`);
       return;
     }
@@ -375,22 +334,6 @@ export const CourseOverview = () => {
   };
 
   const handleLessonClick = (sequenceId: string) => {
-    const blocked = findBlockedAssessment(sequenceId, progressData?.assessments);
-    if (blocked) {
-      setBlockedAssessment(blocked);
-      return;
-    }
-    const assessments = progressData?.assessments;
-    if (assessments) {
-      if (assessments.baseline?.sequenceKey === sequenceId && assessments.baseline.canAttempt) {
-        navigate(`/course/${courseId}/check/baseline`);
-        return;
-      }
-      if (assessments.final?.sequenceKey === sequenceId && assessments.final.canAttempt) {
-        navigate(`/course/${courseId}/check/final`);
-        return;
-      }
-    }
     navigate(`/course/${courseId}/lesson/${sequenceId}/step/0`);
   };
 
@@ -400,7 +343,7 @@ export const CourseOverview = () => {
       ? 'Continue course'
       : 'Start course';
 
-  const showProgress = (effectiveFraction > 0 || completedLessons > 0) && !config.optional;
+  const showProgress = !config.optional;
   const showLearningRecord = pointsEarned > 0 && !config.optional;
 
   return (
@@ -420,26 +363,40 @@ export const CourseOverview = () => {
             </p>
           </div>
 
-          {/* Progress */}
+          {/* Course progress row */}
           {showProgress && (
-            <div className="cd-progress">
-              <div className="cd-progress-labels">
-                <span className="cd-progress-label">
+            <div className="cd-course-progress">
+              <div className="cd-course-progress__bar-col">
+                <p className="cd-progress-label">
                   {`${completedLessons} of ${totalLessons} lesson${totalLessons !== 1 ? 's' : ''} complete`}
-                </span>
-                <span className="cd-progress-percent">{percentDisplay}</span>
+                </p>
+                <div className="cd-progress-track">
+                  {effectiveFraction > 0 && (
+                    <div
+                      className="cd-progress-fill"
+                      style={{ width: `${Math.round(effectiveFraction * 100)}%` }}
+                    />
+                  )}
+                </div>
+                {gamification?.lifetime_points != null && gamification.lifetime_points > 0 ? (
+                  <p className="cd-progress-points">
+                    {`${gamification.lifetime_points} points earned`}
+                  </p>
+                ) : (
+                  <p className="cd-progress-points">Earn points</p>
+                )}
               </div>
-              <div className="cd-progress-track">
-                <div className="cd-progress-fill" style={{ width: `${Math.round(effectiveFraction * 100)}%` }} />
-              </div>
+              <button
+                type="button"
+                className="cd-course-progress__seal"
+                aria-label="View course badge"
+                onClick={() => navigate('/progress')}
+              >
+                <div className="cd-badge-seal">
+                  <img src={courseArtBook} alt="" className="cd-badge-seal__icon" aria-hidden="true" />
+                </div>
+              </button>
             </div>
-          )}
-
-          {/* Facts */}
-          {totalLessons > 0 && (
-            <p className="cd-facts">
-              {`${totalLessons} lesson${totalLessons !== 1 ? 's' : ''}`}
-            </p>
           )}
 
           {/* Learning record card */}
@@ -515,14 +472,6 @@ export const CourseOverview = () => {
         </button>
       </footer>
 
-      {blockedAssessment && (
-        <RetryOverlay
-          blockedReason={blockedAssessment.reason}
-          retryAfterSeconds={blockedAssessment.retryAfterSeconds}
-          unlocksAt={blockedAssessment.unlocksAt}
-          onClose={() => setBlockedAssessment(null)}
-        />
-      )}
     </div>
   );
 };

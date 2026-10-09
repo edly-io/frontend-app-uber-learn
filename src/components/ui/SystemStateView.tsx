@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavHeader } from '../nav-header/NavHeader';
-import './system-state.css';
+import './system-state.scss';
 
 interface SystemStateViewProps {
   art: string;

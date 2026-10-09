@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { LearnerCurriculum } from '../../api/curriculum';
 
 import iconBadgeCheck from '../../assets/icons/icon-badge-check.svg';
-import './badge-detail-sheet.css';
+import './badge-detail-sheet.scss';
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -122,7 +122,7 @@ const PathBadgeSheet = ({ data, onClose }: { data: PathBadgeData; onClose: () =>
   const thirtyDayOpen = curriculum.knowledge_check.is_open;
   const thirtyDayEarned = retained.reached_at !== null;
 
-  const progress = `${curriculum.courses_passed} of ${curriculum.courses_total} courses done`;
+  const progress = `${curriculum.courses_finished} of ${curriculum.courses_total} courses done`;
   const badgeTitle = complete.badge?.title ?? `${curriculum.title} complete`;
   const badgeDesc = `Earned when you finish all ${curriculum.courses_total} courses in ${curriculum.title}.`;
 
@@ -135,7 +135,7 @@ const PathBadgeSheet = ({ data, onClose }: { data: PathBadgeData; onClose: () =>
     <div className="bds-content">
       <SealRing
         size={88}
-        progress={curriculum.courses_total > 0 ? curriculum.courses_passed / curriculum.courses_total : 0}
+        progress={curriculum.courses_total > 0 ? curriculum.courses_finished / curriculum.courses_total : 0}
         art={complete.badge?.image_url ?? iconBadgeCheck}
         tintColor="var(--u-learning-course-tint-blue)"
         earned={isComplete}

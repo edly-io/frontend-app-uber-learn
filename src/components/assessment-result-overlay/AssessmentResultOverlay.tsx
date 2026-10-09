@@ -1,7 +1,7 @@
 import React from 'react';
 import type { AssessmentAttempt } from '../../api/progress';
 import { Button } from '../ui/Button';
-import './assessment-result-overlay.css';
+import './assessment-result-overlay.scss';
 
 export type OverlayAssessmentType = 'baseline' | 'final' | 'retention' | 'already_passed' | 'assessment_incomplete' | 'submission_error';
 

@@ -1,0 +1,42 @@
+/* ── Info sheet ────────────────────────────────────────── */
+
+.info-sheet {
+  &__title {
+    margin: 8px 0 20px;
+    font-family: var(--u-font-display);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.27;
+    color: var(--u-content-primary);
+  }
+
+  &__bullets {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__bullet {
+    position: relative;
+    padding-left: 16px;
+    font-family: var(--u-font-body);
+    font-size: 15px;
+    line-height: 1.47;
+    color: var(--u-content-primary);
+
+    &::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: var(--u-content-primary);
+    }
+  }
+
+  &__done {
+    width: 100%;
+  }
+}

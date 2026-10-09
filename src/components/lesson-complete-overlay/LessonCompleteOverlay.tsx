@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import './lesson-complete-overlay.css';
+import './lesson-complete-overlay.scss';
 
 const AUTO_DISMISS_MS = 2000;
 

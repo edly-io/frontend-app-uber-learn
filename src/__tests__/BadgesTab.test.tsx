@@ -33,6 +33,7 @@ const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
+  useLocation: () => ({ state: null, pathname: '/progress' }),
 }));
 
 // Stub every hook/api used by LearningProgress so the render is self-contained
@@ -76,7 +77,7 @@ function makeCurriculum(overrides: Partial<LearnerCurriculum> = {}): LearnerCurr
     description: '',
     assigned_at: '2026-10-01T00:00:00Z',
     courses: [],
-    courses_passed: 1,
+    courses_finished: 1,
     courses_total: 3,
     milestones: {
       halfway: { reached_at: null, badge: null },

@@ -15,7 +15,7 @@ export interface CurriculumCourse {
   display_name: string | null;
   exists: boolean;
   position: number;
-  passed: boolean;
+  finished: boolean;
 }
 
 export interface Milestone {
@@ -37,7 +37,7 @@ export interface LearnerCurriculum {
   description: string;
   assigned_at: string;
   courses: CurriculumCourse[];
-  courses_passed: number;
+  courses_finished: number;
   courses_total: number;
   milestones: Record<BadgeSlot, Milestone>;
   knowledge_check: KnowledgeCheck;

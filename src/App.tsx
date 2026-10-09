@@ -6,6 +6,13 @@ import { CourseLibrary } from './pages/CourseLibrary';
 import { LearningProgress } from './pages/LearningProgress';
 import { CourseOverview } from './pages/CourseOverview';
 import { ActivityView } from './pages/ActivityView';
+
+// Forces ActivityView to remount when the lesson changes so all state
+// (completion, iframe, step progress) resets cleanly for the new sequence.
+const ActivityViewRoute = () => {
+  const { sequenceId = '' } = useParams<{ sequenceId: string }>();
+  return <ActivityView key={sequenceId} />;
+};
 import { RewardsView } from './pages/RewardsView';
 import {
   LessonCompletePage,
@@ -22,6 +29,7 @@ import {
 } from './pages/CourseIntroductionPage';
 import { BadgeEarned } from './pages/BadgeEarned';
 import { LearningPathView } from './pages/LearningPathView';
+import { AllLearningPathsPage } from './pages/AllLearningPathsPage';
 import { SearchPage } from './pages/SearchPage';
 
 import './styles/tokens.scss';
@@ -103,7 +111,7 @@ export const App = () => (
         <Route path="/course/:courseId" element={<CourseOverview />} />
         <Route
           path="/course/:courseId/lesson/:sequenceId/step/:unitIdx"
-          element={<ActivityView />}
+          element={<ActivityViewRoute />}
         />
         <Route path="/course/:courseId/rewards" element={<RewardsView />} />
         <Route path="/course/:courseId/lesson-complete" element={<LessonCompletePage />} />
@@ -114,6 +122,7 @@ export const App = () => (
         <Route path="/course/:courseId/check/:type" element={<KnowledgeCheckPage />} />
         <Route path="/course/:courseId/check-result/:type" element={<KnowledgeCheckResultPage />} />
         <Route path="/badge/:type" element={<BadgeEarned />} />
+        <Route path="/learning-paths" element={<AllLearningPathsPage />} />
         <Route path="/learning-path/:curriculumId" element={<LearningPathView />} />
         <Route path="/search" element={<SearchPage />} />
         {/* LMS-generated deep links */}

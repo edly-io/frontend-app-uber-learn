@@ -463,6 +463,31 @@
   width: 100%;
 }
 
+.cpc-course-row--tappable {
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--u-border-opaque);
+  cursor: pointer;
+  text-align: left;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.cpc-course-row--tappable:active {
+  opacity: 0.7;
+}
+
+.cpc-course-row--tappable:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.cpc-course-row__chevron {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
 .cpc-course-row__tile {
   width: 48px;
   height: 48px;
@@ -507,14 +532,16 @@
   margin: 0;
 }
 
+.cpc-course-row__sub--earned {
+  color: var(--u-content-positive);
+}
+
 .cpc-course-row__points {
   font-family: var(--u-font-body);
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 500;
-  color: var(--u-content-primary);
-  line-height: 1.25;
-  margin: 0;
-  white-space: nowrap;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
   flex-shrink: 0;
 }
 

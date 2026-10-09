@@ -18,7 +18,8 @@
   position: relative;
 }
 
-.lp-nav__back {
+.lp-nav__close,
+.lp-nav__info {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -31,15 +32,26 @@
   color: var(--u-content-primary);
   flex-shrink: 0;
   transition: opacity var(--u-duration-fast) var(--u-ease-out);
+
+  img {
+    width: 20px;
+    height: 20px;
+  }
 }
 
-.lp-nav__back:active {
+.lp-nav__close:active,
+.lp-nav__info:active {
   opacity: 0.7;
 }
 
-.lp-nav__back:focus-visible {
+.lp-nav__close:focus-visible,
+.lp-nav__info:focus-visible {
   outline: 2px solid var(--u-content-primary);
   outline-offset: 2px;
+}
+
+.lp-nav__info {
+  margin-left: auto;
 }
 
 .lp-nav__title {
@@ -55,12 +67,6 @@
   white-space: nowrap;
 }
 
-.lp-nav__spacer {
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  margin-left: auto;
-}
 
 /* ── Tabs ─────────────────────────────────────────────── */
 .lp-tabs {
@@ -119,6 +125,15 @@
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* ── Sticky footer ────────────────────────────────────── */
+.lp-footer {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  background: var(--u-background-primary);
+  border-top: 1px solid var(--u-border-opaque);
 }
 
 /* ── Tab content ──────────────────────────────────────── */
@@ -232,7 +247,7 @@
 .lp-streak-hero__icon {
   width: 40px;
   height: 40px;
-  filter: invert(1);
+  filter: brightness(0) invert(1);
 }
 
 /* ── Section heading ──────────────────────────────────── */
@@ -325,42 +340,6 @@
   flex-shrink: 0;
 }
 
-/* ── Rules pill ───────────────────────────────────────── */
-.lp-rules-wrap {
-  display: flex;
-}
-
-.lp-rules-pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  background: var(--u-background-tertiary);
-  border: none;
-  border-radius: 9999px;
-  font-family: var(--u-font-body);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.14;
-  color: var(--u-content-primary);
-  cursor: pointer;
-  transition: opacity var(--u-duration-fast) var(--u-ease-out);
-}
-
-.lp-rules-pill:active {
-  opacity: 0.7;
-}
-
-.lp-rules-pill:focus-visible {
-  outline: 2px solid var(--u-content-primary);
-  outline-offset: 2px;
-}
-
-.lp-rules-pill__icon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
 
 /* ── Streak week days ────────────────────────────────── */
 .lp-week-days {
@@ -488,74 +467,8 @@
   color: var(--u-content-tertiary);
 }
 
-/* ── Leaderboard ──────────────────────────────────────── */
-.lp-leaderboard-hero {
-  background: var(--u-background-secondary);
-  border-radius: 24px;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
+/* ── Leaderboard (legacy selectors removed — now uses --hifi variants) */
 
-.lp-leaderboard-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.lp-leaderboard-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--u-border-opaque);
-}
-
-.lp-leaderboard-row:last-child {
-  border-bottom: none;
-}
-
-.lp-leaderboard-row--you {
-  font-weight: 700;
-}
-
-.lp-leaderboard-row__rank {
-  font-family: var(--u-font-body);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--u-content-secondary);
-  width: 24px;
-  flex-shrink: 0;
-}
-
-.lp-leaderboard-row__name {
-  font-family: var(--u-font-body);
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 1.25;
-  color: var(--u-content-primary);
-  flex: 1;
-  min-width: 0;
-}
-
-.lp-leaderboard-row--you .lp-leaderboard-row__name {
-  font-weight: 700;
-}
-
-.lp-leaderboard-row__points {
-  font-family: var(--u-font-body);
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 1.25;
-  color: var(--u-content-primary);
-  flex-shrink: 0;
-}
-
-/* ── Spacer (pushes button to bottom when content is short) */
-.lp-spacer {
-  flex: 1;
-  min-height: 16px;
-}
 
 /* ── Primary button (shared) ──────────────────────────── */
 .btn-primary {
@@ -636,7 +549,8 @@
 }
 
 .lp-week-cell--missed {
-  background: var(--u-background-tertiary);
+  background: transparent;
+  border: 1.5px dashed var(--u-border-opaque);
 }
 
 .lp-week-cell--current {
@@ -646,7 +560,7 @@
 .lp-week-cell__icon {
   width: 16px;
   height: 16px;
-  filter: invert(1);
+  filter: brightness(0) invert(1);
 }
 
 .lp-week-col__date {
@@ -754,7 +668,7 @@
 }
 
 .lp-streak-day__dot--learned {
-  background: var(--u-content-primary);
+  background: var(--u-background-positive);
 }
 
 .lp-streak-day__dot--today {
@@ -770,8 +684,9 @@
 }
 
 .lp-streak-day__check {
-  width: 28px;
-  height: 28px;
+  width: 16px;
+  height: 16px;
+  filter: brightness(0) invert(1);
 }
 
 .lp-streak-day__label {
@@ -820,7 +735,7 @@
 .lp-badges-hifi-hero__icon {
   width: 40px;
   height: 40px;
-  filter: invert(1);
+  filter: brightness(0) invert(1);
 }
 
 /* ── Badge list hi-fi ─────────────────────────────────── */
@@ -935,12 +850,20 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--u-border-opaque);
+  padding: 12px;
+  border-radius: 8px;
 }
 
-.lp-leaderboard-row--hifi:last-child {
-  border-bottom: none;
+.lp-leaderboard-row--hifi.lp-leaderboard-row--you {
+  background: var(--u-background-secondary);
+}
+
+.lp-leaderboard-gap {
+  text-align: center;
+  color: var(--u-content-tertiary);
+  font-size: 18px;
+  letter-spacing: 4px;
+  padding: 6px 0;
 }
 
 .lp-leaderboard-avatar {
@@ -953,6 +876,11 @@
   justify-content: center;
   flex-shrink: 0;
   color: var(--u-content-secondary);
+}
+
+.lp-leaderboard-avatar--me {
+  background: var(--u-background-always-dark);
+  color: var(--u-content-on-color);
 }
 
 .lp-leaderboard-avatar__icon {
@@ -968,7 +896,7 @@
   font-weight: 500;
   line-height: 1.25;
   color: var(--u-content-secondary);
-  width: 20px;
+  width: 24px;
   text-align: center;
   flex-shrink: 0;
 }
@@ -995,13 +923,17 @@
 /* ── Badge grid (new Figma design) ───────────────────── */
 
 .lp-section-heading--badges {
+  font-family: var(--u-font-display);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.33;
   padding-top: 8px;
   margin-bottom: 16px;
 }
 
 .lp-section-heading--with-divider {
   border-top: 1px solid var(--u-border-opaque);
-  padding-top: 20px;
+  padding-top: 16px;
   margin-top: 8px;
 }
 
@@ -1033,9 +965,9 @@
 
 .lp-badge-grid-item__name {
   font-family: var(--u-font-body);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
-  line-height: 1.33;
+  line-height: 1.14;
   color: var(--u-content-primary);
   width: 100%;
   overflow: hidden;
@@ -1046,14 +978,11 @@
 
 .lp-badge-grid-item__sub {
   font-family: var(--u-font-body);
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 400;
-  line-height: 1.45;
+  line-height: 1.43;
   color: var(--u-content-secondary);
   width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .lp-badge-grid-item__new {
@@ -1068,6 +997,15 @@
   line-height: 1;
   padding: 2px 5px;
   border-radius: 4px;
+}
+
+/* ── Badge grid loading state ────────────────────────── */
+.lp-badge-grid-ring__skeleton {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--u-background-tertiary);
+  flex-shrink: 0;
 }
 
 /* ── Grid seal ring ──────────────────────────────────── */

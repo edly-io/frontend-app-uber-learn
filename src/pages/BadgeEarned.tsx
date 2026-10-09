@@ -8,7 +8,7 @@ import badgeHalfwayEarned from '../assets/badges/badge-halfway-earned.svg';
 import badgeCompleteEarned from '../assets/badges/badge-complete-earned.svg';
 import badgeRetainedEarned from '../assets/badges/badge-retained-earned.svg';
 
-import './badge-earned.css';
+import './badge-earned.scss';
 
 type BadgeType = 'halfway' | 'complete' | 'retained';
 

@@ -7,7 +7,7 @@ import type { LearnerCurriculum } from '../api/curriculum';
 
 import iconBadgeCheck from '../assets/icons/icon-badge-check.svg';
 import iconCircleCheck from '../assets/icons/icon-circle-check.svg';
-import './learning-path-view.css';
+import './learning-path-view.scss';
 
 // ── Back arrow ───────────────────────────────────────────
 
@@ -32,10 +32,10 @@ const MILESTONE_LABEL: Record<string, string> = {
 
 const MilestoneBadge = ({ slot, curriculum }: MilestoneBadgeProps) => {
   const milestone = curriculum.milestones[slot];
-  const earned = milestone.reached_at !== null;
+  const earned = milestone?.reached_at != null;
   const locked = slot === 'retained' && !curriculum.knowledge_check.is_open && !earned;
-  const imageUrl = milestone.badge?.image_url ?? null;
-  const title = milestone.badge?.title ?? MILESTONE_LABEL[slot];
+  const imageUrl = milestone?.badge?.image_url ?? null;
+  const title = milestone?.badge?.title ?? MILESTONE_LABEL[slot];
 
   return (
     <div className={`lp-milestone${earned ? ' lp-milestone--earned' : ''}`}>
@@ -60,19 +60,19 @@ const MilestoneBadge = ({ slot, curriculum }: MilestoneBadgeProps) => {
         )}
       </div>
       <span className="lp-milestone__label">{title}</span>
-      {earned && milestone.reached_at && (
+      {earned && milestone?.reached_at && (
         <span className="lp-milestone__sub">
-          {new Date(milestone.reached_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+          {new Date(milestone!.reached_at!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
         </span>
       )}
       {!earned && slot === 'retained' && (
         <span className="lp-milestone__sub">
-          {curriculum.knowledge_check.is_open ? 'Open now' : `${curriculum.courses_total - curriculum.courses_passed} to go`}
+          {curriculum.knowledge_check.is_open ? 'Open now' : `${curriculum.courses_total - curriculum.courses_finished} to go`}
         </span>
       )}
       {!earned && slot !== 'retained' && (
         <span className="lp-milestone__sub">
-          {curriculum.courses_total - curriculum.courses_passed} to go
+          {curriculum.courses_total - curriculum.courses_finished} to go
         </span>
       )}
     </div>
@@ -84,22 +84,22 @@ const MilestoneBadge = ({ slot, curriculum }: MilestoneBadgeProps) => {
 interface CourseRowProps {
   courseId: string;
   displayName: string | null;
-  passed: boolean;
+  finished: boolean;
   position: number;
   onClick: () => void;
 }
 
-const CourseRow = ({ courseId, displayName, passed, position, onClick }: CourseRowProps) => (
-  <button type="button" className={`lpv-course-row${passed ? ' lpv-course-row--passed' : ''}`} onClick={onClick}>
+const CourseRow = ({ courseId, displayName, finished, position, onClick }: CourseRowProps) => (
+  <button type="button" className={`lpv-course-row${finished ? ' lpv-course-row--passed' : ''}`} onClick={onClick}>
     <div className="lpv-course-row__ring">
-      {passed ? (
+      {finished ? (
         <img src={iconCircleCheck} alt="" className="lpv-course-row__check" aria-hidden="true" />
       ) : (
         <span className="lpv-course-row__num">{position}</span>
       )}
     </div>
     <span className="lpv-course-row__title">{displayName ?? courseId}</span>
-    {passed && <span className="lpv-course-row__status">Complete</span>}
+    {finished && <span className="lpv-course-row__status">Complete</span>}
   </button>
 );
 
@@ -116,7 +116,7 @@ export const LearningPathView = () => {
     ? curriculum.courses.slice().sort((a, b) => a.position - b.position)
     : [];
 
-  const nextCourse = sortedCourses.find((c) => !c.passed);
+  const nextCourse = sortedCourses.find((c) => !c.finished);
 
   const handleContinue = () => {
     if (nextCourse) {
@@ -172,7 +172,7 @@ export const LearningPathView = () => {
               <span className="lpv-hero__kicker">Learning path</span>
               <h1 className="lpv-hero__title">{curriculum.title}</h1>
               <span className="lpv-hero__progress">
-                {curriculum.courses_passed} of {curriculum.courses_total} courses done
+                {curriculum.courses_finished} of {curriculum.courses_total} courses done
               </span>
             </div>
             <div className="lpv-hero__ring" aria-hidden="true">
@@ -185,7 +185,7 @@ export const LearningPathView = () => {
                     strokeWidth="4"
                     strokeLinecap="round"
                     strokeDasharray={`${2 * Math.PI * 38}`}
-                    strokeDashoffset={`${2 * Math.PI * 38 * (1 - curriculum.courses_passed / curriculum.courses_total)}`}
+                    strokeDashoffset={`${2 * Math.PI * 38 * (1 - curriculum.courses_finished / curriculum.courses_total)}`}
                     transform="rotate(-90 44 44)"
                   />
                 )}
@@ -212,7 +212,7 @@ export const LearningPathView = () => {
                   key={course.course_id}
                   courseId={course.course_id}
                   displayName={course.display_name}
-                  passed={course.passed}
+                  finished={course.finished}
                   position={course.position}
                   onClick={() => navigate(`/course/${course.course_id}`)}
                 />

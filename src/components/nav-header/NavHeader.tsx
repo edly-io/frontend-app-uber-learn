@@ -1,5 +1,5 @@
 import React from 'react';
-import './nav-header.css';
+import './nav-header.scss';
 
 interface NavHeaderProps {
   title: string;

@@ -7,7 +7,7 @@ import iconCc from '../assets/icons/icon-cc.svg';
 import iconFullscreen from '../assets/icons/icon-fullscreen.svg';
 import iconPlay from '../assets/icons/icon-play.svg';
 import iconChevronDown from '../assets/icons/icon-chevron-down.svg';
-import './video-step.css';
+import './video-step.scss';
 
 export const VideoCouldntLoadPage = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();

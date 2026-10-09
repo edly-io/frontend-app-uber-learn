@@ -8,8 +8,7 @@ import iconClockFilled from '../assets/icons/icon-clock-filled.svg';
 import iconCircleCheck from '../assets/icons/icon-circle-check.svg';
 import iconCircleX from '../assets/icons/icon-circle-x.svg';
 import iconChartBar from '../assets/icons/icon-chart-bar.svg';
-import iconDiamond from '../assets/icons/icon-diamond.svg';
-import './knowledge-check.css';
+import './knowledge-check.scss';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -211,12 +210,6 @@ export const KnowledgeCheckPage = () => {
           {' '}
           {questions.length}
         </p>
-
-        {/* Activity chip */}
-        <div className="kc-chip kc-chip--practice" aria-label="Practice">
-          <img src={iconDiamond} alt="" aria-hidden="true" className="kc-chip__icon" />
-          <span className="kc-chip__label">Practice</span>
-        </div>
 
         {/* Question */}
         <h1 className="kc-question">{currentQuestion.text}</h1>

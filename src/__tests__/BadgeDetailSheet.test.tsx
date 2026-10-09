@@ -54,7 +54,7 @@ function makeCurriculum(overrides: Partial<LearnerCurriculum> = {}): LearnerCurr
     description: 'Complete all courses to earn your badge.',
     assigned_at: '2026-10-01T00:00:00Z',
     courses: [],
-    courses_passed: 1,
+    courses_finished: 1,
     courses_total: 3,
     milestones: {
       halfway: { reached_at: null, badge: null },

@@ -115,6 +115,85 @@ internationalization.
 
 .. _frontend-platform i18n howto: https://github.com/openedx/frontend-platform/blob/master/docs/how_tos/i18n.rst
 
+Launching from Uber
+*******************
+
+The Uber app opens a course with a *signed launch URL* (option 1B of the Uber &
+Open edX integration document). The learner may have no Open edX session yet;
+the LMS creates one when it accepts the link. See
+`docs/decisions/0003-signed-launch-route.rst`_ for the design.
+
+.. _docs/decisions/0003-signed-launch-route.rst: docs/decisions/0003-signed-launch-route.rst
+
+URL format
+==========
+
+::
+
+  https://apps.<lms-domain>/uber-learn/launch#<launch string>   (recommended)
+  https://apps.<lms-domain>/uber-learn/launch?<launch string>   (accepted fallback)
+
+  <launch string> = external_id=..&course_id=..&expires=..&nonce=..&sig=..
+
+Values are percent-encoded (the ``+`` in a course key is ``%2B``). Uber's edge
+gateway signs the string; the MFE treats it as opaque and never parses it. The
+LMS (``uber-features``, ``uber_features.launch``) verifies the signature, the
+expiry, the External ID, the course key and the single-use nonce. The current
+scheme is a placeholder (``uber-launch-v1``, HMAC-SHA256) until Uber shares its
+signing rules.
+
+How it works
+============
+
+1. ``src/index.jsx`` sees the exact path ``/uber-learn/launch``, reads the
+   string after ``#`` (or ``?``), removes it from the address bar with
+   ``history.replaceState``, and only then calls ``initialize()``, with
+   ``requireAuthenticatedUser: false`` for this path only. Every other path
+   still requires a signed-in user.
+2. ``LaunchPage`` posts ``{"launch": "<string>"}`` once to
+   ``POST {LMS_BASE_URL}/api/uber/launch/v1/`` (with CSRF, cookies included).
+3. The LMS signs the learner in (session and JWT cookies), enrolls them, and
+   answers ``{"course_id": "..."}``.
+4. The page does a full page load of ``/uber-learn/course/<course_id>``, where
+   the app boots again with the new session. A returning learner (same
+   External ID) gets the same account and resumes the course.
+
+Trying it locally
+=================
+
+The LMS needs ``uber-features`` with the ``launch`` sub-app, its migration, and
+a signing secret (``UBER_LAUNCH_SIGNING_SECRETS``); see the ``uber-features``
+README. Then mint a link with the management command and open it in a private
+window::
+
+  tutor dev exec lms ./manage.py lms generate_uber_launch_url --course-id 'course-v1:Org+Course+Run'
+
+The command prints ``http://apps.local.openedx.io:2011/uber-learn/launch#...``.
+Useful options: ``--external-id <id>`` (the same ID returns to the same
+account), ``--ttl -60`` (an expired link), ``--query`` (a ``?`` link instead
+of ``#``) and ``--json`` (a request body for curl).
+
+What the learner sees
+=====================
+
+============================================ ====================================================
+Situation                                    Page
+============================================ ====================================================
+Waiting for the LMS                          "Opening your course…"
+Success                                      The course overview
+No launch string, or longer than 2048 chars  "This link is incomplete"
+Bad signature, syntax, TTL or course key     "This link isn't valid"
+Expired                                      "This link has expired"
+Opened a second time                         "This link was already used"
+Course does not exist                        "This course isn't available"
+Enrollment refused (closed, full, a gate)    "You can't start this course yet" (+ LMS message)
+Login filter refused                         "You can't sign in right now" (+ LMS message)
+Linked account inactive or staff             "Your learning account isn't available"
+Browser signed in to another account         "You're signed in to a different account" + Sign out
+Feature off (no secret on the LMS)           "Course links aren't available right now"
+Network, server or CSRF error                "Something went wrong" + Try again
+============================================ ====================================================
+
 Getting Help
 ************
 

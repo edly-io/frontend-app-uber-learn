@@ -94,15 +94,26 @@ function makeCurriculum(overrides: Partial<LearnerCurriculum> = {}): LearnerCurr
 const COURSE: EnrolledCourse = {
   courseId: 'course-v1:Uber+Safety',
   title: 'Road safety fundamentals',
-  imageUrl: null, courseStart: null, courseEnd: null, isActive: true,
+  imageUrl: null,
+  courseStart: null,
+  courseEnd: null,
+  isActive: true,
 };
 
-const BADGE_PAGE_EMPTY = { count: 0, next: null, previous: null, results: [] };
+const BADGE_PAGE_EMPTY = {
+  count: 0, next: null, previous: null, results: [],
+};
 const BADGE_PAGE_ONE = {
-  count: 1, next: null, previous: null,
+  count: 1,
+  next: null,
+  previous: null,
   results: [{
-    id: 'award-1', awarded_at: '2026-11-01T00:00:00Z', seen: false,
-    badge: { uuid: 'b-1', title: 'Road ready', description: 'Done.', image_url: null },
+    id: 'award-1',
+    awarded_at: '2026-11-01T00:00:00Z',
+    seen: false,
+    badge: {
+      uuid: 'b-1', title: 'Road ready', description: 'Done.', image_url: null,
+    },
     source: { type: 'course' as const, course_id: 'course-v1:Uber+Safety', display_name: 'Road safety' },
   }],
 };

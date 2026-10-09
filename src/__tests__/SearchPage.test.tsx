@@ -38,16 +38,28 @@ jest.mock('../api/catalog');
 
 const COURSES: catalogApi.EnrolledCourse[] = [
   {
-    courseId: 'course-v1:Uber+Safety', title: 'Road safety fundamentals',
-    imageUrl: null, courseStart: null, courseEnd: null, isActive: true,
+    courseId: 'course-v1:Uber+Safety',
+    title: 'Road safety fundamentals',
+    imageUrl: null,
+    courseStart: null,
+    courseEnd: null,
+    isActive: true,
   },
   {
-    courseId: 'course-v1:Uber+Teen', title: 'Teen rides',
-    imageUrl: null, courseStart: null, courseEnd: null, isActive: true,
+    courseId: 'course-v1:Uber+Teen',
+    title: 'Teen rides',
+    imageUrl: null,
+    courseStart: null,
+    courseEnd: null,
+    isActive: true,
   },
   {
-    courseId: 'course-v1:Uber+Driving', title: 'Regional safety training',
-    imageUrl: null, courseStart: null, courseEnd: null, isActive: true,
+    courseId: 'course-v1:Uber+Driving',
+    title: 'Regional safety training',
+    imageUrl: null,
+    courseStart: null,
+    courseEnd: null,
+    isActive: true,
   },
 ];
 

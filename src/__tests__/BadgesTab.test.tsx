@@ -44,9 +44,6 @@ jest.mock('../api/catalog', () => ({
 jest.mock('../api/progress', () => ({
   getProgress: jest.fn().mockResolvedValue(null),
 }));
-jest.mock('../hooks/useProgress', () => ({
-  useProgress: jest.fn().mockReturnValue({ data: null }),
-}));
 jest.mock('../hooks/useCourseOutline', () => ({
   useCourseOutline: jest.fn().mockReturnValue({ data: null }),
 }));

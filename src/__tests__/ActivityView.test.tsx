@@ -38,6 +38,13 @@ jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
   useParams: () => mockUseParams(),
+  useLocation: () => ({
+    key: 'test-key',
+    pathname: '/',
+    search: '',
+    hash: '',
+    state: null,
+  }),
 }));
 
 // ---------------------------------------------------------------------------

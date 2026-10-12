@@ -1,12 +1,12 @@
 import React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getResumeBlock } from '../api/courseware';
 import { qk } from '../api/queries';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
-import { mapOutlineToLessons } from '../lib/outline-mapper';
+import { mapOutlineToLessons, countLessons } from '../lib/outline-mapper';
 import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
 import iconAlert from '../assets/icons/icon-alert.svg';
 import courseArtToolbox from '../assets/icons/course-art-toolbox.svg';
@@ -126,6 +126,7 @@ export const CourseIntroductionPage = () => {
 export const SaveAndResumePage = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const outlineQuery = useCourseOutline(courseId);
   const resumeQuery = useQuery({
@@ -142,8 +143,10 @@ export const SaveAndResumePage = () => {
     ? allLessons.findIndex((l) => l.sequenceId === resumeSequenceId)
     : -1;
 
-  const completedLessons = progressQuery.data?.completedUnits ?? 0;
-  const totalLessons = progressQuery.data?.totalUnits ?? allLessons.length;
+  // Use outline-based lesson counts so the display matches lessons (sequences), not steps (units).
+  const outlineCounts = outlineQuery.data ? countLessons(outlineQuery.data) : null;
+  const completedLessons = outlineCounts?.completed ?? 0;
+  const totalLessons = outlineCounts?.total ?? allLessons.length;
   const fraction = progressQuery.data?.fraction ?? 0;
   const hasProgress = completedLessons > 0 || Boolean(resumeSequenceId);
 
@@ -159,7 +162,11 @@ export const SaveAndResumePage = () => {
 
   return (
     <div className="course-page">
-      <ArtPanel art={courseArtBook} color="blue" onBack={() => navigate(-1)} />
+      <ArtPanel
+        art={courseArtBook}
+        color="blue"
+        onBack={() => (location.key === 'default' ? navigate(`/course/${courseId}`) : navigate(-1))}
+      />
 
       <div className="course-scroll">
         <main className="course-content">

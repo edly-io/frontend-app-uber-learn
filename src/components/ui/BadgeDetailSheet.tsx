@@ -5,6 +5,8 @@ import type { LearnerCurriculum } from '../../api/curriculum';
 import { getResumeBlock } from '../../api/courseware';
 import { qk } from '../../api/queries';
 import { useCourseProgressSummary } from '../../hooks/useCourseProgressSummary';
+import { useCourseOutline } from '../../hooks/useCourseOutline';
+import { countLessons } from '../../lib/outline-mapper';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 import iconBadgeCheck from '../../assets/icons/icon-badge-check.svg';
@@ -107,8 +109,8 @@ const SealRing = ({
 const CourseBadgeSheet = ({ data, onClose }: { data: CourseBadgeData; onClose: () => void }) => {
   const navigate = useNavigate();
   const progressQuery = useCourseProgressSummary(data.courseId);
+  const outlineQuery = useCourseOutline(data.courseId);
   const fraction = data.earned ? 1 : (progressQuery.data?.fraction ?? 0);
-  const totalUnits = progressQuery.data?.totalUnits;
   const isInProgress = !data.earned && fraction > 0;
 
   // Fetch resume block only when the course is in-progress.
@@ -129,10 +131,13 @@ const CourseBadgeSheet = ({ data, onClose }: { data: CourseBadgeData; onClose: (
     }
   };
 
-  // Description: always show lesson count when available; fall back to generic text from parent.
-  const descText = totalUnits
-    ? `Earned when you finish all ${totalUnits} lessons and the final check.`
-    : data.description;
+  // Fix 9: prefer the badge's API description when available.
+  // Fix 6: otherwise derive from the outline's lesson count (sequences, not XBlock units).
+  const lessonCount = outlineQuery.data ? countLessons(outlineQuery.data).total : null;
+  const descText = data.description
+    || (lessonCount
+      ? `Earned when you finish all ${lessonCount} lessons.`
+      : 'Earned when you finish all lessons.');
 
   let ctaLabel: string;
   if (data.earned) {

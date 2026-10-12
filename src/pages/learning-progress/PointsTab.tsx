@@ -2,9 +2,8 @@ import React from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { type EnrolledCourse } from '../../api/catalog';
 import { getCourseOutline } from '../../api/courseware';
-import { getCourseProgressSummary } from '../../api/catalog';
 import { qk } from '../../api/queries';
-import { mapOutlineToLessons } from '../../lib/outline-mapper';
+import { countLessons } from '../../lib/outline-mapper';
 import courseArtBlue from '../../assets/icons/course-art-blue2.svg';
 import courseArtTeal from '../../assets/icons/course-art-teal2.svg';
 import iconLightningLarge from '../../assets/icons/icon-lightning-large.svg';
@@ -74,16 +73,6 @@ export const PointsTab = ({
     })),
   });
 
-  const progressQueries = useQueries({
-    queries: courses.map((course) => ({
-      queryKey: qk.courseProgress(course.courseId),
-      queryFn: () => getCourseProgressSummary(course.courseId),
-      staleTime: 2 * 60_000,
-      retry: 1 as const,
-      enabled: Boolean(course.courseId),
-    })),
-  });
-
   return (
     <div className="lp-tab-content">
       {/* Hero card */}
@@ -107,9 +96,10 @@ export const PointsTab = ({
           <div className="lp-course-list">
             {courses.map((course, i) => {
               const outline = outlineQueries[i]?.data;
-              const progress = progressQueries[i]?.data;
-              const totalLessons = outline ? mapOutlineToLessons(outline).length : 0;
-              const completedLessons = progress?.completedUnits ?? 0;
+              // Use outline-based lesson counts (sequences) rather than progress API unit counts.
+              const { total: totalLessons, completed: completedLessons } = outline
+                ? countLessons(outline)
+                : { total: 0, completed: 0 };
               return (
                 <PointsCourseRow
                   key={course.courseId}

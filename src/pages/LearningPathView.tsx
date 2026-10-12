@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
@@ -137,6 +137,7 @@ const CourseCard = ({
 
 export const LearningPathView = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { curriculumId } = useParams<{ curriculumId: string }>();
   const {
     data: curriculums, isLoading, isError, refetch,
@@ -210,7 +211,7 @@ export const LearningPathView = () => {
           type="button"
           className="lpv-nav__back"
           aria-label="Go back"
-          onClick={() => navigate(-1)}
+          onClick={() => (location.key === 'default' ? navigate('/') : navigate(-1))}
         >
           <ArrowLeft />
         </button>

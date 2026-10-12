@@ -30,6 +30,13 @@ const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
+  useLocation: () => ({
+    key: 'test-key',
+    pathname: '/',
+    search: '',
+    hash: '',
+    state: null,
+  }),
 }));
 
 jest.mock('../api/catalog');

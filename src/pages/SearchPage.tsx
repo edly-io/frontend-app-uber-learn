@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
 import { qk } from '../api/queries';
@@ -94,6 +94,7 @@ const CourseResult = ({ course, onClick }: { course: EnrolledCourse; onClick: ()
 
 export const SearchPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [submitted, setSubmitted] = useState('');
@@ -149,7 +150,7 @@ export const SearchPage = () => {
     <div className="sp-page">
       {/* Search bar */}
       <div className="sp-bar">
-        <button type="button" className="sp-bar__back" aria-label="Go back" onClick={() => navigate(-1)}>
+        <button type="button" className="sp-bar__back" aria-label="Go back" onClick={() => (location.key === 'default' ? navigate('/') : navigate(-1))}>
           <ArrowLeft />
         </button>
         <div className="sp-bar__field">

@@ -6,12 +6,7 @@ export const toOrdinal = (n: number): string => {
   return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
 };
 
-export const getResetsText = (resetsOn?: string): string => {
-  if (resetsOn) {
-    const d = new Date(resetsOn);
-    return `resets ${d.toLocaleString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}`;
-  }
-  const d = new Date();
-  d.setMonth(d.getMonth() + 1, 1);
-  return `resets 1 ${d.toLocaleString('en-US', { month: 'long' })}`;
+export const getResetsText = (resetsOn: string): string => {
+  const d = new Date(resetsOn);
+  return `resets ${d.toLocaleString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })}`;
 };

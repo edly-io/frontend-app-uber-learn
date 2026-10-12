@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getResumeBlock } from '../api/courseware';
 import { qk } from '../api/queries';
@@ -230,6 +230,7 @@ const ArtPanel = ({
 export const CourseOverview = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: gamification } = useGamification();
   const { data: curriculums } = useCurriculums();
   const { data: progressSummary } = useCourseProgressSummary(courseId);
@@ -266,10 +267,10 @@ export const CourseOverview = () => {
   const outlineQuery = useCourseOutline(courseId);
 
   const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
+    if (location.key === 'default') {
       navigate('/');
+    } else {
+      navigate(-1);
     }
   };
 

@@ -39,8 +39,11 @@ jest.mock('react-router-dom', () => ({
 // ── Courseware API mock ───────────────────────────────────
 
 const mockGetResumeBlock = jest.fn();
+// getCourseOutline never resolves in tests — outline data is injected via setQueryData.
+const mockGetCourseOutline = jest.fn().mockReturnValue(new Promise<never>(() => {}));
 jest.mock('../api/courseware', () => ({
   getResumeBlock: (...args: unknown[]) => mockGetResumeBlock(...args),
+  getCourseOutline: (...args: unknown[]) => mockGetCourseOutline(...args),
 }));
 
 // ── Progress API mock (never resolves so tests control cache via setQueryData) ─
@@ -63,16 +66,31 @@ function renderSheet(data: SheetBadgeData | null, onClose = jest.fn(), queryClie
   );
 }
 
-/** Build a QueryClient with course-progress (and optionally resume) pre-seeded. */
+/** Build a QueryClient with course-progress (and optionally outline / resume) pre-seeded. */
 function makeProgressClient(
   courseId: string,
-  opts: { fraction?: number; totalUnits?: number; sectionId?: string } = {},
+  opts: { fraction?: number; lessonCount?: number; sectionId?: string } = {},
 ) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(['course-progress', courseId], {
     fraction: opts.fraction ?? 0,
-    totalUnits: opts.totalUnits ?? null,
   });
+  if (opts.lessonCount != null) {
+    // Build a minimal outline with `lessonCount` sequences so countLessons returns correctly.
+    const seqIds = Array.from({ length: opts.lessonCount }, (_, i) => `seq-${i}`);
+    const sequences: Record<string, { id: string; title: string; sectionId: string; complete: boolean }> = {};
+    seqIds.forEach((id) => {
+      sequences[id] = {
+        id, title: id, sectionId: 'sec-1', complete: false,
+      };
+    });
+    client.setQueryData(['outline', courseId], {
+      courseId,
+      title: 'Course',
+      sections: { 'sec-1': { id: 'sec-1', title: 'Section', sequenceIds: seqIds } },
+      sequences,
+    });
+  }
   if (opts.sectionId) {
     client.setQueryData(['resume', courseId], { sectionId: opts.sectionId, blockId: null, unitId: null });
   }
@@ -85,7 +103,7 @@ const COURSE_DATA_UNEARNED: SheetBadgeData = {
   kind: 'course',
   courseId: 'course-v1:Uber+Safety',
   title: 'Road safety fundamentals',
-  description: 'Earned when you finish all lessons and the final check.',
+  description: '', // empty — triggers outline-based lesson count or generic fallback
   art: 'art.svg',
   tintColor: '#dee9fe',
   progress: '',
@@ -188,29 +206,38 @@ describe('BadgeDetailSheet', () => {
 
   describe('course badge sheet', () => {
     it('renders type label, title, and description with lesson count (BDS-COURSE-LABELS)', () => {
-      // Seed totalUnits so CourseBadgeSheet derives the full description text.
-      const client = makeProgressClient('course-v1:Uber+Safety', { fraction: 0.3, totalUnits: 7 });
+      // Seed outline with 7 sequences so CourseBadgeSheet derives the lesson count.
+      const client = makeProgressClient('course-v1:Uber+Safety', { fraction: 0.3, lessonCount: 7 });
       renderSheet(COURSE_DATA_UNEARNED, jest.fn(), client);
       expect(screen.getByText('Course badge')).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: /road safety fundamentals/i })).toBeInTheDocument();
-      expect(screen.getByText(/earned when you finish all 7 lessons and the final check/i)).toBeInTheDocument();
+      expect(screen.getByText(/earned when you finish all 7 lessons/i)).toBeInTheDocument();
     });
 
-    it('falls back to generic description before progress loads (BDS-COURSE-LABELS-FALLBACK)', () => {
-      // No progress seeded — hook is still loading, so data.description is shown.
+    it('falls back to generic description before outline loads (BDS-COURSE-LABELS-FALLBACK)', () => {
+      // No outline seeded — getCourseOutline never resolves, so generic fallback shown.
       renderSheet(COURSE_DATA_UNEARNED);
       expect(screen.getByText(/earned when you finish all lessons/i)).toBeInTheDocument();
     });
 
+    it('uses badge API description when available (BDS-COURSE-LABELS-API-DESC)', () => {
+      const dataWithDesc: SheetBadgeData = {
+        ...COURSE_DATA_UNEARNED,
+        description: 'Complete all 5 modules to earn this badge.',
+      };
+      renderSheet(dataWithDesc);
+      expect(screen.getByText('Complete all 5 modules to earn this badge.')).toBeInTheDocument();
+    });
+
     it('shows "See course" when course has not been started (BDS-COURSE-NOT-STARTED-CTA)', () => {
       // fraction=0 → not started
-      const client = makeProgressClient('course-v1:Uber+Safety', { fraction: 0, totalUnits: 7 });
+      const client = makeProgressClient('course-v1:Uber+Safety', { fraction: 0 });
       renderSheet(COURSE_DATA_UNEARNED, jest.fn(), client);
       expect(screen.getByRole('button', { name: /see course/i })).toBeInTheDocument();
     });
 
     it('shows "Continue course" when course is in progress (BDS-COURSE-UNEARNED-CTA)', () => {
-      const client = makeProgressClient('course-v1:Uber+Safety', { fraction: 0.4, totalUnits: 7 });
+      const client = makeProgressClient('course-v1:Uber+Safety', { fraction: 0.4 });
       renderSheet(COURSE_DATA_UNEARNED, jest.fn(), client);
       expect(screen.getByRole('button', { name: /continue course/i })).toBeInTheDocument();
     });

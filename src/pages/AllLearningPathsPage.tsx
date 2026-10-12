@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
@@ -127,6 +127,7 @@ const EmptyIllustration = () => (
 
 export const AllLearningPathsPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     data: curriculums, isLoading, isError, refetch,
   } = useCurriculums();
@@ -141,7 +142,7 @@ export const AllLearningPathsPage = () => {
           type="button"
           className="alp-nav__back"
           aria-label="Go back"
-          onClick={() => navigate(-1)}
+          onClick={() => (location.key === 'default' ? navigate('/') : navigate(-1))}
         >
           <ArrowLeft />
         </button>

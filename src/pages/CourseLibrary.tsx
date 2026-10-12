@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
 import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
@@ -348,6 +348,7 @@ const NoResults = ({ onClear }: { onClear: () => void }) => (
 
 export const CourseLibrary = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set());
   const [pendingFilters, setPendingFilters] = useState<Set<FilterKey>>(new Set());
@@ -466,7 +467,7 @@ export const CourseLibrary = () => {
           type="button"
           className="cl-nav__back"
           aria-label="Back to learning home"
-          onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+          onClick={() => (location.key === 'default' ? navigate('/') : navigate(-1))}
         >
           <img src={iconArrowLeft} alt="" className="cl-nav__back-icon" aria-hidden="true" />
         </button>

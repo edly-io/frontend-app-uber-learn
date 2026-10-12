@@ -1,7 +1,7 @@
 import React, {
   useState, useCallback, useEffect, useRef,
 } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { getConfig } from '@edx/frontend-platform';
 import { useSequence } from '../hooks/useSequence';
@@ -28,6 +28,7 @@ export const ActivityView = () => {
   } = useParams<{ courseId: string; sequenceId: string; unitIdx: string }>();
 
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const unitIdx = parseInt(unitIdxParam, 10);
 
@@ -171,7 +172,9 @@ export const ActivityView = () => {
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: qk.leaderboardAll() });
           queryClient.invalidateQueries({ queryKey: qk.curriculums() });
-          queryClient.invalidateQueries({ queryKey: qk.badges() });
+          // refetchType:'all' bypasses the 60s staleTime so the new badge award
+          // awarded by Celery is visible on the completion screen straight away.
+          queryClient.invalidateQueries({ queryKey: qk.badges(), refetchType: 'all' });
         }, 3000);
 
         if (isRetentionCourse && !nextLesson) {
@@ -212,12 +215,12 @@ export const ActivityView = () => {
   const handleBack = useCallback(() => {
     if (unitIdx > 0) {
       navigate(`/course/${courseId}/lesson/${sequenceId}/step/${unitIdx - 1}`);
-    } else if (window.history.length > 1) {
+    } else if (location.key !== 'default') {
       navigate(-1);
     } else {
       navigate(`/course/${courseId}`);
     }
-  }, [navigate, courseId, sequenceId, unitIdx]);
+  }, [navigate, courseId, sequenceId, unitIdx, location.key]);
 
   // X close button: exit to save-and-resume page. No router state needed —
   // SaveAndResumePage fetches progress and resume position from APIs.

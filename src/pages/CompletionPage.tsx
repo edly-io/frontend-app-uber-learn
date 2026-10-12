@@ -11,7 +11,7 @@ import { getLessonResults } from '../api/gamification';
 import { qk } from '../api/queries';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
-import { mapOutlineToLessons } from '../lib/outline-mapper';
+import { mapOutlineToLessons, countLessons } from '../lib/outline-mapper';
 import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
 import iconCircleCheck from '../assets/icons/icon-circle-check.svg';
 import iconCalendar from '../assets/icons/icon-calendar.svg';
@@ -28,8 +28,6 @@ import './completion-page.scss';
 const LESSON_CELEBRATION_SLOTS: readonly BadgeSlot[] = ['complete'];
 const COURSE_CELEBRATION_SLOTS: readonly BadgeSlot[] = ['complete'];
 const RETENTION_CELEBRATION_SLOTS: readonly BadgeSlot[] = ['retained'];
-
-const COMMITMENT_TEXT = 'Keep conversations respectful, follow stated boundaries, and report concerns safely.';
 
 // ── Shared: Simple nav bar with back arrow ─────────────────────────────────
 
@@ -161,8 +159,11 @@ export const LessonCompletePage = () => {
     ? Math.round((correctPercent / 100) * questions)
     : null;
 
-  const completedUnits = progressQuery.data?.completedUnits ?? lessonNumber;
-  const totalUnits = progressQuery.data?.totalUnits ?? lessonCount;
+  // Use outline-based lesson counts (sequences) rather than the progress API's unit (step) counts,
+  // which would overcount steps within a lesson as separate "lessons".
+  const outlineCounts = outlineQuery.data ? countLessons(outlineQuery.data) : null;
+  const completedUnits = outlineCounts?.completed ?? lessonNumber;
+  const totalUnits = outlineCounts?.total ?? lessonCount;
   const progressFraction = progressQuery.data?.fraction ?? 0;
   const progressPercent = Math.round(progressFraction * 100);
 
@@ -370,11 +371,6 @@ export const CourseCompletePage = () => {
           )}
         </div>
 
-        {/* Commitment card */}
-        <div className="cpc-commitment">
-          <p className="cpc-commitment__title">Your commitment</p>
-          <p className="cpc-commitment__body">{COMMITMENT_TEXT}</p>
-        </div>
       </main>
 
       <Footer
@@ -497,9 +493,12 @@ export const RetentionCheckResultPage = () => {
   const score = correctPercent !== null && total > 0
     ? Math.round((correctPercent / 100) * total)
     : null;
-  const passed = resultsQuery.data?.first_try_goal_met ?? null;
 
+  // Pass/fail is determined by whether the backend has recorded the Retained milestone,
+  // not by the first-try goal from lesson results. The two can disagree.
+  // This also works as source of truth when `since` is absent (deep-link, results disabled).
   const earnedAt = parentCurriculum?.milestones.retained.reached_at ?? null;
+  const passed = earnedAt !== null;
   const earnedDate = earnedAt
     ? new Date(earnedAt).toLocaleDateString('en-GB', {
       day: 'numeric', month: 'long', year: 'numeric',

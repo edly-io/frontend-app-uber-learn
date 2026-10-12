@@ -109,7 +109,7 @@ const COURSE_ID = 'course-v1:Uber+Safety+2026';
 const SEQ_ID_1 = 'block-v1:Uber+seq1';
 const SEQ_ID_2 = 'block-v1:Uber+seq2';
 
-/** Minimal CourseOutline with two sequences */
+/** Minimal CourseOutline with two sequences (both incomplete) */
 const OUTLINE_TWO_LESSONS: CourseOutline = {
   courseId: COURSE_ID,
   title: 'Road Safety',
@@ -119,6 +119,19 @@ const OUTLINE_TWO_LESSONS: CourseOutline = {
   sequences: {
     [SEQ_ID_1]: {
       id: SEQ_ID_1, title: 'Lesson One', sectionId: 'sec-1', complete: false,
+    },
+    [SEQ_ID_2]: {
+      id: SEQ_ID_2, title: 'Lesson Two', sectionId: 'sec-1', complete: false,
+    },
+  },
+};
+
+/** Outline with first lesson complete, second not — for outline-based progress tests */
+const OUTLINE_TWO_LESSONS_ONE_DONE: CourseOutline = {
+  ...OUTLINE_TWO_LESSONS,
+  sequences: {
+    [SEQ_ID_1]: {
+      id: SEQ_ID_1, title: 'Lesson One', sectionId: 'sec-1', complete: true,
     },
     [SEQ_ID_2]: {
       id: SEQ_ID_2, title: 'Lesson Two', sectionId: 'sec-1', complete: false,
@@ -235,12 +248,13 @@ describe('LessonCompletePage', () => {
     });
   });
 
-  it('LCP-PROGRESS-BAR: shows correct "N of M lessons complete" from progress summary', async () => {
-    mockUseCourseOutline.mockReturnValue({ data: OUTLINE_TWO_LESSONS, isLoading: false });
+  it('LCP-PROGRESS-BAR: shows correct "N of M lessons complete" from outline (not progress units)', async () => {
+    // OUTLINE_TWO_LESSONS_ONE_DONE has 2 sequences, 1 complete → expect "1 of 2 lessons"
+    mockUseCourseOutline.mockReturnValue({ data: OUTLINE_TWO_LESSONS_ONE_DONE, isLoading: false });
     mockUseCourseProgressSummary.mockReturnValue({ data: PROGRESS_SUMMARY });
     wrap(<LessonCompletePage />);
     await waitFor(() => {
-      expect(screen.getByText(/1 of 5 lessons/i)).toBeInTheDocument();
+      expect(screen.getByText(/1 of 2 lessons/i)).toBeInTheDocument();
     });
   });
 
@@ -299,6 +313,26 @@ describe('LessonCompletePage', () => {
     await waitFor(() => screen.getByRole('button', { name: /^back$/i }));
     fireEvent.click(screen.getByRole('button', { name: /^back$/i }));
     expect(mockNavigate).toHaveBeenCalledWith(`/course/${COURSE_ID}`);
+  });
+
+  it('LCP-NO-SINCE: without router state since, points/score stats are hidden and page still renders', async () => {
+    // since is absent (no router state) — the resultsQuery should be disabled and
+    // the points chip and correct-count row must not appear.
+    mockUseLocation.mockReturnValue({ state: null, pathname: '/completion' });
+    mockUseCourseOutline.mockReturnValue({ data: OUTLINE_TWO_LESSONS, isLoading: false });
+    // getLessonResults must NOT be called when since is absent.
+    getLessonResultsMock().getLessonResults.mockClear();
+    wrap(<LessonCompletePage />);
+    // Page renders without loading state (query is disabled, not in-flight).
+    await waitFor(() => {
+      expect(screen.getByText('Lesson complete')).toBeInTheDocument();
+    });
+    // Points chip absent.
+    expect(screen.queryByText(/\+\d/)).not.toBeInTheDocument();
+    // "Right first time" row absent (only shown when since is provided).
+    expect(screen.queryByText(/right first time/i)).not.toBeInTheDocument();
+    // The results API was never called.
+    expect(getLessonResultsMock().getLessonResults).not.toHaveBeenCalled();
   });
 });
 
@@ -487,7 +521,16 @@ describe('RetentionCheckResultPage', () => {
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
   });
 
-  it('RCRP-PASS: correct_percent >= 80 → pass lead text shown', async () => {
+  it('RCRP-PASS: milestones.retained.reached_at set → pass lead text shown', async () => {
+    // Pass/fail is now driven by milestones.retained.reached_at, not first_try_goal_met.
+    mockUseCurriculums.mockReturnValue({
+      data: [makeCurriculum({
+        milestones: {
+          complete: { reached_at: null, badge: null },
+          retained: { reached_at: '2026-10-10T00:00:00Z', badge: null },
+        },
+      })],
+    });
     getGamificationMock().getLessonResults.mockResolvedValue({
       sequence_key: SEQ_ID_1,
       course_key: COURSE_ID,
@@ -539,7 +582,15 @@ describe('RetentionCheckResultPage', () => {
     });
   });
 
-  it('RCRP-NAV-BADGE: PASS state: "Save result and view badge" navigates to /progress', async () => {
+  it('RCRP-NAV-BADGE: PASS state (retained.reached_at set): navigates to /progress', async () => {
+    mockUseCurriculums.mockReturnValue({
+      data: [makeCurriculum({
+        milestones: {
+          complete: { reached_at: null, badge: null },
+          retained: { reached_at: '2026-10-10T00:00:00Z', badge: null },
+        },
+      })],
+    });
     getGamificationMock().getLessonResults.mockResolvedValue({
       sequence_key: SEQ_ID_1,
       course_key: COURSE_ID,

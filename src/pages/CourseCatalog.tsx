@@ -614,9 +614,7 @@ export const CourseCatalog = () => {
     }
   }, [isLoading, isError, enrolledCourses.length, navigate]);
 
-  // Count of completed courses: a course badge is only awarded when the course is fully complete.
-  const completedCount = badgesData?.course_badges.filter((b) => b.awarded).length ?? 0;
-  const allCoursesComplete = enrolledCourses.length > 0 && completedCount >= enrolledCourses.length;
+  // 30-day knowledge check: show only when the curriculum API confirms it is open.
 
   // Build a set of finished course IDs from curriculum data so the continue card can
   // skip completed courses and surface the first unfinished one.
@@ -646,10 +644,8 @@ export const CourseCatalog = () => {
       if (apiThisWeek.status === 'goal_met') { return 'two'; }
       return apiThisWeek.learning_days >= 1 ? 'one' : 'zero';
     }
-    return allCoursesComplete ? 'paused' : 'zero';
+    return 'zero';
   })();
-
-  const continueVariant: ContinueVariant = allCoursesComplete ? 'thirtyDayCheck' : 'lesson';
 
   // Use first unfinished course (same logic as ConnectedContinueCard) for curriculum lookup.
   const firstUnfinishedCourse = enrolledCourses.find((c) => !finishedCourseIds.has(c.courseId))
@@ -659,6 +655,15 @@ export const CourseCatalog = () => {
     (c) => c.courses.some((course) => course.course_id === firstCourseId),
   );
   const finalCheckMeta = firstCourseCurriculum?.knowledge_check?.display_name ?? null;
+
+  // Show the 30-day check variant in the continue card only when the curriculum
+  // explicitly marks the knowledge check as existing and currently open.
+  const showKnowledgeCheck = Boolean(
+    firstCourseCurriculum?.knowledge_check.exists
+    && firstCourseCurriculum?.knowledge_check.is_open,
+  );
+
+  const continueVariant: ContinueVariant = showKnowledgeCheck ? 'thirtyDayCheck' : 'lesson';
 
   // ── Banner detection ────────────────────────────────────
   const allPathsDone = Boolean(
@@ -778,7 +783,12 @@ export const CourseCatalog = () => {
             {!allPathsDone && !featuredNewPath && (
               <ConnectedContinueCard
                 courses={enrolledCourses}
-                onContinue={(courseId) => navigate(`/course/${courseId}`)}
+                onContinue={(courseId) => {
+                  const targetId = showKnowledgeCheck && firstCourseCurriculum?.knowledge_check.course_id
+                    ? firstCourseCurriculum.knowledge_check.course_id
+                    : courseId;
+                  navigate(`/course/${targetId}`);
+                }}
                 variant={continueVariant}
                 finalCheckMeta={finalCheckMeta}
                 finishedCourseIds={finishedCourseIds}

@@ -565,6 +565,17 @@ export const RetentionCheckResultPage = () => {
     return <LoadingSkeleton />;
   }
 
+  // Curriculums API failed — show error rather than a misleading fail state.
+  if (curriculumsQuery.isError) {
+    return (
+      <ErrorView
+        title="Unable to load results"
+        message="Please try again."
+        onRetry={() => curriculumsQuery.refetch()}
+      />
+    );
+  }
+
   // Celery task may not have run yet — show pending rather than incorrect "Worth another look".
   if (pending) {
     return <LoadingSkeleton />;

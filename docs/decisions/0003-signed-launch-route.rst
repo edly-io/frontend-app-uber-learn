@@ -67,6 +67,15 @@ parameters are gone from the address bar and from history before
 frontend-platform configures logging and analytics. The string lives only in
 memory, as a prop of ``LaunchPage``.
 
+A new launch link opened in the same tab (the Uber app reusing its WebView, or
+a pasted link) differs from the stripped ``/uber-learn/launch`` only in its
+fragment, so browsers treat it as a same-document navigation and do not load
+the page again. On the launch path the boot code therefore reloads the page on
+``hashchange``: the boot code runs again on the new URL and reads, strips and
+sends the new string like any first load. ``replaceState`` never fires
+``hashchange``, so the stripping does not trigger it, and a ``?`` link is a
+full page load anyway.
+
 **4. One request, made by a plain component.**
 
 ``LaunchPage`` does not use the router or react-query: there is one request and

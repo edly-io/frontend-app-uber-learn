@@ -27,8 +27,16 @@ jest.mock('../App', () => ({ App: () => null }));
 
 jest.mock('../pages/LaunchPage', () => ({ LaunchPage: () => null }));
 
+jest.mock('../lib/launch', () => ({
+  ...jest.requireActual('../lib/launch'),
+  // jsdom cannot reload; record the URL the reload would load instead.
+  reloadPage: jest.fn(() => window.location.href),
+}));
+
 const LAUNCH = 'external_id=test-learner-0001&course_id=course-v1%3AUber%2BDRV101%2B2026_Q4'
   + '&expires=1791547200&nonce=n0nce-test-vector-0001&sig=DaKexTWl64m1_Y_NvCTFYbyLf6McI5jT-ARahux_Zuc';
+const NEXT_LAUNCH = 'external_id=test-learner-0001&course_id=course-v1%3AUber%2BDRV101%2B2026_Q4'
+  + '&expires=1791547500&nonce=n0nce-test-vector-0002&sig=another-signature';
 
 interface PlatformMock {
   APP_READY: string;
@@ -46,7 +54,11 @@ interface Booted {
   page: Element;
   App: unknown;
   LaunchPage: unknown;
+  reloadPage: jest.Mock;
 }
+
+/** Window listeners added by each boot, removed after every test. */
+const windowListeners: Array<Parameters<typeof window.removeEventListener>> = [];
 
 function boot(url: string): Booted {
   window.history.replaceState(null, '', url);
@@ -54,6 +66,7 @@ function boot(url: string): Booted {
   // Each isolated registry loads frontend-platform again, which warns that
   // PubSub is already loaded and about the router basename. Neither matters.
   const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  const addListener = jest.spyOn(window, 'addEventListener');
 
   jest.isolateModules(() => {
     const platform = jest.requireMock<PlatformMock>('@edx/frontend-platform');
@@ -78,14 +91,32 @@ function boot(url: string): Booted {
       page: appProvider.props.children as Element,
       App: jest.requireMock<{ App: unknown }>('../App').App,
       LaunchPage: jest.requireMock<{ LaunchPage: unknown }>('../pages/LaunchPage').LaunchPage,
+      reloadPage: jest.requireMock<{ reloadPage: jest.Mock }>('../lib/launch').reloadPage,
     };
   });
 
+  windowListeners.push(
+    ...addListener.mock.calls.map(([type, listener]) => [type, listener] as [string, EventListener]),
+  );
+  addListener.mockRestore();
   warn.mockRestore();
   return booted as Booted;
 }
 
+/**
+ * Navigates the document to another fragment, as opening a new launch link in
+ * the same tab does, and resolves once its hashchange event has been handled.
+ */
+function navigateToFragment(fragment: string): Promise<Event> {
+  const handled = new Promise<Event>((resolve) => {
+    window.addEventListener('hashchange', resolve, { once: true });
+  });
+  window.location.hash = fragment;
+  return handled;
+}
+
 afterEach(() => {
+  windowListeners.splice(0).forEach((args) => window.removeEventListener(...args));
   window.history.replaceState(null, '', '/');
   document.body.innerHTML = '';
 });
@@ -139,5 +170,52 @@ describe('index.jsx boot', () => {
     boot('/uber-learn/launcher#keep=me');
 
     expect(window.location.hash).toBe('#keep=me');
+  });
+});
+
+describe('index.jsx: a new launch link opened in the same tab', () => {
+  it.each([
+    ['after a launch', `/uber-learn/launch#${LAUNCH}`],
+    ['after an incomplete link', '/uber-learn/launch'],
+  ])('reloads the page on the new URL (%s)', async (_label, url) => {
+    const { reloadPage } = boot(url);
+    expect(window.location.href).toBe(`${window.location.origin}/uber-learn/launch`);
+
+    // Only the fragment changes, so the browser does not load the page again.
+    await navigateToFragment(NEXT_LAUNCH);
+
+    expect(reloadPage).toHaveBeenCalledTimes(1);
+    // The reload loads the new link, so the boot code can read and strip it.
+    expect(reloadPage.mock.results[0].value).toBe(`${window.location.origin}/uber-learn/launch#${NEXT_LAUNCH}`);
+  });
+
+  it('sends the new string and strips it from the URL once the page has reloaded', async () => {
+    const first = boot(`/uber-learn/launch#${LAUNCH}`);
+    await navigateToFragment(NEXT_LAUNCH);
+
+    const reloaded = boot(first.reloadPage.mock.results[0].value);
+
+    expect(reloaded.page.type).toBe(reloaded.LaunchPage);
+    expect(reloaded.page.props.launch).toBe(NEXT_LAUNCH);
+    expect(reloaded.hrefAtInitialize).toBe(`${window.location.origin}/uber-learn/launch`);
+    expect(window.location.hash).toBe('');
+  });
+
+  it('does not reload because of its own stripping', async () => {
+    const { reloadPage } = boot(`/uber-learn/launch#${LAUNCH}`);
+    // hashchange is dispatched in a later task; give it the chance to run.
+    await new Promise((resolve) => { setTimeout(resolve, 0); });
+
+    expect(window.location.hash).toBe('');
+    expect(reloadPage).not.toHaveBeenCalled();
+  });
+
+  it('does not reload other pages when their fragment changes', async () => {
+    const { reloadPage } = boot('/uber-learn/library');
+
+    await navigateToFragment('section-2');
+
+    expect(window.location.hash).toBe('#section-2');
+    expect(reloadPage).not.toHaveBeenCalled();
   });
 });

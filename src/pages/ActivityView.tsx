@@ -8,7 +8,7 @@ import { useSequence } from '../hooks/useSequence';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
-import { saveSequencePosition, getUnitCompletion } from '../api/progress';
+import { saveSequencePosition } from '../api/progress';
 import { useGamification } from '../hooks/useGamification';
 import { qk } from '../api/queries';
 import { ContentIFrame } from '../components/content-iframe/ContentIFrame';
@@ -34,15 +34,20 @@ export const ActivityView = () => {
   const queryClient = useQueryClient();
   const unitIdx = parseInt(unitIdxParam, 10);
 
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [isIframeLoaded, setIsIframeLoaded] = useState(false);
+  // Completion and visibility are tied to the step rather than kept as booleans reset in an
+  // effect: the effect only runs after the first render of a new step, so for that render the
+  // previous step's "completed"/"loaded" state would leak through (enabled Continue, no spinner).
+  // completedUnitId: the unit whose iframe sent plugin.completed. shownVisit: the visit (below)
+  // whose iframe content is on screen.
+  const [completedUnitId, setCompletedUnitId] = useState<string | null>(null);
+  const [shownVisit, setShownVisit] = useState<number | null>(null);
+  const lastCorrectRef = useRef<boolean | null>(null);
 
   // Capture server_time when the lesson mounts so it can be used as the `since`
   // value for the lesson results endpoint. Using server_time (not device clock)
   // prevents a fast device clock from making a first run look like a repeat.
   const { data: gamificationData } = useGamification();
   const serverTimeRef = useRef<string>(new Date().toISOString());
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   useEffect(() => {
     if (gamificationData?.server_time) {
       serverTimeRef.current = gamificationData.server_time;
@@ -80,99 +85,48 @@ export const ActivityView = () => {
   const isRetentionCourse = curriculums?.some((c) => c.knowledge_check.course_id === courseId) ?? false;
 
   const currentUnit = units[unitIdx];
+  const currentUnitId = currentUnit?.id ?? null;
 
-  // HTML/text and video units complete on view (iframe load).
-  // Video: the stock Open edX video XBlock never posts an end-of-video message
-  // to the parent (it only emits plugin.videoFullScreen / plugin.autoAdvance),
-  // and the YouTube player is nested inside the LMS iframe so its state events
-  // never reach this window. There is no reliable end signal to gate on, so
-  // video units unlock Continue once loaded (frontend-app-learning does not
-  // gate its Next button on video completion either).
-  // Problem/graded XBlocks still require plugin.completed.
-  const isHtmlUnit = currentUnit?.contentType === 'html' || currentUnit?.contentType === 'text';
-  const isVideoUnit = currentUnit?.contentType === 'video';
-  // TODO: restore per-type completion gating after debugging. All units unlock on load for test build.
-  const completesOnView = isHtmlUnit || isVideoUnit || true;
+  // Gate Continue on plugin.completed for units that require interaction:
+  // standard CAPA (contentType === 'problem') and graded custom XBlocks like
+  // sortable/DnD-v2 (graded === true). Plain HTML/text units auto-enable once shown.
+  const isProblemUnit = currentUnit?.contentType === 'problem' || currentUnit?.graded === true;
+  const isAssessmentSequence = false;
 
-  // Reset loading state only when the unit itself changes. Must NOT depend on
-  // currentUnit.complete: that flag flips after a completion-triggered refetch,
-  // and since the iframe keeps the same key it never fires onLoad again, which
-  // would leave the loading overlay covering the content forever.
+  // Reset correctness whenever the unit changes.
   useEffect(() => {
-    setIsIframeLoaded(false);
+    lastCorrectRef.current = null;
   }, [sequenceId, unitIdx]);
 
-  // Reset completion whenever the unit changes. For units that need an explicit
-  // signal, seed from the server's complete flag so returning learners are not
-  // stuck waiting for a signal the XBlock may not re-fire on revisit.
-  useEffect(() => {
-    setIsCompleted(!completesOnView && Boolean(currentUnit?.complete));
-  // currentUnit reference changes on every render; key on its complete flag instead.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sequenceId, unitIdx, completesOnView, currentUnit?.complete]);
+  // Each visit to a step gets its own number, so coming back to a step (A → B → A before B
+  // showed) still shows the spinner while that step's iframe reloads.
+  const visitRef = useRef<{ unitId: string | null; visit: number }>({ unitId: null, visit: 0 });
+  if (visitRef.current.unitId !== currentUnitId) {
+    visitRef.current = { unitId: currentUnitId, visit: visitRef.current.visit + 1 };
+  }
+  const currentVisit = visitRef.current.visit;
+  const isIframeLoaded = currentUnitId !== null && shownVisit === currentVisit;
 
-  const handleCompleted = useCallback(() => {
-    setIsCompleted(true);
-    // Invalidate the sequence cache so the completed unit's `complete: true` is
-    // reflected immediately if the user navigates away and returns (avoids
-    // waiting for the 5-minute stale window).
-    queryClient.invalidateQueries({ queryKey: qk.sequence(sequenceId) });
-    // Note: XBlocks record their own completion via the `publish_completion`
-    // XBlock handler (direct XHR from inside the iframe). No additional
-    // server call is needed here — the completion batch REST API is not
-    // registered in this LMS URL conf.
-  }, [queryClient, sequenceId]);
+  // A step is complete when its iframe sent plugin.completed, or when it is a problem unit the
+  // learner already completed on an earlier visit, or when it is any other unit and its content
+  // is on screen.
+  const isCompleted = currentUnitId !== null && (
+    completedUnitId === currentUnitId
+    || (isProblemUnit ? Boolean(currentUnit?.complete) : (!isAssessmentSequence && isIframeLoaded))
+  );
 
-  // Fallback completion poll for non-HTML units (e.g. native video XBlocks
-  // where the postMessage may not fire reliably). Checks up to MAX_POLLS times
-  // (≈60 s) then stops and reveals a manual "Mark as watched" button rather
-  // than hammering the LMS indefinitely.
-  const MAX_COMPLETION_POLLS = 20;
-  useEffect(() => {
-    if (isCompleted || completesOnView || !isIframeLoaded || !currentUnit?.id) { return undefined; }
+  const handleCompleted = useCallback((correct: boolean | null) => {
+    lastCorrectRef.current = correct;
+    setCompletedUnitId(currentUnitId);
+  }, [currentUnitId]);
 
-    const unitId = currentUnit.id;
-    let active = true;
-    let pollCount = 0;
-
-    const check = async () => {
-      if (!active) { return; }
-      pollCount += 1;
-      try {
-        const complete = await getUnitCompletion(courseId, sequenceId, unitId);
-        if (complete && active) { handleCompleted(); return; }
-      } catch { /* network error — keep polling */ }
-
-      // Polls exhausted — server never recorded completion.
-      // For graded XBlocks the learner must interact with the content; do nothing.
-    };
-
-    const initial = setTimeout(check, 2000);
-    const interval = setInterval(() => {
-      if (pollCount < MAX_COMPLETION_POLLS) { check(); }
-    }, 3000);
-
-    return () => {
-      active = false;
-      clearTimeout(initial);
-      clearInterval(interval);
-    };
-  }, [isCompleted, completesOnView, isIframeLoaded, courseId, sequenceId, currentUnit?.id, handleCompleted]);
-
-  // Called when the iframe finishes loading. HTML/text and video units complete
-  // immediately (local UI state only — no fake server completion is submitted;
-  // the XBlock reports its own completion where it can). All other types wait
-  // for a postMessage signal.
-  const handleIframeLoad = useCallback(() => {
-    setIsIframeLoaded(true);
-    if (completesOnView) {
-      setIsCompleted(true);
-    }
-  }, [completesOnView]);
-
-  const handleVideoError = useCallback(() => {
-    navigate(`/course/${courseId}/lesson/${sequenceId}/video-error`);
-  }, [navigate, courseId, sequenceId]);
+  // Called when the unit's content is on screen: its iframe's load event or, in lightweight mode,
+  // the iframe's first plugin.resize if that comes first.
+  // Lightweight mode: MFE_CONFIG_OVERRIDES["uber-learn"].UBER_LIGHTWEIGHT_IFRAMES (JSON boolean).
+  const isLightweightMode = getConfig().UBER_LIGHTWEIGHT_IFRAMES === true;
+  const handleContentShown = useCallback(() => {
+    setShownVisit(currentVisit);
+  }, [currentVisit]);
 
   const handleContinue = useCallback(async () => {
     if (!isCompleted) { return; }
@@ -181,7 +135,7 @@ export const ActivityView = () => {
     // Await one microtask tick so the XBlock message handler runs before the
     // iframe unmounts — prevents a race where navigate tears down the frame
     // before the message is processed.
-    const frame = iframeRef.current;
+    const frame = document.querySelector<HTMLIFrameElement>('.content-iframe-frame');
     if (frame?.contentWindow) {
       frame.contentWindow.postMessage(
         { type: 'uber.continueClicked', version: 1 },
@@ -344,12 +298,11 @@ export const ActivityView = () => {
           </div>
         )}
         <ContentIFrame
-          ref={iframeRef}
           key={currentUnit.id}
           usageKey={currentUnit.id}
           onCompleted={handleCompleted}
-          onLoad={handleIframeLoad}
-          onVideoError={handleVideoError}
+          onContentReady={isLightweightMode ? handleContentShown : undefined}
+          onLoad={handleContentShown}
         />
       </main>
 

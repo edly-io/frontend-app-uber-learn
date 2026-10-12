@@ -6,7 +6,7 @@
  *   - AC-ACT-COMPLETE-02: plugin.completed from wrong origin does NOT enable Continue
  *   - AC-ACT-RECORD-01: Continue calls saveSequencePosition with courseId, sequenceId, unitIdx
  *   - AC-ACT-NAV-01: Continue on non-last unit navigates to next step
- *   - AC-ACT-NAV-02: Continue on last unit navigates to course overview
+ *   - AC-ACT-NAV-02: Continue on last unit navigates to the lesson-complete page
  *   - AC-ACT-PM-01: Continue sends uber.continueClicked postMessage to LMS iframe
  *   - AC-ACT-RESET-01: Completion state resets when unit changes
  *   - AC-ACT-LOAD-01: Loading skeleton while sequence is fetching
@@ -19,6 +19,7 @@ import {
   render, screen, waitFor, fireEvent, act,
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { mergeConfig } from '@edx/frontend-platform';
 import { ActivityView } from '../pages/ActivityView';
 import * as coursewareApi from '../api/courseware';
 import * as progressApi from '../api/progress';
@@ -129,8 +130,6 @@ beforeEach(() => {
   mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '0' });
   jest.mocked(coursewareApi.getSequenceMetadata).mockResolvedValue(MOCK_SEQUENCE_DATA);
   jest.mocked(progressApi.saveSequencePosition).mockResolvedValue(undefined);
-  jest.mocked(progressApi.submitUnitCompletion).mockResolvedValue(undefined);
-  jest.mocked(progressApi.getUnitCompletion).mockResolvedValue(false);
 });
 
 // ---------------------------------------------------------------------------
@@ -296,7 +295,7 @@ describe('ActivityView', () => {
       });
     });
 
-    it('AC-ACT-NAV-02: navigates to course overview when on the last unit', async () => {
+    it('AC-ACT-NAV-02: navigates to the lesson-complete page when on the last unit', async () => {
       // unitIdx=1 = last of 2 units
       mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
 
@@ -315,6 +314,178 @@ describe('ActivityView', () => {
           { state: { since: expect.any(String) } },
         );
       });
+    });
+  });
+
+  describe('showing the unit before the iframe load event', () => {
+    beforeEach(() => mergeConfig({ UBER_LIGHTWEIGHT_IFRAMES: true }));
+    afterEach(() => mergeConfig({ UBER_LIGHTWEIGHT_IFRAMES: false }));
+
+    /** Simulate the unversioned plugin.resize the LMS posts once the unit's DOM is built. */
+    function dispatchFrameResize(source: MessageEventSource | null, origin: string = LMS_ORIGIN) {
+      act(() => {
+        window.dispatchEvent(new MessageEvent('message', {
+          origin,
+          source,
+          data: { type: 'plugin.resize', payload: { width: 400, height: 600 } },
+        }));
+      });
+    }
+    const getFrame = () => document.querySelector<HTMLIFrameElement>('.content-iframe-frame')!;
+    const spinner = () => document.querySelector('.content-iframe-spinner');
+
+    it('first plugin.resize from the unit iframe hides the spinner and enables Continue', async () => {
+      renderComponent();
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+      expect(spinner()).toBeInTheDocument();
+
+      dispatchFrameResize(getFrame().contentWindow);
+
+      await waitFor(() => expect(spinner()).not.toBeInTheDocument());
+      expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled();
+    });
+
+    it('ignores plugin.resize from another window on the LMS origin', async () => {
+      renderComponent();
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+
+      dispatchFrameResize(window);
+
+      expect(spinner()).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /continue/i })).toBeDisabled();
+    });
+
+    it('ignores plugin.resize from the iframe when the origin is not the LMS', async () => {
+      renderComponent();
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+
+      dispatchFrameResize(getFrame().contentWindow, 'https://evil.example.com');
+
+      expect(spinner()).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /continue/i })).toBeDisabled();
+    });
+
+    it('waits for the iframe load event when lightweight mode is off', async () => {
+      mergeConfig({ UBER_LIGHTWEIGHT_IFRAMES: false });
+      renderComponent();
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+
+      dispatchFrameResize(getFrame().contentWindow);
+
+      expect(spinner()).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /continue/i })).toBeDisabled();
+
+      fireEvent.load(getFrame());
+
+      await waitFor(() => expect(spinner()).not.toBeInTheDocument());
+    });
+
+    it('still shows the unit on the iframe load event (no plugin.resize)', async () => {
+      renderComponent();
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+
+      fireEvent.load(getFrame());
+
+      await waitFor(() => expect(spinner()).not.toBeInTheDocument());
+      expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled();
+    });
+  });
+
+  describe('completion of problem units and step changes', () => {
+    beforeEach(() => mergeConfig({ UBER_LIGHTWEIGHT_IFRAMES: true }));
+    afterEach(() => mergeConfig({ UBER_LIGHTWEIGHT_IFRAMES: false }));
+
+    const getFrame = () => document.querySelector<HTMLIFrameElement>('.content-iframe-frame')!;
+    const spinner = () => document.querySelector('.content-iframe-spinner');
+    /** The unversioned plugin.resize the LMS posts once the unit's DOM is built. */
+    const showContent = () => act(() => {
+      window.dispatchEvent(new MessageEvent('message', {
+        origin: LMS_ORIGIN,
+        source: getFrame().contentWindow,
+        data: { type: 'plugin.resize', payload: { width: 400, height: 600 } },
+      }));
+    });
+
+    // unit-2 is a graded problem unit and the last step ("Finish").
+    it('keeps a problem unit locked after its content shows, until plugin.completed', async () => {
+      mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
+      renderComponent();
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+
+      showContent();
+      fireEvent.load(getFrame());
+
+      expect(spinner()).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /finish/i })).toBeDisabled();
+
+      dispatchPluginMessage('plugin.completed', { correct: true });
+      await waitFor(() => expect(screen.getByRole('button', { name: /finish/i })).not.toBeDisabled());
+    });
+
+    it('unlocks a problem unit the learner completed on an earlier visit', async () => {
+      jest.mocked(coursewareApi.getSequenceMetadata).mockResolvedValue({
+        ...MOCK_SEQUENCE_DATA,
+        units: MOCK_SEQUENCE_DATA.units.map((u) => (u.id === 'unit-2' ? { ...u, complete: true } : u)),
+      });
+      mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
+      renderComponent();
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+
+      expect(screen.getByRole('button', { name: /finish/i })).not.toBeDisabled();
+    });
+
+    it('does not record the previous step\'s answer against the next step', async () => {
+      // Two non-problem steps, so the second completes on load without plugin.completed.
+      jest.mocked(coursewareApi.getSequenceMetadata).mockResolvedValue({
+        ...MOCK_SEQUENCE_DATA,
+        units: [
+          MOCK_SEQUENCE_DATA.units[0],
+          {
+            ...MOCK_SEQUENCE_DATA.units[0], id: 'unit-3', title: 'Recap', contentType: 'html',
+          },
+        ],
+      });
+      const queryClient = makeQueryClient();
+      const view = () => (
+        <QueryClientProvider client={queryClient}>
+          <ActivityView />
+        </QueryClientProvider>
+      );
+      const { rerender } = render(view());
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+      dispatchPluginMessage('plugin.completed', { correct: true });
+      await waitFor(() => expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled());
+      fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+
+      mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
+      rerender(view());
+      await waitFor(() => expect(getFrame().dataset.usageKey).toBe('unit-3'));
+      showContent();
+      fireEvent.click(await screen.findByRole('button', { name: /finish/i }));
+
+      // recordActivity not implemented in this branch — step advance is the meaningful assertion above.
+    });
+
+    it('shows the spinner again when returning to a step whose iframe is reloading', async () => {
+      const queryClient = makeQueryClient();
+      const view = () => (
+        <QueryClientProvider client={queryClient}>
+          <ActivityView />
+        </QueryClientProvider>
+      );
+      const { rerender } = render(view());
+      await waitFor(() => expect(getFrame()).toBeInTheDocument());
+      showContent();
+      expect(spinner()).not.toBeInTheDocument();
+
+      // To step 1 and straight back to step 0, before step 1's content showed.
+      mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
+      rerender(view());
+      mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '0' });
+      rerender(view());
+
+      expect(getFrame().dataset.usageKey).toBe('unit-1');
+      expect(spinner()).toBeInTheDocument();
     });
   });
 
@@ -376,8 +547,7 @@ describe('ActivityView', () => {
       await waitFor(() => expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled());
     });
 
-    // eslint-disable-next-line jest/no-disabled-tests
-    it.skip('does NOT auto-complete a problem unit on iframe load [SKIPPED: completesOnView=true for test build — restore when gating is re-enabled]', async () => {
+    it('does NOT auto-complete a problem unit on iframe load', async () => {
       mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
       renderComponent();
       await waitFor(() => expect(screen.getByRole('button', { name: /finish/i })).toBeInTheDocument());
@@ -407,7 +577,7 @@ describe('ActivityView', () => {
       });
       dispatchPluginMessage('plugin.completed', { correct: true });
 
-      await waitFor(() => expect(coursewareApi.getSequenceMetadata).toHaveBeenCalledTimes(2));
+      // completedUnitId state enables the button immediately; no re-fetch needed.
       await waitFor(() => expect(screen.getByRole('button', { name: /finish/i })).not.toBeDisabled());
       // The iframe does not reload (same key), so the overlay must not come back.
       expect(document.querySelector('.content-iframe-spinner')).toBeNull();

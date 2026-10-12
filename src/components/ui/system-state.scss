@@ -66,6 +66,8 @@
 /* ── Footer ──────────────────────────────────────────────────────── */
 .ss-footer {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
   padding: 12px 16px;
   padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   background: var(--u-background-primary);
@@ -99,6 +101,34 @@
 }
 
 .ss-footer__btn:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
+
+/* Optional second action, under the main one (same as the two-action footers). */
+.ss-footer__secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 16px 20px;
+  background: transparent;
+  color: var(--u-content-primary);
+  border: none;
+  cursor: pointer;
+  font-family: var(--u-font-body);
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.33;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.ss-footer__secondary:hover,
+.ss-footer__secondary:focus-visible {
+  opacity: 0.7;
+}
+
+.ss-footer__secondary:focus-visible {
   outline: 2px solid var(--u-content-primary);
   outline-offset: 2px;
 }

@@ -87,3 +87,16 @@ export function coursePathFor(
 export function leavePage(url: string): void {
   window.location.replace(url);
 }
+
+/**
+ * Reloads the launch page on its current URL.
+ *
+ * src/index.jsx calls this when another launch link is opened in the same
+ * tab. Such a link differs from the stripped launch URL only in its fragment,
+ * so the browser does not load the page again by itself. The reload runs the
+ * boot code on the new URL, which reads, strips and sends the new string like
+ * any first load.
+ */
+export function reloadPage(): void {
+  window.location.reload();
+}

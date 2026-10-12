@@ -149,7 +149,8 @@ How it works
    string after ``#`` (or ``?``), removes it from the address bar with
    ``history.replaceState``, and only then calls ``initialize()``, with
    ``requireAuthenticatedUser: false`` for this path only. Every other path
-   still requires a signed-in user.
+   still requires a signed-in user. If another launch link is opened in the
+   same tab, the page reloads so that the new link goes through this step too.
 2. ``LaunchPage`` posts ``{"launch": "<string>"}`` once to
    ``POST {LMS_BASE_URL}/api/uber/launch/v1/`` (with CSRF, cookies included).
 3. The LMS signs the learner in (session and JWT cookies), enrolls them, and

@@ -2,11 +2,15 @@ import React, { useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { markBadgesSeen } from '../api/curriculum';
+import { useCurriculums } from '../hooks/useCurriculums';
+import { useBadges } from '../hooks/useBadges';
 import { qk } from '../api/queries';
 
 import badgeHalfwayEarned from '../assets/badges/badge-halfway-earned.svg';
 import badgeCompleteEarned from '../assets/badges/badge-complete-earned.svg';
 import badgeRetainedEarned from '../assets/badges/badge-retained-earned.svg';
+import badgeRingTrack from '../assets/icons/badge-ring-track.svg';
+import badgeRingEarned from '../assets/icons/badge-ring-earned.svg';
 
 import './badge-earned.scss';
 
@@ -16,7 +20,7 @@ type BadgeType = 'halfway' | 'complete' | 'retained';
 const FALLBACK: Record<BadgeType, { title: string; desc: string; artSrc: string }> = {
   halfway: {
     title: 'Road ready',
-    desc: "You've finished every course in your path. Your 30-day check opens soon.",
+    desc: "You're halfway through your learning path. Keep going!",
     artSrc: badgeHalfwayEarned,
   },
   complete: {
@@ -33,10 +37,6 @@ const FALLBACK: Record<BadgeType, { title: string; desc: string; artSrc: string 
 
 interface NavState {
   awardId?: string;
-  badgeTitle?: string;
-  badgeDescription?: string;
-  badgeImageUrl?: string | null;
-  earnedAt?: string;
   alsoEarned?: Array<{ id: string; title: string; imageUrl: string | null }>;
 }
 
@@ -49,38 +49,56 @@ export const BadgeEarned = () => {
   if (type === 'halfway') { badgeType = 'halfway'; } else if (type === 'retained') { badgeType = 'retained'; }
 
   const state = (location.state as NavState | null) ?? {};
-  const { awardId } = state;
-  const fallback = FALLBACK[badgeType];
+  const { awardId, alsoEarned = [] } = state;
 
-  const title = state.badgeTitle ?? fallback.title;
-  const description = state.badgeDescription ?? fallback.desc;
-  const artSrc = state.badgeImageUrl ?? fallback.artSrc;
-  const earnedDate = state.earnedAt
-    ? new Date(state.earnedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+  const { data: curriculums } = useCurriculums();
+  const { data: badgesData } = useBadges();
+
+  // Prefer the exact award from nav state; fall back to first curriculum that reached this slot.
+  const award = awardId
+    ? [...(badgesData?.curriculum_badges ?? []), ...(badgesData?.course_badges ?? [])].find((b) => b.id === awardId)
+    : undefined;
+  const awardCurriculumUuid = award?.source.type === 'curriculum'
+    ? (award.source as Extract<typeof award.source, { type: 'curriculum' }>).curriculum.uuid
     : null;
-  const alsoEarned = state.alsoEarned ?? [];
+  const owningCurriculum = awardCurriculumUuid
+    ? curriculums?.find((c) => c.uuid === awardCurriculumUuid)
+    : curriculums?.find((c) => c.milestones[badgeType].reached_at !== null);
+  const milestone = owningCurriculum?.milestones[badgeType];
+
+  const fallback = FALLBACK[badgeType];
+  const badge = award?.badge ?? milestone?.badge ?? null;
+  const title = badge?.title ?? fallback.title;
+  const description = badge?.description ?? fallback.desc;
+  const artSrc = badge?.image_url ?? fallback.artSrc;
+  const earnedAt = award?.awarded_at ?? milestone?.reached_at ?? null;
+  const earnedDate = earnedAt
+    ? new Date(earnedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
 
   const { mutate: markSeen } = useMutation({
     mutationFn: (ids: string[]) => markBadgesSeen(ids),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: qk.badges(true) });
+      queryClient.invalidateQueries({ queryKey: ['curriculum', 'badges'] });
       queryClient.invalidateQueries({ queryKey: qk.curriculums() });
     },
   });
 
   useEffect(() => {
     if (awardId) {
-      markSeen([awardId]);
+      markSeen([awardId, ...alsoEarned.map((b) => b.id)]);
     }
   }, [awardId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="badge-earned-page">
-      {/* Art panel — always accent blue */}
-      <div className="badge-earned__art-panel badge-earned__art-panel--halfway" aria-hidden="true">
-        <div className="badge-earned__halo">
-          <div className="badge-earned__disc">
-            <img src={artSrc} alt="" className="badge-earned__art-img" />
+      {/* White art panel with badge ring (new Figma 2026-10-10 style) */}
+      <div className="badge-earned__white-panel" aria-hidden="true">
+        <div className="badge-earned__ring">
+          <img src={badgeRingTrack} alt="" aria-hidden="true" className="badge-earned__ring-track" />
+          <img src={badgeRingEarned} alt="" aria-hidden="true" className="badge-earned__ring-fill" />
+          <div className="badge-earned__seal">
+            <img src={artSrc} alt="" className="badge-earned__seal-img" />
           </div>
         </div>
       </div>
@@ -99,18 +117,18 @@ export const BadgeEarned = () => {
         {/* Also earned */}
         {alsoEarned.length > 0 && (
           <div className="badge-earned__also-wrap">
-            {alsoEarned.map((badge) => (
-              <div key={badge.id} className="badge-earned__also-card">
+            {alsoEarned.map((alsoBadge) => (
+              <div key={alsoBadge.id} className="badge-earned__also-card">
                 <div className="badge-earned__also-art">
                   <img
-                    src={badge.imageUrl ?? badgeHalfwayEarned}
+                    src={alsoBadge.imageUrl ?? badgeHalfwayEarned}
                     alt=""
                     className="badge-earned__also-img"
                     aria-hidden="true"
                   />
                 </div>
                 <p className="badge-earned__also-text">
-                  Also earned: the <strong>{badge.title}</strong> badge
+                  Also earned: the <strong>{alsoBadge.title}</strong> badge
                 </p>
               </div>
             ))}

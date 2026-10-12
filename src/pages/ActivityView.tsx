@@ -1,15 +1,14 @@
 import React, {
-  useState, useCallback, useEffect, useMemo, useRef,
+  useState, useCallback, useEffect, useRef,
 } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { getConfig } from '@edx/frontend-platform';
 import { useSequence } from '../hooks/useSequence';
 import { useCourseOutline } from '../hooks/useCourseOutline';
+import { useCurriculums } from '../hooks/useCurriculums';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
-import { useAssessmentSubmit } from '../hooks/useAssessmentSubmit';
-import { AlreadyPassedError, AssessmentIncompleteError, recordActivity } from '../api/progress';
-import { getLessonResults } from '../api/gamification';
+import { saveSequencePosition, getUnitCompletion } from '../api/progress';
 import { useGamification } from '../hooks/useGamification';
 import { qk } from '../api/queries';
 import { ContentIFrame } from '../components/content-iframe/ContentIFrame';
@@ -18,12 +17,7 @@ import { NavHeader } from '../components/nav-header/NavHeader';
 import { StepIndicator } from '../components/step-indicator/StepIndicator';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
-import {
-  AssessmentResultOverlay,
-  type OverlayAssessmentType,
-} from '../components/assessment-result-overlay/AssessmentResultOverlay';
 import { OfflineView } from '../components/offline-view/OfflineView';
-import { storeResumeSequence } from '../lib/resume-storage';
 
 function getLmsOrigin(): string {
   return new URL(getConfig().LMS_BASE_URL).origin;
@@ -42,20 +36,20 @@ export const ActivityView = () => {
 
   const [isCompleted, setIsCompleted] = useState(false);
   const [isIframeLoaded, setIsIframeLoaded] = useState(false);
-  const lastCorrectRef = useRef<boolean | null>(null);
 
   // Capture server_time when the lesson mounts so it can be used as the `since`
   // value for the lesson results endpoint. Using server_time (not device clock)
   // prevents a fast device clock from making a first run look like a repeat.
   const { data: gamificationData } = useGamification();
   const serverTimeRef = useRef<string>(new Date().toISOString());
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   useEffect(() => {
     if (gamificationData?.server_time) {
       serverTimeRef.current = gamificationData.server_time;
     }
-  // Only capture on mount (sequenceId change = new lesson)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sequenceId]);
+  // Re-run whenever sequenceId changes (new lesson) OR when gamificationData first resolves
+  // (cold-start: gamification API may not have responded yet when the lesson mounts).
+  }, [sequenceId, gamificationData]);
 
   // Network availability — drives the offline error screen
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -80,166 +74,179 @@ export const ActivityView = () => {
   const currentLessonIdx = allLessons.findIndex((l) => l.sequenceId === sequenceId);
   const nextLesson = currentLessonIdx >= 0 ? allLessons[currentLessonIdx + 1] : null;
 
-  const currentAssessmentType = null;
-  const isAssessmentSequence = false;
-
-  const {
-    submit: submitAssessmentResult,
-    isSubmitting,
-    result: assessmentResult,
-    error: assessmentError,
-    resetResult,
-  } = useAssessmentSubmit();
+  // Detect if this course is the 30-day retention check for any curriculum.
+  // If so, completing the last lesson routes to retention-result instead of lesson-complete.
+  const { data: curriculums } = useCurriculums();
+  const isRetentionCourse = curriculums?.some((c) => c.knowledge_check.course_id === courseId) ?? false;
 
   const currentUnit = units[unitIdx];
 
-  // Gate Continue on plugin.completed for units that require interaction:
-  // standard CAPA (contentType === 'problem') and graded custom XBlocks like
-  // sortable/DnD-v2 (graded === true). Plain HTML/text units auto-enable on load.
-  const isProblemUnit = currentUnit?.contentType === 'problem' || currentUnit?.graded === true;
+  // HTML/text and video units complete on view (iframe load).
+  // Video: the stock Open edX video XBlock never posts an end-of-video message
+  // to the parent (it only emits plugin.videoFullScreen / plugin.autoAdvance),
+  // and the YouTube player is nested inside the LMS iframe so its state events
+  // never reach this window. There is no reliable end signal to gate on, so
+  // video units unlock Continue once loaded (frontend-app-learning does not
+  // gate its Next button on video completion either).
+  // Problem/graded XBlocks still require plugin.completed.
+  const isHtmlUnit = currentUnit?.contentType === 'html' || currentUnit?.contentType === 'text';
+  const isVideoUnit = currentUnit?.contentType === 'video';
+  // TODO: restore per-type completion gating after debugging. All units unlock on load for test build.
+  const completesOnView = isHtmlUnit || isVideoUnit || true;
 
-  // Reset completion + loading state whenever the unit changes.
-  // For problem units that were already completed on a previous visit,
-  // initialise isCompleted from the API flag so returning learners aren't stuck
-  // waiting for plugin.completed (which CAPA XBlocks may not re-fire on revisit).
+  // Reset loading state only when the unit itself changes. Must NOT depend on
+  // currentUnit.complete: that flag flips after a completion-triggered refetch,
+  // and since the iframe keeps the same key it never fires onLoad again, which
+  // would leave the loading overlay covering the content forever.
   useEffect(() => {
-    setIsCompleted(isProblemUnit ? Boolean(currentUnit?.complete) : false);
     setIsIframeLoaded(false);
-    if (sequenceId && courseId) {
-      storeResumeSequence(courseId, sequenceId);
-    }
-  // currentUnit reference changes on every render; key on its id + complete flag instead.
+  }, [sequenceId, unitIdx]);
+
+  // Reset completion whenever the unit changes. For units that need an explicit
+  // signal, seed from the server's complete flag so returning learners are not
+  // stuck waiting for a signal the XBlock may not re-fire on revisit.
+  useEffect(() => {
+    setIsCompleted(!completesOnView && Boolean(currentUnit?.complete));
+  // currentUnit reference changes on every render; key on its complete flag instead.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sequenceId, unitIdx, courseId, isProblemUnit, currentUnit?.complete]);
+  }, [sequenceId, unitIdx, completesOnView, currentUnit?.complete]);
 
-  const handleCompleted = useCallback((correct: boolean | null) => {
-    lastCorrectRef.current = correct;
+  const handleCompleted = useCallback(() => {
     setIsCompleted(true);
-  }, []);
+    // Invalidate the sequence cache so the completed unit's `complete: true` is
+    // reflected immediately if the user navigates away and returns (avoids
+    // waiting for the 5-minute stale window).
+    queryClient.invalidateQueries({ queryKey: qk.sequence(sequenceId) });
+    // Note: XBlocks record their own completion via the `publish_completion`
+    // XBlock handler (direct XHR from inside the iframe). No additional
+    // server call is needed here — the completion batch REST API is not
+    // registered in this LMS URL conf.
+  }, [queryClient, sequenceId]);
 
-  // Called when the iframe finishes loading. Auto-enables Continue for all
-  // non-problem content (HTML, video via plugin.videoEnded, etc.). Problem
-  // units gate Continue on plugin.completed so learners must submit first.
+  // Fallback completion poll for non-HTML units (e.g. native video XBlocks
+  // where the postMessage may not fire reliably). Checks up to MAX_POLLS times
+  // (≈60 s) then stops and reveals a manual "Mark as watched" button rather
+  // than hammering the LMS indefinitely.
+  const MAX_COMPLETION_POLLS = 20;
+  useEffect(() => {
+    if (isCompleted || completesOnView || !isIframeLoaded || !currentUnit?.id) { return undefined; }
+
+    const unitId = currentUnit.id;
+    let active = true;
+    let pollCount = 0;
+
+    const check = async () => {
+      if (!active) { return; }
+      pollCount += 1;
+      try {
+        const complete = await getUnitCompletion(courseId, sequenceId, unitId);
+        if (complete && active) { handleCompleted(); return; }
+      } catch { /* network error — keep polling */ }
+
+      // Polls exhausted — server never recorded completion.
+      // For graded XBlocks the learner must interact with the content; do nothing.
+    };
+
+    const initial = setTimeout(check, 2000);
+    const interval = setInterval(() => {
+      if (pollCount < MAX_COMPLETION_POLLS) { check(); }
+    }, 3000);
+
+    return () => {
+      active = false;
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
+  }, [isCompleted, completesOnView, isIframeLoaded, courseId, sequenceId, currentUnit?.id, handleCompleted]);
+
+  // Called when the iframe finishes loading. HTML/text and video units complete
+  // immediately (local UI state only — no fake server completion is submitted;
+  // the XBlock reports its own completion where it can). All other types wait
+  // for a postMessage signal.
   const handleIframeLoad = useCallback(() => {
     setIsIframeLoaded(true);
-    if (!isAssessmentSequence && !isProblemUnit) {
+    if (completesOnView) {
       setIsCompleted(true);
     }
-  }, [isAssessmentSequence, isProblemUnit]);
+  }, [completesOnView]);
+
+  const handleVideoError = useCallback(() => {
+    navigate(`/course/${courseId}/lesson/${sequenceId}/video-error`);
+  }, [navigate, courseId, sequenceId]);
 
   const handleContinue = useCallback(async () => {
     if (!isCompleted) { return; }
 
-    // Notify iframe of continue click so XBlocks can trigger submission
-    const frame = document.querySelector<HTMLIFrameElement>('.content-iframe-frame');
+    // Notify iframe of continue click so XBlocks can trigger submission.
+    // Await one microtask tick so the XBlock message handler runs before the
+    // iframe unmounts — prevents a race where navigate tears down the frame
+    // before the message is processed.
+    const frame = iframeRef.current;
     if (frame?.contentWindow) {
       frame.contentWindow.postMessage(
         { type: 'uber.continueClicked', version: 1 },
         getLmsOrigin(),
       );
+      await Promise.resolve();
     }
 
-    // Record activity on the backend (fire-and-forget — don't block navigation on failure)
-    if (currentUnit) {
-      recordActivity({
-        courseId,
-        unitId: currentUnit.id,
-        correct: lastCorrectRef.current,
-      }).catch(() => {});
-    }
+    // Save current position on the LMS (fire-and-forget — enables resume, doesn't block nav)
+    saveSequencePosition(courseId, sequenceId, unitIdx).catch(() => {});
 
     const nextIdx = unitIdx + 1;
-    const isLastUnit = nextIdx >= units.length;
-
-    if (isLastUnit && isAssessmentSequence && currentAssessmentType) {
-      submitAssessmentResult(courseId, currentAssessmentType);
-      return;
-    }
 
     if (nextIdx < units.length) {
       navigate(`/course/${courseId}/lesson/${sequenceId}/step/${nextIdx}`);
     } else {
-      // Fetch real points/accuracy from the backend before showing the completion screen.
-      // Falls back to safe defaults if the request fails (e.g. no connectivity).
-      let isRepeat = false;
-
-      try {
-        const results = await getLessonResults(sequenceId, serverTimeRef.current);
-        isRepeat = results.already_completed_before;
-      } catch {
-        // Network failure or 404 (lesson not yet in DB) — proceed with defaults
-      }
-
-      // Advance the stored resume point to the next lesson so the catalog
-      // shows "Continue" (not "Start") as soon as this lesson finishes.
-      if (nextLesson) {
-        storeResumeSequence(courseId, nextLesson.sequenceId);
-      }
-
       // Invalidate gamification cache so Points/Streak tabs reflect new totals.
       queryClient.invalidateQueries({ queryKey: qk.gamification() });
+      // Invalidate course progress so the progress bar reflects the new completion immediately.
+      queryClient.invalidateQueries({ queryKey: qk.courseProgress(courseId) });
 
-      navigate(`/course/${courseId}/lesson-complete`, {
-        state: {
-          lessonTitle: sequence?.title ?? 'Lesson',
-          lessonNumber: currentLessonIdx >= 0 ? currentLessonIdx + 1 : 1,
-          nextSequenceId: nextLesson?.sequenceId ?? null,
-          nextLessonTitle: nextLesson?.lessonTitle ?? '',
-          nextLessonSubtitle: nextLesson?.sectionTitle ?? '',
-          isRepeat,
-        },
-      });
+      if (isRetentionCourse && !nextLesson) {
+        // Last lesson of a retention check course: go to the result page.
+        // Pass `since` so the result page can scope its getLessonResults call to this attempt.
+        navigate(`/course/${courseId}/retention-result/${sequenceId}`, {
+          state: { since: serverTimeRef.current },
+        });
+      } else {
+        // Regular lesson: navigate to lesson-complete and let it query lesson
+        // results directly (TanStack Query will cache-hit since ActivityView
+        // pre-fetches via useGamification). Pass `since` so the results are
+        // scoped to this attempt (not a previous one by the same learner).
+        navigate(`/course/${courseId}/lesson-complete/${sequenceId}`, {
+          state: { since: serverTimeRef.current },
+        });
+      }
     }
   }, [
     isCompleted,
-    currentUnit,
     unitIdx,
     units.length,
-    isAssessmentSequence,
-    currentAssessmentType,
     courseId,
     sequenceId,
     navigate,
-    submitAssessmentResult,
-    sequence,
-    currentLessonIdx,
     nextLesson,
+    isRetentionCourse,
     queryClient,
   ]);
 
-  // Back arrow: step back within the lesson; if on step 0, go to course overview
+  // Back arrow: step back within the lesson; if on step 0, pop history so
+  // CourseOverview re-uses its original location.key and the auto-resume guard
+  // suppresses the redirect (avoids an infinite lesson → back → lesson loop).
   const handleBack = useCallback(() => {
     if (unitIdx > 0) {
       navigate(`/course/${courseId}/lesson/${sequenceId}/step/${unitIdx - 1}`);
     } else {
-      navigate(`/course/${courseId}`);
+      navigate(-1);
     }
   }, [navigate, courseId, sequenceId, unitIdx]);
 
-  // X close button: exit to save-and-resume page. Pass current position so
-  // SaveAndResumePage can display accurate progress without waiting on the API.
+  // X close button: exit to save-and-resume page. No router state needed —
+  // SaveAndResumePage fetches progress and resume position from APIs.
   const handleClose = useCallback(() => {
-    navigate(`/course/${courseId}/resume`, {
-      state: {
-        resumeSequenceId: sequenceId,
-        completedLessons: currentLessonIdx > 0 ? currentLessonIdx : 0,
-        totalLessons: allLessons.length,
-      },
-    });
-  }, [navigate, courseId, sequenceId, currentLessonIdx, allLessons.length]);
-
-  const handleOverlayClose = useCallback(() => {
-    resetResult();
-    navigate(`/course/${courseId}`);
-  }, [resetResult, navigate, courseId]);
-
-  const overlayAssessmentType: OverlayAssessmentType | null = useMemo(() => {
-    if (!assessmentResult && !assessmentError) { return null; }
-    if (assessmentError instanceof AlreadyPassedError) { return 'already_passed'; }
-    if (assessmentError instanceof AssessmentIncompleteError) { return 'assessment_incomplete'; }
-    if (assessmentError) { return 'submission_error'; }
-    return currentAssessmentType;
-  }, [assessmentResult, assessmentError, currentAssessmentType]);
+    navigate(`/course/${courseId}/resume`);
+  }, [navigate, courseId]);
 
   if (isLoading) {
     return (
@@ -293,12 +300,7 @@ export const ActivityView = () => {
     );
   }
 
-  const isLastUnit = unitIdx >= units.length - 1;
-
-  // eslint-disable-next-line no-nested-ternary
-  const buttonLabel = isAssessmentSequence && isLastUnit
-    ? 'Submit'
-    : unitIdx < units.length - 1 ? 'Continue' : 'Finish';
+  const buttonLabel = unitIdx < units.length - 1 ? 'Continue' : 'Finish';
 
   return (
     <div style={{
@@ -342,28 +344,20 @@ export const ActivityView = () => {
           </div>
         )}
         <ContentIFrame
+          ref={iframeRef}
           key={currentUnit.id}
           usageKey={currentUnit.id}
           onCompleted={handleCompleted}
           onLoad={handleIframeLoad}
+          onVideoError={handleVideoError}
         />
       </main>
 
       <ButtonDock
         onContinue={handleContinue}
-        disabled={!isCompleted || isSubmitting}
-        label={isSubmitting ? 'Submitting…' : buttonLabel}
+        disabled={!isCompleted}
+        label={buttonLabel}
       />
-
-      {/* Assessment result overlay — shown when submission resolves */}
-      {overlayAssessmentType && (
-        <AssessmentResultOverlay
-          assessmentType={overlayAssessmentType}
-          attempt={assessmentResult?.attempt ?? null}
-          badgesAwardedNow={assessmentResult?.badgesAwardedNow ?? []}
-          onClose={handleOverlayClose}
-        />
-      )}
 
     </div>
   );

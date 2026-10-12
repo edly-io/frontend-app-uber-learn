@@ -21,6 +21,7 @@ export const LoadingSkeleton = ({ className, variant = 'page' }: LoadingSkeleton
     return (
       <div
         className={`skel-content skel-content--card${className ? ` ${className}` : ''}`}
+        role="status"
         aria-busy="true"
         aria-label="Loading…"
       >
@@ -31,7 +32,7 @@ export const LoadingSkeleton = ({ className, variant = 'page' }: LoadingSkeleton
   }
 
   return (
-    <div className={`skel-content${className ? ` ${className}` : ''}`} aria-busy="true" aria-label="Loading…">
+    <div className={`skel-content${className ? ` ${className}` : ''}`} role="status" aria-busy="true" aria-label="Loading…">
       <div className="skel-bone skel-art" aria-hidden="true" />
       <div className="skel-bone skel-kicker" aria-hidden="true" />
       <div className="skel-bone skel-h1" aria-hidden="true" />

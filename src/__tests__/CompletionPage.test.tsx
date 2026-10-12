@@ -117,8 +117,12 @@ const OUTLINE_TWO_LESSONS: CourseOutline = {
     'sec-1': { id: 'sec-1', title: 'Section One', sequenceIds: [SEQ_ID_1, SEQ_ID_2] },
   },
   sequences: {
-    [SEQ_ID_1]: { id: SEQ_ID_1, title: 'Lesson One', sectionId: 'sec-1', complete: false },
-    [SEQ_ID_2]: { id: SEQ_ID_2, title: 'Lesson Two', sectionId: 'sec-1', complete: false },
+    [SEQ_ID_1]: {
+      id: SEQ_ID_1, title: 'Lesson One', sectionId: 'sec-1', complete: false,
+    },
+    [SEQ_ID_2]: {
+      id: SEQ_ID_2, title: 'Lesson Two', sectionId: 'sec-1', complete: false,
+    },
   },
 };
 
@@ -130,7 +134,9 @@ const OUTLINE_ONE_LESSON: CourseOutline = {
     'sec-1': { id: 'sec-1', title: 'Section One', sequenceIds: [SEQ_ID_1] },
   },
   sequences: {
-    [SEQ_ID_1]: { id: SEQ_ID_1, title: 'Only Lesson', sectionId: 'sec-1', complete: false },
+    [SEQ_ID_1]: {
+      id: SEQ_ID_1, title: 'Only Lesson', sectionId: 'sec-1', complete: false,
+    },
   },
 };
 

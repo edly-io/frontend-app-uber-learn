@@ -53,15 +53,14 @@ function groupBySection(lessons: LessonDescriptor[]): LessonSection[] {
 function getLessonState(
   lesson: LessonDescriptor,
   resumeSequenceId: string | null,
-  allLessons: LessonDescriptor[],
+  _allLessons: LessonDescriptor[],
   courseComplete: boolean,
 ): LessonState {
-  if (courseComplete) { return 'complete'; }
-  if (!resumeSequenceId) { return 'upcoming'; }
-  const resumeIdx = allLessons.findIndex((l) => l.sequenceId === resumeSequenceId);
-  if (resumeIdx < 0) { return 'upcoming'; }
+  // Use the outline's per-sequence complete flag as the source of truth.
+  // Do NOT derive completion from resume pointer position — a lesson before
+  // the resume point is not necessarily complete (e.g. first visit, skipped).
+  if (courseComplete || lesson.complete) { return 'complete'; }
   if (lesson.sequenceId === resumeSequenceId) { return 'current'; }
-  if (lesson.lessonIndex < resumeIdx) { return 'complete'; }
   return 'upcoming';
 }
 
@@ -375,9 +374,9 @@ export const CourseOverview = () => {
                     />
                   )}
                 </div>
-                {gamification?.lifetime_points != null && gamification.lifetime_points > 0 ? (
+                {pointsEarned > 0 ? (
                   <p className="cd-progress-points">
-                    {`${gamification.lifetime_points} points earned`}
+                    {`${pointsEarned} points earned`}
                   </p>
                 ) : (
                   <p className="cd-progress-points">Earn points</p>

@@ -14,6 +14,7 @@ export const GoalRing = ({ daysCompleted, daysGoal }: GoalRingProps) => {
   return (
     <div
       className="goal-ring"
+      role="img"
       style={{ '--goal-pct': pct } as React.CSSProperties}
       aria-label={`${daysCompleted} of ${daysGoal} days done`}
     >

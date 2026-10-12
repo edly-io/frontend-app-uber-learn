@@ -201,7 +201,7 @@ const PathBadgeSheet = ({ data, onClose }: { data: PathBadgeData; onClose: () =>
   } else if (checkIsActionable) {
     thirtyDesc = 'Your 30-day check is open. Passing it earns a second badge.';
   } else {
-    thirtyDesc = 'Opens 30 days after you finish the path. Passing it earns a second badge.';
+    thirtyDesc = 'Opens 15 or 30 days after you finish the path. Passing it earns a second badge.';
   }
 
   return (

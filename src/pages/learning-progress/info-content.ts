@@ -11,9 +11,9 @@ export const TABS: TabId[] = ['Points', 'Streak', 'Badges', 'Leaderboard'];
 export const INFO_POINTS: InfoSheetData = {
   title: 'How points work',
   bullets: [
-    '10 points for each step, the first time you finish a lesson.',
+    '10 points for each activity you complete for the first time.',
     'Plus 5 for each question you get right on the first try.',
-    "Repeats and checks don't add points.",
+    'Repeating an activity adds no points.',
     'Points are never taken away.',
   ],
 };
@@ -31,9 +31,9 @@ export const INFO_STREAK: InfoSheetData = {
 export const INFO_BADGES: InfoSheetData = {
   title: 'How badges work',
   bullets: [
-    'Every course has a badge. Finish its lessons and final check to earn it.',
+    'Only courses linked to a badge in Studio have one.',
     'Every learning path has a badge too, for finishing all its courses.',
-    '30 days later, a check on the path earns one more.',
+    'The knowledge check opens 15 or 30 days after you finish the path.',
     "Badges turn from grey to colour when earned. They're never taken away.",
   ],
 };

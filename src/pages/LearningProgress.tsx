@@ -1,4 +1,6 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, {
+  useState, useCallback, useMemo, useRef, useEffect,
+} from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
@@ -348,7 +350,17 @@ interface BadgesTabProps {
 const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) => {
   const [sheet, setSheet] = useState<SheetBadgeData | null>(null);
   const handleSheetClose = useCallback(() => setSheet(null), []);
-  const { data: badgesData } = useBadges();
+  const { data: badgesData, isError: badgesError, refetch: refetchBadges } = useBadges();
+
+  if (badgesError) {
+    return (
+      <ErrorView
+        title="Could not load badges"
+        message="We could not retrieve your badge data. Please try again."
+        onRetry={() => refetchBadges()}
+      />
+    );
+  }
   const earnedAwards: BadgeEntry[] = [
     ...(badgesData?.curriculum_badges.filter((b) => b.awarded) ?? []),
     ...(badgesData?.course_badges.filter((b) => b.awarded) ?? []),
@@ -501,21 +513,50 @@ const PersonIcon = () => (
   </svg>
 );
 
+const LeaderboardRowSkeleton = () => (
+  <div className="lp-leaderboard-row--hifi" aria-hidden="true">
+    <div className="skel-bone" style={{ width: 24, height: 16, borderRadius: 4 }} />
+    <div className="lp-leaderboard-avatar">
+      <span className="lp-leaderboard-avatar__icon"><PersonIcon /></span>
+    </div>
+    <div className="skel-bone" style={{ flex: 1, height: 16, borderRadius: 4 }} />
+    <div className="skel-bone" style={{ width: 32, height: 16, borderRadius: 4 }} />
+  </div>
+);
+
 interface LeaderboardTabProps {
   apiData?: LeaderboardData;
+  isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
 }
 
-const LeaderboardTab = ({ apiData }: LeaderboardTabProps) => {
+const LeaderboardTab = ({
+  apiData, isLoading = false, isError = false, onRetry,
+}: LeaderboardTabProps) => {
+  if (isError) {
+    return (
+      <ErrorView
+        title="Leaderboard unavailable"
+        message="We could not load the leaderboard. Please try again."
+        onRetry={onRetry}
+      />
+    );
+  }
+
   const isRanked = apiData?.status === 'ranked';
   const myRank = apiData?.my_rank ?? null;
   const totalDrivers = apiData?.total_drivers ?? 0;
   const displayRows = apiData?.rows ?? [];
 
   const heroLabel = 'Your rank this month';
-  const heroValue = isRanked && myRank ? toOrdinal(myRank) : 'Not yet';
-  const heroSub = isRanked && myRank
-    ? `of ${totalDrivers} drivers · ${getResetsText(apiData?.resets_on)}`
-    : 'Earn points this month to join';
+  let heroValue: string;
+  if (isLoading) { heroValue = '—'; } else if (isRanked && myRank) { heroValue = toOrdinal(myRank); } else { heroValue = 'Not yet'; }
+
+  let heroSub: string;
+  if (isLoading) { heroSub = '—'; } else if (isRanked && myRank) {
+    heroSub = `of ${totalDrivers} drivers · ${getResetsText(apiData?.resets_on)}`;
+  } else { heroSub = 'Earn points this month to join'; }
 
   return (
     <div className="lp-tab-content">
@@ -533,23 +574,31 @@ const LeaderboardTab = ({ apiData }: LeaderboardTabProps) => {
       </div>
 
       <div className="lp-leaderboard-list--hifi">
-        {displayRows.map((row, i) => {
-          const prev = displayRows[i - 1];
-          const hasGap = prev && row.rank - prev.rank > 1;
-          return (
-            <React.Fragment key={row.rank}>
-              {hasGap && <div className="lp-leaderboard-gap" aria-hidden="true">•••</div>}
-              <div className={`lp-leaderboard-row--hifi${row.is_me ? ' lp-leaderboard-row--you' : ''}`}>
-                <span className="lp-leaderboard-row__rank--hifi">{row.rank}</span>
-                <div className={`lp-leaderboard-avatar${row.is_me ? ' lp-leaderboard-avatar--me' : ''}`}>
-                  <span className="lp-leaderboard-avatar__icon"><PersonIcon /></span>
+        {isLoading ? (
+          <>
+            <LeaderboardRowSkeleton />
+            <LeaderboardRowSkeleton />
+            <LeaderboardRowSkeleton />
+          </>
+        ) : (
+          displayRows.map((row, i) => {
+            const prev = displayRows[i - 1];
+            const hasGap = prev && row.rank - prev.rank > 1;
+            return (
+              <React.Fragment key={row.rank}>
+                {hasGap && <div className="lp-leaderboard-gap" aria-hidden="true">•••</div>}
+                <div className={`lp-leaderboard-row--hifi${row.is_me ? ' lp-leaderboard-row--you' : ''}`}>
+                  <span className="lp-leaderboard-row__rank--hifi">{row.rank}</span>
+                  <div className={`lp-leaderboard-avatar${row.is_me ? ' lp-leaderboard-avatar--me' : ''}`}>
+                    <span className="lp-leaderboard-avatar__icon"><PersonIcon /></span>
+                  </div>
+                  <span className="lp-leaderboard-row__name--hifi">{row.is_me ? 'You' : (row.display_name ?? '')}</span>
+                  <span className="lp-leaderboard-row__points--hifi">{row.points}</span>
                 </div>
-                <span className="lp-leaderboard-row__name--hifi">{row.is_me ? 'You' : (row.display_name ?? '')}</span>
-                <span className="lp-leaderboard-row__points--hifi">{row.points}</span>
-              </div>
-            </React.Fragment>
-          );
-        })}
+              </React.Fragment>
+            );
+          })
+        )}
       </div>
 
     </div>
@@ -567,6 +616,24 @@ export const LearningProgress = () => {
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   const [infoSheet, setInfoSheet] = useState<InfoSheetData | null>(null);
   const handleCloseInfoSheet = useCallback(() => setInfoSheet(null), []);
+  const tabListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = tabListRef.current;
+    if (!el) { return undefined; }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') { return; }
+      const tabs = Array.from(el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+      const idx = tabs.findIndex((t) => t === document.activeElement);
+      if (idx < 0) { return; }
+      e.preventDefault();
+      const next = tabs[(idx + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+      next.focus();
+      next.click();
+    };
+    el.addEventListener('keydown', handleKeyDown);
+    return () => el.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const { data: courses, isLoading: isCoursesLoading } = useQuery({
     queryKey: qk.enrolledCourses(),
@@ -580,7 +647,9 @@ export const LearningProgress = () => {
     staleTime: 60_000,
   });
 
-  const { data: gamification, isError: gamificationError } = useGamification();
+  const {
+    data: gamification, isError: gamificationError, isLoading: gamificationLoading,
+  } = useGamification();
   const queryClient = useQueryClient();
 
   // Calculate how many neighbor rows fit in the available list area based on viewport height.
@@ -595,7 +664,9 @@ export const LearningProgress = () => {
     return Math.min(Math.max(3, Math.floor((totalRowSlots - 3 - 1) / 2)), 15);
   }, []);
 
-  const { data: leaderboardData } = useLeaderboard(leaderboardNeighbors, leaderboardNeighbors);
+  const {
+    data: leaderboardData, isLoading: leaderboardLoading, isError: leaderboardError, refetch: refetchLeaderboard,
+  } = useLeaderboard(leaderboardNeighbors, leaderboardNeighbors);
   const { data: curriculums } = useCurriculums();
 
   const enrolledCourses = courses ?? [];
@@ -647,14 +718,17 @@ export const LearningProgress = () => {
       </header>
 
       {/* Tabs */}
-      <div className="lp-tabs" role="tablist">
+      <div className="lp-tabs" role="tablist" aria-label="Progress tabs" ref={tabListRef}>
         {TABS.map((tab) => (
           <button
             key={tab}
             type="button"
             role="tab"
-            className={`lp-tab${activeTab === tab ? ' lp-tab--active' : ''}`}
+            id={`tab-${tab}`}
             aria-selected={activeTab === tab}
+            aria-controls={`panel-${tab}`}
+            tabIndex={activeTab === tab ? 0 : -1}
+            className={`lp-tab${activeTab === tab ? ' lp-tab--active' : ''}`}
             onClick={() => setActiveTab(tab)}
           >
             <span className="lp-tab__label">{tab}</span>
@@ -666,37 +740,51 @@ export const LearningProgress = () => {
       {/* Scrollable content + footer */}
       <div className="lp-body">
         {activeTab === 'Points' && (
-          gamificationError ? (
-            <ErrorView
-              title="Could not load points"
-              message="We could not load your progress data. Please try again."
-              onRetry={() => queryClient.invalidateQueries({ queryKey: qk.gamification() })}
-            />
-          ) : (
-            <PointsTab
-              courses={enrolledCourses}
-              totalPoints={totalPoints}
-              monthPoints={monthPoints}
-              coursePointsByKey={coursePointsByKey}
-            />
-          )
+          <div role="tabpanel" id="panel-Points" aria-labelledby="tab-Points" tabIndex={0}>
+            {gamificationError ? (
+              <ErrorView
+                title="Could not load points"
+                message="We could not load your progress data. Please try again."
+                onRetry={() => queryClient.invalidateQueries({ queryKey: qk.gamification() })}
+              />
+            ) : (
+              <PointsTab
+                courses={enrolledCourses}
+                totalPoints={totalPoints}
+                monthPoints={monthPoints}
+                coursePointsByKey={coursePointsByKey}
+                isLoading={gamificationLoading}
+              />
+            )}
+          </div>
         )}
         {activeTab === 'Streak' && (
-          gamificationError ? (
-            <ErrorView
-              title="Could not load streak"
-              message="We could not load your streak data. Please try again."
-              onRetry={() => queryClient.invalidateQueries({ queryKey: qk.gamification() })}
-            />
-          ) : (
-            <StreakTab apiSummary={gamification} />
-          )
+          <div role="tabpanel" id="panel-Streak" aria-labelledby="tab-Streak" tabIndex={0}>
+            {gamificationError ? (
+              <ErrorView
+                title="Could not load streak"
+                message="We could not load your streak data. Please try again."
+                onRetry={() => queryClient.invalidateQueries({ queryKey: qk.gamification() })}
+              />
+            ) : (
+              <StreakTab apiSummary={gamification} />
+            )}
+          </div>
         )}
         {activeTab === 'Badges' && (
-          <BadgesTab curriculums={curriculums} courses={enrolledCourses} isCoursesLoading={isCoursesLoading} />
+          <div role="tabpanel" id="panel-Badges" aria-labelledby="tab-Badges" tabIndex={0}>
+            <BadgesTab curriculums={curriculums} courses={enrolledCourses} isCoursesLoading={isCoursesLoading} />
+          </div>
         )}
         {activeTab === 'Leaderboard' && (
-          <LeaderboardTab apiData={leaderboardData} />
+          <div role="tabpanel" id="panel-Leaderboard" aria-labelledby="tab-Leaderboard" tabIndex={0}>
+            <LeaderboardTab
+              apiData={leaderboardData}
+              isLoading={leaderboardLoading}
+              isError={leaderboardError}
+              onRetry={() => refetchLeaderboard()}
+            />
+          </div>
         )}
       </div>
 

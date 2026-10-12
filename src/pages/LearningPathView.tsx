@@ -81,7 +81,12 @@ const MilestoneBadge = ({ slot, curriculum }: MilestoneBadgeProps) => {
       {!earned && isRetained && curriculum.knowledge_check.is_open && (
         <span className="lp-milestone__sub">Open now</span>
       )}
-      {!earned && !(isRetained && curriculum.knowledge_check.is_open) && toGo != null && toGo > 0 && (
+      {!earned && isRetained && !curriculum.knowledge_check.is_open && curriculum.knowledge_check.unlocks_at && (
+        <span className="lp-milestone__sub">
+          {`Unlocks on ${new Date(curriculum.knowledge_check.unlocks_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
+        </span>
+      )}
+      {!earned && !isRetained && toGo != null && toGo > 0 && (
         <span className="lp-milestone__sub">{toGo} to go</span>
       )}
     </div>

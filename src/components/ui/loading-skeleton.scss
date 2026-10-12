@@ -26,7 +26,6 @@
   background: var(--u-background-secondary);
   border-radius: 6px;
   flex-shrink: 0;
-  animation: skel-pulse 1.6s ease-in-out infinite;
 }
 
 /* ── Page-level bones ───────────────────────────────── */
@@ -69,7 +68,14 @@
   border-radius: 50%;
   background: var(--u-background-secondary);
   flex-shrink: 0;
-  animation: skel-pulse 1.6s ease-in-out infinite;
+}
+
+/* Animation only when the user has not requested reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  .skel-bone,
+  .skel-circle {
+    animation: skel-pulse 1.6s ease-in-out infinite;
+  }
 }
 
 .skel-row-lines {

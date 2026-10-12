@@ -132,51 +132,67 @@ export const ActivityView = () => {
     setShownVisit(currentVisit);
   }, [currentVisit]);
 
+  // Guard against double-tap: if a continue navigation is already in-flight, ignore
+  // subsequent presses until the async work completes and the component either
+  // unmounts (on navigation) or the ref resets in the finally block.
+  const isContinuingRef = useRef(false);
+
   const handleContinue = useCallback(async () => {
-    if (!isCompleted) { return; }
-
-    // Notify iframe of continue click so XBlocks can trigger submission.
-    // Await one microtask tick so the XBlock message handler runs before the
-    // iframe unmounts — prevents a race where navigate tears down the frame
-    // before the message is processed.
-    const frame = document.querySelector<HTMLIFrameElement>('.content-iframe-frame');
-    if (frame?.contentWindow) {
-      frame.contentWindow.postMessage(
-        { type: 'uber.continueClicked', version: 1 },
-        getLmsOrigin(),
-      );
-      await Promise.resolve();
-    }
-
-    // Save current position on the LMS (fire-and-forget — enables resume, doesn't block nav)
-    saveSequencePosition(courseId, sequenceId, unitIdx).catch(() => {});
-
-    const nextIdx = unitIdx + 1;
-
-    if (nextIdx < units.length) {
-      navigate(`/course/${courseId}/lesson/${sequenceId}/step/${nextIdx}`);
-    } else {
-      // Invalidate gamification cache so Points/Streak tabs reflect new totals.
-      queryClient.invalidateQueries({ queryKey: qk.gamification() });
-      // Invalidate course progress so the progress bar reflects the new completion immediately.
-      queryClient.invalidateQueries({ queryKey: qk.courseProgress(courseId) });
-
-      if (isRetentionCourse && !nextLesson) {
-        // Last lesson of a retention check course: go to the result page.
-        // Pass `since` when available so the result page can scope its
-        // getLessonResults call to this attempt only.
-        navigate(
-          `/course/${courseId}/retention-result/${sequenceId}`,
-          serverTimeRef.current ? { state: { since: serverTimeRef.current } } : undefined,
+    if (!isCompleted || isContinuingRef.current) { return; }
+    isContinuingRef.current = true;
+    try {
+      // Notify iframe of continue click so XBlocks can trigger submission.
+      // Await one microtask tick so the XBlock message handler runs before the
+      // iframe unmounts — prevents a race where navigate tears down the frame
+      // before the message is processed.
+      const frame = document.querySelector<HTMLIFrameElement>('.content-iframe-frame');
+      if (frame?.contentWindow) {
+        frame.contentWindow.postMessage(
+          { type: 'uber.continueClicked', version: 1 },
+          getLmsOrigin(),
         );
-      } else {
-        // Regular lesson: navigate to lesson-complete and pass `since` so results
-        // are scoped to this attempt (not a previous one by the same learner).
-        navigate(
-          `/course/${courseId}/lesson-complete/${sequenceId}`,
-          serverTimeRef.current ? { state: { since: serverTimeRef.current } } : undefined,
-        );
+        await Promise.resolve();
       }
+
+      // Save current position on the LMS (fire-and-forget — enables resume, doesn't block nav)
+      saveSequencePosition(courseId, sequenceId, unitIdx).catch(() => {});
+
+      const nextIdx = unitIdx + 1;
+
+      if (nextIdx < units.length) {
+        navigate(`/course/${courseId}/lesson/${sequenceId}/step/${nextIdx}`);
+      } else {
+        // Invalidate gamification cache so Points/Streak tabs reflect new totals.
+        queryClient.invalidateQueries({ queryKey: qk.gamification() });
+        // Invalidate course progress so the progress bar reflects the new completion immediately.
+        queryClient.invalidateQueries({ queryKey: qk.courseProgress(courseId) });
+        // Delay-invalidate leaderboard, curriculums, and badges to give Celery award tasks
+        // time to write before the client re-fetches.
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: qk.leaderboardAll() });
+          queryClient.invalidateQueries({ queryKey: qk.curriculums() });
+          queryClient.invalidateQueries({ queryKey: qk.badges() });
+        }, 3000);
+
+        if (isRetentionCourse && !nextLesson) {
+          // Last lesson of a retention check course: go to the result page.
+          // Pass `since` when available so the result page can scope its
+          // getLessonResults call to this attempt only.
+          navigate(
+            `/course/${courseId}/retention-result/${sequenceId}`,
+            serverTimeRef.current ? { state: { since: serverTimeRef.current } } : undefined,
+          );
+        } else {
+          // Regular lesson: navigate to lesson-complete and pass `since` so results
+          // are scoped to this attempt (not a previous one by the same learner).
+          navigate(
+            `/course/${courseId}/lesson-complete/${sequenceId}`,
+            serverTimeRef.current ? { state: { since: serverTimeRef.current } } : undefined,
+          );
+        }
+      }
+    } finally {
+      isContinuingRef.current = false;
     }
   }, [
     isCompleted,

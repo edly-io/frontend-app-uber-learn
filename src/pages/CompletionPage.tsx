@@ -428,7 +428,7 @@ export const RetentionInvitePage = () => {
         <main className="cp-content cp-content--centered">
           <div className="cpc-words">
             <p className="cpl-kicker">30-day check</p>
-            <h1 className="cpl-title">Come back in 30 days</h1>
+            <h1 className="cpl-title">{opensOnDate ? `Come back on ${opensOnDate}` : 'Come back in 30 days'}</h1>
             <p className="cpl-lead">
               {opensOnDate
                 ? `Your 30-day check opens on ${opensOnDate}.`

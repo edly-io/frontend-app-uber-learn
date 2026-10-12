@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
@@ -200,12 +200,19 @@ interface ConnectedContinueCardProps {
   onContinue: (courseId: string) => void;
   variant?: ContinueVariant;
   finalCheckMeta?: string | null;
+  /** Set of course IDs known to be fully finished (from curriculum data). Used to skip
+   *  completed courses and present the first unfinished one in the continue card. */
+  finishedCourseIds?: Set<string>;
 }
 
 const ConnectedContinueCard = ({
-  courses, onContinue, variant = 'lesson', finalCheckMeta = null,
+  courses, onContinue, variant = 'lesson', finalCheckMeta = null, finishedCourseIds,
 }: ConnectedContinueCardProps) => {
-  const firstCourse = courses[0];
+  // Pick first unfinished course; fall back to last course if all are finished.
+  const firstUnfinished = finishedCourseIds
+    ? (courses.find((c) => !finishedCourseIds.has(c.courseId)) ?? courses[courses.length - 1])
+    : courses[0];
+  const firstCourse = firstUnfinished ?? courses[0];
   const courseId = firstCourse?.courseId ?? '';
 
   const outlineQuery = useCourseOutline(courseId);
@@ -344,14 +351,17 @@ const ThisWeekCard = ({ weekState, apiWeek, currentStreak = 0 }: ThisWeekCardPro
       desc = projected > currentStreak
         ? `Your streak grows to ${projected} weeks when the week ends.`
         : 'Keep learning — your streak is already growing.';
-    } else if (daysCompleted === 0) {
-      heading = 'Two days to go';
-      desc = 'Learn on 2 days this week to start a week streak.';
     } else {
-      heading = 'One more day to go';
-      desc = currentStreak > 0
-        ? `Learn on one more day this week to keep your ${currentStreak}-week streak.`
-        : 'Learn on one more day this week to start your first streak.';
+      const remaining = goal - daysCompleted;
+      heading = remaining === 1 ? 'One more day to go' : `${remaining} days to go`;
+      const streakAction = currentStreak > 0 ? `keep your ${currentStreak}-week streak` : 'start a streak';
+      if (remaining === 1) {
+        desc = currentStreak > 0
+          ? `Learn on one more day this week to keep your ${currentStreak}-week streak.`
+          : 'Learn on one more day this week to start your first streak.';
+      } else {
+        desc = `Learn on ${remaining} days this week to ${streakAction}.`;
+      }
     }
   } else {
     const cfg = THIS_WEEK_CONFIGS[weekState];
@@ -571,6 +581,7 @@ const AllCoursesCard = ({
 
 export const CourseCatalog = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const {
     data: courses, isLoading, isError, refetch,
@@ -580,7 +591,9 @@ export const CourseCatalog = () => {
     staleTime: 5 * 60_000,
   });
 
-  const { data: gamification } = useGamification();
+  const {
+    data: gamification, isLoading: gamificationLoading, isError: gamificationError,
+  } = useGamification();
   const { data: curriculums } = useCurriculums();
   const { data: badgesData } = useBadges();
 
@@ -605,6 +618,16 @@ export const CourseCatalog = () => {
   const completedCount = badgesData?.course_badges.filter((b) => b.awarded).length ?? 0;
   const allCoursesComplete = enrolledCourses.length > 0 && completedCount >= enrolledCourses.length;
 
+  // Build a set of finished course IDs from curriculum data so the continue card can
+  // skip completed courses and surface the first unfinished one.
+  const finishedCourseIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    curriculums?.forEach((c) => c.courses.forEach((course) => {
+      if (course.finished) { ids.add(course.course_id); }
+    }));
+    return ids;
+  }, [curriculums]);
+
   // Stat chip values from gamification API (fall back to 0 while loading)
   const pointsValue = String(gamification?.lifetime_points ?? 0);
   const streakValue = String(gamification?.current_streak_weeks ?? 0);
@@ -628,7 +651,10 @@ export const CourseCatalog = () => {
 
   const continueVariant: ContinueVariant = allCoursesComplete ? 'thirtyDayCheck' : 'lesson';
 
-  const firstCourseId = enrolledCourses[0]?.courseId;
+  // Use first unfinished course (same logic as ConnectedContinueCard) for curriculum lookup.
+  const firstUnfinishedCourse = enrolledCourses.find((c) => !finishedCourseIds.has(c.courseId))
+    ?? enrolledCourses[enrolledCourses.length - 1];
+  const firstCourseId = firstUnfinishedCourse?.courseId ?? enrolledCourses[0]?.courseId;
   const firstCourseCurriculum = curriculums?.find(
     (c) => c.courses.some((course) => course.course_id === firstCourseId),
   );
@@ -755,6 +781,7 @@ export const CourseCatalog = () => {
                 onContinue={(courseId) => navigate(`/course/${courseId}`)}
                 variant={continueVariant}
                 finalCheckMeta={finalCheckMeta}
+                finishedCourseIds={finishedCourseIds}
               />
             )}
           </>
@@ -764,11 +791,38 @@ export const CourseCatalog = () => {
         <div className="home-section-header home-section-header--padded">
           <h2 className="home-section-header__title">This week</h2>
         </div>
-        <ThisWeekCard
-          weekState={weekState}
-          apiWeek={apiThisWeek}
-          currentStreak={gamification?.current_streak_weeks}
-        />
+        {gamificationLoading && (
+          <div
+            className="this-week-card this-week-card--skeleton"
+            aria-busy="true"
+            aria-label="Loading…"
+          >
+            <div
+              className="skel-bone"
+              style={{ width: '60%', height: 20, borderRadius: 4 }}
+            />
+            <div
+              className="skel-bone"
+              style={{
+                width: '80%', height: 14, borderRadius: 4, marginTop: 8,
+              }}
+            />
+          </div>
+        )}
+        {gamificationError && !gamificationLoading && (
+          <ErrorView
+            title="Could not load streak"
+            message="We could not retrieve your streak data. Please try again."
+            onRetry={() => queryClient.invalidateQueries({ queryKey: qk.gamification() })}
+          />
+        )}
+        {!gamificationLoading && !gamificationError && (
+          <ThisWeekCard
+            weekState={weekState}
+            apiWeek={apiThisWeek}
+            currentStreak={gamification?.current_streak_weeks}
+          />
+        )}
 
         {/* Your learning paths */}
         {curriculums && curriculums.length > 0 && (

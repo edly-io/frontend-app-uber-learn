@@ -45,6 +45,7 @@ jest.mock('../api/courseware', () => ({
 
 // ── Progress API mock (never resolves so tests control cache via setQueryData) ─
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const mockGetCourseProgressSummary = jest.fn((_courseId: string) => new Promise<never>(() => {}));
 jest.mock('../api/catalog', () => ({
   getCourseProgressSummary: (courseId: string) => mockGetCourseProgressSummary(courseId),

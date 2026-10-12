@@ -93,7 +93,7 @@ const ConnectedCourseCard = ({
   activeFilters,
   onResolved,
 }: ConnectedCourseCardProps) => {
-  const { data: outline } = useCourseOutline(course.courseId);
+  const { data: outline, isError: outlineError } = useCourseOutline(course.courseId);
   const { data: progressData } = useCourseProgressSummary(course.courseId);
   const [imgError, setImgError] = useState(false);
 
@@ -121,6 +121,18 @@ const ConnectedCourseCard = ({
   const tint = TINTS[index % TINTS.length];
   const artSrc = ART_SRCS[tint];
   const showRealImage = Boolean(course.imageUrl) && !imgError;
+
+  if (outlineError) {
+    return (
+      <div className="cl-card cl-card--error">
+        <div className={`cl-card__tile cl-card__tile--${tint}`} />
+        <div className="cl-card__body">
+          <span className="cl-card__title">{course.title}</span>
+          <span className="cl-card__next cl-card__next--error">Could not load</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!outline) {
     return (

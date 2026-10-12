@@ -40,7 +40,7 @@
  */
 import React from 'react';
 import {
-  render, screen, fireEvent, waitFor,
+  render, screen, fireEvent, waitFor, act,
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -512,6 +512,26 @@ describe('RetentionCheckResultPage', () => {
     expect(screen.getByLabelText('Loading…')).toBeInTheDocument();
   });
 
+  it('RCRP-PENDING: retained.reached_at null + poll not yet expired → shows loading, not fail', async () => {
+    // retained.reached_at is null (Celery hasn't run yet); poll timeout has not fired.
+    // The component must show the loading/pending state, NOT "Worth another look".
+    mockUseCurriculums.mockReturnValue({
+      data: [makeCurriculum()], // default has retained: { reached_at: null }
+      isLoading: false,
+    });
+    getGamificationMock().getLessonResults.mockResolvedValue({
+      ...DEFAULT_LESSON_RESULTS,
+      correct_percent: 60,
+      questions: 5,
+    });
+    wrap(<RetentionCheckResultPage />);
+    // After results resolve, the pending state should be active (poll not expired).
+    await waitFor(() => {
+      expect(screen.queryByText('Worth another look')).not.toBeInTheDocument();
+    });
+    expect(screen.getByLabelText('Loading…')).toBeInTheDocument();
+  });
+
   it('RCRP-ERROR: shows ErrorView with "Unable to load results" when query errors', async () => {
     getGamificationMock().getLessonResults.mockRejectedValue(new Error('Network error'));
     wrap(<RetentionCheckResultPage />);
@@ -547,7 +567,8 @@ describe('RetentionCheckResultPage', () => {
     });
   });
 
-  it('RCRP-FAIL: correct_percent < 80 → "Worth another look" heading', async () => {
+  it('RCRP-FAIL: after poll timeout, retained.reached_at null → "Worth another look" heading', async () => {
+    jest.useFakeTimers();
     getGamificationMock().getLessonResults.mockResolvedValue({
       sequence_key: SEQ_ID_1,
       course_key: COURSE_ID,
@@ -559,12 +580,25 @@ describe('RetentionCheckResultPage', () => {
       steps_count: null,
     });
     wrap(<RetentionCheckResultPage />);
-    await waitFor(() => {
-      expect(screen.getByText('Worth another look')).toBeInTheDocument();
-    });
+    // Flush promise resolutions (TanStack Query result delivery).
+    await act(async () => {});
+    // Advance past the 10-second poll timeout so setPollExpired fires.
+    act(() => { jest.advanceTimersByTime(11000); });
+    expect(screen.getByText('Worth another look')).toBeInTheDocument();
+    jest.useRealTimers();
   });
 
-  it('RCRP-SCORE-LABEL: score label "N of M" rendered in lead paragraph', async () => {
+  it('RCRP-SCORE-LABEL: score label "N of M" rendered in lead paragraph (pass state)', async () => {
+    // Set retained.reached_at so the pass state renders and shows the score label.
+    mockUseCurriculums.mockReturnValue({
+      data: [makeCurriculum({
+        milestones: {
+          complete: { reached_at: null, badge: null },
+          retained: { reached_at: '2026-10-10T00:00:00Z', badge: null },
+        },
+      })],
+      isLoading: false,
+    });
     getGamificationMock().getLessonResults.mockResolvedValue({
       sequence_key: SEQ_ID_1,
       course_key: COURSE_ID,
@@ -607,7 +641,8 @@ describe('RetentionCheckResultPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/progress', { state: { tab: 'Badges' } });
   });
 
-  it('RCRP-NAV-RETRY: FAIL state: "Try again" navigates to /course/:id/retention', async () => {
+  it('RCRP-NAV-RETRY: FAIL state after poll timeout: "Try again" navigates to /course/:id/retention', async () => {
+    jest.useFakeTimers();
     getGamificationMock().getLessonResults.mockResolvedValue({
       sequence_key: SEQ_ID_1,
       course_key: COURSE_ID,
@@ -619,12 +654,17 @@ describe('RetentionCheckResultPage', () => {
       steps_count: null,
     });
     wrap(<RetentionCheckResultPage />);
-    await waitFor(() => screen.getByRole('button', { name: /try again/i }));
+    // Flush promise resolutions.
+    await act(async () => {});
+    // Advance past poll timeout so "Try again" button is visible.
+    act(() => { jest.advanceTimersByTime(11000); });
     fireEvent.click(screen.getByRole('button', { name: /try again/i }));
     expect(mockNavigate).toHaveBeenCalledWith(`/course/${COURSE_ID}/retention`);
+    jest.useRealTimers();
   });
 
-  it('RCRP-NULL-PERCENT: correct_percent null → score label shows dash "—" in lead text', async () => {
+  it('RCRP-NULL-PERCENT: correct_percent null + poll expired → score label shows dash "—" in fail lead', async () => {
+    jest.useFakeTimers();
     getGamificationMock().getLessonResults.mockResolvedValue({
       sequence_key: SEQ_ID_1,
       course_key: COURSE_ID,
@@ -636,10 +676,13 @@ describe('RetentionCheckResultPage', () => {
       steps_count: null,
     });
     wrap(<RetentionCheckResultPage />);
-    await waitFor(() => {
-      expect(screen.getByText(/worth another look/i)).toBeInTheDocument();
-      const lead = screen.getByText(/you got/i);
-      expect(lead.textContent).toContain('—');
-    });
+    // Flush promise resolutions.
+    await act(async () => {});
+    // Advance past poll timeout so the fail state renders.
+    act(() => { jest.advanceTimersByTime(11000); });
+    expect(screen.getByText(/worth another look/i)).toBeInTheDocument();
+    const lead = screen.getByText(/you got/i);
+    expect(lead.textContent).toContain('—');
+    jest.useRealTimers();
   });
 });

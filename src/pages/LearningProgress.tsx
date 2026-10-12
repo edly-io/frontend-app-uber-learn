@@ -391,7 +391,7 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
       kind: 'course',
       courseId: course.courseId,
       title: award?.badge.title ?? course.title,
-      description: 'Earned when you finish all lessons and the final check.',
+      description: award?.badge?.description ?? '',
       art: (earned && badgeImageUrl) ? badgeImageUrl : artMeta.art,
       tintColor: artMeta.tint,
       progress: 'In progress',

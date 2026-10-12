@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BadgeSlot } from '../api/curriculum';
 import { useBadgeCelebration, goToBadgeCelebration } from '../hooks/useBadgeCelebration';
 import { useCourseOutline } from '../hooks/useCourseOutline';
@@ -471,6 +471,9 @@ export const RetentionInvitePage = () => {
 
 // ── Retention Check Result Page ────────────────────────────────────────────
 
+const POLL_INTERVAL_MS = 2000;
+const POLL_TIMEOUT_MS = 10000;
+
 export const RetentionCheckResultPage = () => {
   const { courseId = '', sequenceId = '' } = useParams<{ courseId: string; sequenceId: string }>();
   const navigate = useNavigate();
@@ -485,8 +488,10 @@ export const RetentionCheckResultPage = () => {
     retry: 1,
   });
 
-  const { data: curriculums } = useCurriculums();
-  const parentCurriculum = curriculums?.find((c) => c.knowledge_check.course_id === courseId);
+  const curriculumsQuery = useCurriculums();
+  const parentCurriculum = curriculumsQuery.data?.find(
+    (c) => c.knowledge_check.course_id === courseId,
+  );
 
   const correctPercent = resultsQuery.data?.correct_percent ?? null;
   const total = resultsQuery.data?.questions ?? 0;
@@ -494,13 +499,39 @@ export const RetentionCheckResultPage = () => {
     ? Math.round((correctPercent / 100) * total)
     : null;
 
-  // Pass/fail is determined by whether the backend has recorded the Retained milestone,
-  // not by the first-try goal from lesson results. The two can disagree.
-  // This also works as source of truth when `since` is absent (deep-link, results disabled).
-  const earnedAt = parentCurriculum?.milestones.retained.reached_at ?? null;
-  const passed = earnedAt !== null;
-  const earnedDate = earnedAt
-    ? new Date(earnedAt).toLocaleDateString('en-GB', {
+  // Pass/fail is determined by whether the backend has recorded the Retained milestone.
+  // This is the source of truth — it also works when `since` is absent (deep-link).
+  const retainedReachedAt = parentCurriculum?.milestones?.retained?.reached_at ?? null;
+  const passed = retainedReachedAt !== null;
+
+  // --- Polling to handle Celery race ---
+  // The Celery task that awards the retained milestone may not have run yet when this
+  // page loads. If reached_at is null, poll the curriculums endpoint every 2 seconds
+  // for up to 10 seconds before concluding the learner failed.
+  const [pollingStarted, setPollingStarted] = useState(false);
+  const [pollExpired, setPollExpired] = useState(false);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (retainedReachedAt || pollExpired) { return undefined; }
+    setPollingStarted(true);
+    const timeout = setTimeout(() => setPollExpired(true), POLL_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
+  }, [retainedReachedAt, pollExpired]);
+
+  useEffect(() => {
+    if (!pollingStarted || retainedReachedAt || pollExpired) { return undefined; }
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: qk.curriculums() });
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [pollingStarted, retainedReachedAt, pollExpired, queryClient]);
+
+  // Show pending while Celery may still be awarding the milestone.
+  const pending = !passed && !pollExpired;
+
+  const earnedDate = retainedReachedAt
+    ? new Date(retainedReachedAt).toLocaleDateString('en-GB', {
       day: 'numeric', month: 'long', year: 'numeric',
     })
     : null;
@@ -514,6 +545,7 @@ export const RetentionCheckResultPage = () => {
   const handleReviewCourse = () => navigate(`/course/${courseId}`);
   const handleTryAgain = () => navigate(`/course/${courseId}/retention`);
 
+  // Wait for lesson results when `since` is provided.
   if (since && resultsQuery.isLoading) {
     return <LoadingSkeleton />;
   }
@@ -526,6 +558,16 @@ export const RetentionCheckResultPage = () => {
         onRetry={() => resultsQuery.refetch()}
       />
     );
+  }
+
+  // Curriculums data not available yet — show loading instead of incorrect fail state.
+  if (curriculumsQuery.isLoading) {
+    return <LoadingSkeleton />;
+  }
+
+  // Celery task may not have run yet — show pending rather than incorrect "Worth another look".
+  if (pending) {
+    return <LoadingSkeleton />;
   }
 
   const scoreLabel = score !== null && total > 0 ? `${score} of ${total}` : '—';

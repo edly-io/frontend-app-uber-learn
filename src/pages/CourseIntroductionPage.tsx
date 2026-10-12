@@ -8,7 +8,6 @@ import { useCurriculums } from '../hooks/useCurriculums';
 import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
 import { mapOutlineToLessons, countLessons } from '../lib/outline-mapper';
 import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
-import iconAlert from '../assets/icons/icon-alert.svg';
 import courseArtToolbox from '../assets/icons/course-art-toolbox.svg';
 import courseArtBook from '../assets/icons/course-art-book.svg';
 import './course-page.scss';
@@ -86,21 +85,8 @@ export const CourseIntroductionPage = () => {
             <div className="ci-prerequisite">
               <p className="ci-prerequisite__label">Prerequisite</p>
               <p className="ci-prerequisite__name">{prerequisiteCourse.display_name ?? prerequisiteCourse.course_id}</p>
-              <p className="ci-prerequisite__hint">Complete this course first to unlock the current one.</p>
             </div>
           )}
-
-          <div className="ci-banner">
-            <div className="ci-banner__icon-wrap">
-              <img src={iconAlert} alt="" className="ci-banner__icon" />
-            </div>
-            <div className="ci-banner__body">
-              <p className="ci-banner__title">Take care of yourself</p>
-              <p className="ci-banner__desc">
-                Support and reporting resources remain available throughout the course.
-              </p>
-            </div>
-          </div>
         </main>
       </div>
 

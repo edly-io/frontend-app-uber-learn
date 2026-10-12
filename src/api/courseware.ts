@@ -125,7 +125,7 @@ export async function getCourseOutline(courseId: string): Promise<CourseOutline>
   const courseTitle: string = courseBlock?.display_name ?? (data.title as string | undefined) ?? courseId;
 
   return {
-    courseId: data.course_key as string,
+    courseId,
     title: courseTitle,
     sections,
     sequences,

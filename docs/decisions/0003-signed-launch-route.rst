@@ -95,8 +95,10 @@ origin or path. Anything else is shown as ``try_again``.
 
 **6. Every failure has a learner-facing state.**
 
-Error states use ``ErrorView`` (``role="alert"``); loading uses
-``LoadingSkeleton`` inside ``role="status"`` with ``aria-busy``.
+Error states are the ``ErrorView`` page itself (``role="alert"``), with every
+action in its footer so it is on the first screen; loading uses
+``LoadingSkeleton`` inside ``role="status"`` with ``aria-busy``, in the same
+full-height frame.
 
 ========================== ======================================= ============================================
 State                      Title                                   Notes
@@ -119,7 +121,8 @@ State                      Title                                   Notes
 those back, so re-sending the same link is safe; the other codes are final for
 that link. **Go to my courses** (a full load of ``PUBLIC_PATH``) is offered on
 error states when the browser already has a signed-in user, except for
-``session_conflict`` and ``account_unavailable``.
+``session_conflict`` and ``account_unavailable``. It is the footer action, or
+the second footer action under **Try again**.
 
 Rejected alternatives
 ---------------------

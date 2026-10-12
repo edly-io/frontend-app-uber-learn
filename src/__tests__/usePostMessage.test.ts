@@ -60,17 +60,18 @@ describe('usePostMessage', () => {
     expect(onEvent).not.toHaveBeenCalled();
   });
 
-  it('drops messages without a version field', () => {
+  it('accepts messages without a version field (open edX XBlocks omit it)', () => {
     const onEvent = jest.fn();
     renderHook(() => usePostMessage(onEvent));
 
     dispatchMessage('https://learn.uber.com', {
       type: 'plugin.completed',
       payload: {},
-      // version intentionally omitted
+      // version intentionally omitted — standard XBlocks don't include it
     });
 
-    expect(onEvent).not.toHaveBeenCalled();
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(onEvent).toHaveBeenCalledWith('plugin.completed', {});
   });
 
   it('drops messages where type is not a string', () => {

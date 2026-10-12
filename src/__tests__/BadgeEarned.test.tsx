@@ -2,10 +2,10 @@
  * Unit tests for BadgeEarned page.
  *
  * AC coverage:
- *   - BE-FALLBACK: renders static title/description when no nav state provided
- *   - BE-API-TITLE: uses badge title from nav state when provided
- *   - BE-API-DATE: formats and shows earned date from nav state
- *   - BE-NO-DATE: omits date line when earnedAt absent
+ *   - BE-FALLBACK: renders static title/description when curriculum has no reached milestone
+ *   - BE-API-TITLE: uses badge title from curriculum milestones API
+ *   - BE-API-DATE: formats and shows earned date from curriculum milestones API
+ *   - BE-NO-DATE: omits date line when milestone.reached_at is null
  *   - BE-ALSO-EARNED-SHOWN: renders "Also earned" card(s) when alsoEarned is non-empty
  *   - BE-ALSO-EARNED-HIDDEN: "Also earned" section absent when alsoEarned is empty
  *   - BE-MARK-SEEN: markBadgesSeen called on mount when awardId present
@@ -20,6 +20,7 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BadgeEarned } from '../pages/BadgeEarned';
 import * as curriculumApi from '../api/curriculum';
+import type { LearnerCurriculum } from '../api/curriculum';
 
 // ── Mocks ──────────────────────────────────────────────────
 
@@ -34,6 +35,32 @@ jest.mock('react-router-dom', () => ({
 }));
 
 jest.mock('../api/curriculum');
+
+// ── Fixtures ───────────────────────────────────────────────
+
+const makeCurriculum = (overrides: Partial<LearnerCurriculum['milestones']> = {}): LearnerCurriculum => ({
+  uuid: 'c1',
+  title: 'Safety Fundamentals',
+  description: '',
+  image_url: null,
+  assigned_at: '2026-01-01T00:00:00Z',
+  courses: [],
+  courses_finished: 0,
+  courses_total: 0,
+  knowledge_check: {
+    course_id: 'course-v1:Uber+KC+2026',
+    display_name: null,
+    exists: true,
+    unlocks_at: null,
+    is_open: false,
+  },
+  milestones: {
+    halfway: { reached_at: null, badge: null },
+    complete: { reached_at: null, badge: null },
+    retained: { reached_at: null, badge: null },
+    ...overrides,
+  },
+});
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -53,31 +80,61 @@ describe('BadgeEarned', () => {
     mockLocationState = null;
     (curriculumApi.markBadgesSeen as jest.Mock).mockClear();
     (curriculumApi.markBadgesSeen as jest.Mock).mockResolvedValue(undefined);
+    // Default: curriculum with no reached milestones
+    (curriculumApi.getLearnerCurriculums as jest.Mock).mockResolvedValue([makeCurriculum()]);
   });
 
-  it('renders static fallback title when no nav state (BE-FALLBACK)', () => {
+  it('renders static fallback title when no milestone is reached (BE-FALLBACK)', async () => {
     renderBadgeEarned();
     expect(screen.getByText('Badge earned')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /road ready/i })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /road ready/i })).toBeInTheDocument();
+    });
   });
 
-  it('uses badgeTitle from nav state when provided (BE-API-TITLE)', () => {
-    mockLocationState = { badgeTitle: 'New driver hero' };
+  it('uses badge title from curriculum milestones API (BE-API-TITLE)', async () => {
+    (curriculumApi.getLearnerCurriculums as jest.Mock).mockResolvedValue([
+      makeCurriculum({
+        halfway: {
+          reached_at: '2026-11-18T12:00:00Z',
+          badge: {
+            uuid: 'b1',
+            title: 'New driver hero',
+            description: 'You did it.',
+            image_url: null,
+          },
+        },
+      }),
+    ]);
     renderBadgeEarned();
-    expect(screen.getByRole('heading', { name: /new driver hero/i })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /new driver hero/i })).toBeInTheDocument();
+    });
   });
 
-  it('formats and shows earned date from nav state (BE-API-DATE)', () => {
-    // Use noon UTC to avoid date-shift across timezones
-    mockLocationState = { earnedAt: '2026-11-18T12:00:00Z' };
+  it('formats and shows earned date from curriculum milestones API (BE-API-DATE)', async () => {
+    (curriculumApi.getLearnerCurriculums as jest.Mock).mockResolvedValue([
+      makeCurriculum({
+        halfway: {
+          reached_at: '2026-11-18T12:00:00Z',
+          badge: null,
+        },
+      }),
+    ]);
     renderBadgeEarned();
-    expect(screen.getByText(/earned 18 november 2026/i)).toBeInTheDocument();
+    await waitFor(() => {
+      // Date is formatted with device locale so we check the numeric day and year are present
+      expect(screen.getByText(/^Earned /i)).toBeInTheDocument();
+      expect(screen.getByText(/18/)).toBeInTheDocument();
+      expect(screen.getByText(/2026/)).toBeInTheDocument();
+    });
   });
 
-  it('omits earned date line when earnedAt is absent (BE-NO-DATE)', () => {
-    mockLocationState = {};
+  it('omits earned date line when milestone.reached_at is null (BE-NO-DATE)', async () => {
     renderBadgeEarned();
-    // /Earned \d/ matches the date line ("Earned 18 November 2026") but not the kicker "Badge earned"
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /road ready/i })).toBeInTheDocument();
+    });
     expect(screen.queryByText(/Earned \d/)).not.toBeInTheDocument();
   });
 

@@ -11,8 +11,10 @@ function getLmsOrigin(): string {
  *
  * Security:
  *  - Rejects messages from any origin other than the configured LMS.
- *  - Drops messages that lack a `version` field (unversioned internal events).
  *  - Drops messages where `type` is not a string.
+ *
+ * Note: `version` is intentionally NOT required — the standard Open edX video
+ * XBlock sends `plugin.videoEnded` without a version field.
  */
 export function usePostMessage(
   onEvent: (type: string, payload: unknown) => void,
@@ -22,10 +24,10 @@ export function usePostMessage(
       // Strict origin check — reject anything not from the LMS.
       if (event.origin !== getLmsOrigin()) { return; }
 
-      const { type, payload, version } = (event.data ?? {}) as Record<string, unknown>;
+      const { type, payload } = (event.data ?? {}) as Record<string, unknown>;
 
-      // Drop unversioned or malformed messages.
-      if (!version || typeof type !== 'string') { return; }
+      // Drop malformed messages.
+      if (typeof type !== 'string') { return; }
 
       onEvent(type, payload);
     };

@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
-import { getStoredResumeIdx } from '../lib/resume-storage';
 import { getResumeBlock } from '../api/courseware';
 import { useSequence } from '../hooks/useSequence';
 import { qk } from '../api/queries';
 import { useGamification } from '../hooks/useGamification';
 import { useCurriculums } from '../hooks/useCurriculums';
+import { useBadges } from '../hooks/useBadges';
+import { useBadgeCelebration, goToBadgeCelebration } from '../hooks/useBadgeCelebration';
 import type { GamificationDay, WeekdayKey } from '../api/gamification';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
@@ -24,11 +25,20 @@ import courseArtBlue from '../assets/icons/course-art-blue.svg';
 import courseArtLime from '../assets/icons/course-art-steering.svg';
 import courseArtPurple from '../assets/icons/course-art-toolbox.svg';
 import sceneSafetyCar from '../assets/scenes/safety-car.png';
+import sceneEducation from '../assets/scenes/scene-safety-education.png';
 import iconChevronRight from '../assets/icons/chevron-right.svg';
+import iconDismiss from '../assets/icons/icon-dismiss.svg';
 
 import './course-catalog.scss';
 
 // ── Helpers ─────────────────────────────────────────────
+
+const SearchIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -106,7 +116,7 @@ const ProgressBar = ({ completed, total }: ProgressBarProps) => {
   const pct = total > 0 ? Math.min((completed / total) * 100, 100) : 0;
   return (
     <div className="progress-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${Math.round(pct)}% complete`}>
-      <div className="progress-bar__fill" style={{ width: `${pct}%` }} />
+      <div className="progress-bar__fill" style={{ '--progress': String(pct / 100) } as React.CSSProperties} />
     </div>
   );
 };
@@ -124,6 +134,7 @@ interface ContinueCardProps {
   hasStarted?: boolean;
   onContinue: () => void;
   variant?: ContinueVariant;
+  finalCheckMeta?: string | null;
 }
 
 const ContinueCard = ({
@@ -135,6 +146,7 @@ const ContinueCard = ({
   hasStarted = false,
   onContinue,
   variant = 'lesson',
+  finalCheckMeta = null,
 }: ContinueCardProps) => {
   const isFinalCheck = variant === 'finalCheck';
   const is30DayCheck = variant === 'thirtyDayCheck';
@@ -146,7 +158,7 @@ const ContinueCard = ({
   if (isFinalCheck) { displayTitle = 'Final check'; } else if (is30DayCheck) { displayTitle = 'Your 30-day check'; }
 
   let displayMeta = courseMeta;
-  if (isFinalCheck) { displayMeta = 'Sexual misconduct education · 5 questions · about 3 min'; } else if (is30DayCheck) { displayMeta = '5 questions · about 3 min'; }
+  if (isFinalCheck) { displayMeta = finalCheckMeta ?? ''; } else if (is30DayCheck) { displayMeta = finalCheckMeta ?? ''; }
 
   let buttonLabel = hasStarted ? 'Continue' : 'Start';
   if (isFinalCheck) { buttonLabel = 'Start final check'; } else if (is30DayCheck) { buttonLabel = 'Start 30-day check'; }
@@ -188,9 +200,12 @@ interface ConnectedContinueCardProps {
   courses: EnrolledCourse[];
   onContinue: (courseId: string) => void;
   variant?: ContinueVariant;
+  finalCheckMeta?: string | null;
 }
 
-const ConnectedContinueCard = ({ courses, onContinue, variant = 'lesson' }: ConnectedContinueCardProps) => {
+const ConnectedContinueCard = ({
+  courses, onContinue, variant = 'lesson', finalCheckMeta = null,
+}: ConnectedContinueCardProps) => {
   const firstCourse = courses[0];
   const courseId = firstCourse?.courseId ?? '';
 
@@ -205,18 +220,17 @@ const ConnectedContinueCard = ({ courses, onContinue, variant = 'lesson' }: Conn
   const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
   const totalLessons = allLessons.length;
 
-  // Take the highest resume index from localStorage and the backend API.
-  const storedIdx = allLessons.length > 0 ? getStoredResumeIdx(courseId, allLessons) : -1;
+  // Resume position comes from the LMS Resume Block API — the authoritative server-side position.
   const apiSequenceId = resumeQuery.data?.sectionId ?? null;
-  const apiIdx = apiSequenceId ? allLessons.findIndex((l) => l.sequenceId === apiSequenceId) : -1;
-  const resumeIdx = Math.max(storedIdx, apiIdx);
+  const resumeIdx = apiSequenceId
+    ? allLessons.findIndex((l) => l.sequenceId === apiSequenceId)
+    : -1;
 
   // completedLessons is the count of fully-finished lessons (resume index > 0 means
   // we stored the NEXT lesson after completion, so resumeIdx = number of completed lessons).
   // "hasStarted" drives "Continue" vs "Start" — only true once at least 1 lesson is done.
   const completedLessons = resumeIdx > 0 ? resumeIdx : 0;
   const hasStarted = completedLessons > 0;
-  // Navigate to the stored resume position regardless (even if that's lesson 1 index 0).
   const resumeLesson = allLessons[resumeIdx >= 0 ? resumeIdx : 0];
 
   // Fetch unit count for the resume lesson to show "N steps" in the subtitle.
@@ -243,6 +257,7 @@ const ConnectedContinueCard = ({ courses, onContinue, variant = 'lesson' }: Conn
       hasStarted={hasStarted}
       onContinue={() => onContinue(firstCourse.courseId)}
       variant={variant}
+      finalCheckMeta={finalCheckMeta}
     />
   );
 };
@@ -388,27 +403,55 @@ const LearningPathCard = ({ curriculum, onClick }: LearningPathCardProps) => {
     .sort((a, b) => a.position - b.position)
     .find((c) => !c.finished);
 
+  const isEarned = curriculum.courses_finished > 0
+    && curriculum.courses_finished === curriculum.courses_total;
+  const badgeArt = curriculum.milestones.complete?.badge?.image_url ?? iconBadgeCheck;
+
+  const completeMilestone = curriculum.milestones.complete;
+  const completionLabel = isEarned && completeMilestone?.badge?.title && completeMilestone?.reached_at
+    ? (() => {
+      const d = new Date(completeMilestone.reached_at!);
+      const month = d.toLocaleDateString('en-US', { month: 'short' });
+      return `${completeMilestone.badge!.title} · ${d.getDate()} ${month}`;
+    })()
+    : null;
+
+  const size = 56;
+  const strokeWidth = 3;
+  const c = size / 2;
+  const r = c - strokeWidth / 2;
+  const circ = 2 * Math.PI * r;
+  const progress = curriculum.courses_total > 0
+    ? Math.min(1, curriculum.courses_finished / curriculum.courses_total)
+    : 0;
+  const offset = circ * (1 - progress);
+
   return (
     <button type="button" className="path-card" onClick={onClick} aria-label={`View ${curriculum.title}`}>
       <div className="path-card__seal">
-        <svg className="path-card__ring" viewBox="0 0 56 56" fill="none" aria-hidden="true">
-          <circle cx="28" cy="28" r="24" stroke="var(--u-border-opaque)" strokeWidth="3" />
-          {curriculum.courses_total > 0 && (
+        <svg className="path-card__ring" viewBox={`0 0 ${size} ${size}`} fill="none" aria-hidden="true">
+          <circle cx={c} cy={c} r={r} stroke="var(--u-border-opaque)" strokeWidth={strokeWidth} />
+          {progress > 0 && (
             <circle
-              cx="28"
-              cy="28"
-              r="24"
-              stroke="var(--u-content-accent)"
-              strokeWidth="3"
+              cx={c}
+              cy={c}
+              r={r}
+              stroke="var(--u-background-accent)"
+              strokeWidth={strokeWidth}
               strokeLinecap="round"
-              strokeDasharray={`${2 * Math.PI * 24}`}
-              strokeDashoffset={`${2 * Math.PI * 24 * (1 - curriculum.courses_finished / curriculum.courses_total)}`}
-              transform="rotate(-90 28 28)"
+              strokeDasharray={circ}
+              strokeDashoffset={offset}
+              transform={`rotate(-90 ${c} ${c})`}
             />
           )}
         </svg>
         <div className="path-card__seal-inner">
-          <img src={iconBadgeCheck} alt="" className="path-card__seal-icon" aria-hidden="true" />
+          <img
+            src={badgeArt}
+            alt=""
+            className={`path-card__seal-art${isEarned ? '' : ' path-card__seal-art--locked'}`}
+            aria-hidden="true"
+          />
         </div>
       </div>
       <div className="path-card__body">
@@ -417,15 +460,93 @@ const LearningPathCard = ({ curriculum, onClick }: LearningPathCardProps) => {
           <span className="path-card__progress">
             {curriculum.courses_finished} of {curriculum.courses_total} courses done
           </span>
-          {nextCourse && (
+          {completionLabel ? (
+            <span className="path-card__next">{completionLabel}</span>
+          ) : nextCourse ? (
             <span className="path-card__next">Next: {nextCourse.display_name ?? nextCourse.course_id}</span>
-          )}
+          ) : null}
         </div>
       </div>
       <img src={iconChevronRight} alt="" className="path-card__chevron" aria-hidden="true" />
     </button>
   );
 };
+
+// ── Every path done card ─────────────────────────────────
+
+interface EveryPathDoneCardProps {
+  curriculums: import('../api/curriculum').LearnerCurriculum[];
+  onClick: () => void;
+}
+
+const EveryPathDoneCard = ({ curriculums, onClick }: EveryPathDoneCardProps) => {
+  const earnedBadges = curriculums
+    .map((c) => c.milestones.complete)
+    .filter((m): m is NonNullable<typeof m> => m != null);
+
+  return (
+    <button type="button" className="notice-card notice-card--caught-up notice-card--full-tap" onClick={onClick} aria-label="Every path done – explore courses">
+      <div className="notice-card__band">
+        <img src={sceneSafetyCar} alt="" className="notice-card__scene" aria-hidden="true" />
+      </div>
+      <div className="notice-card__body">
+        <h2 className="notice-card__title">Every path done</h2>
+        <p className="notice-card__desc">You&apos;ve earned every path badge. Explore courses to keep learning.</p>
+        {earnedBadges.length > 0 && (
+          <div className="notice-card__badges">
+            {earnedBadges.slice(0, 6).map((m, i) => (
+              // eslint-disable-next-line react/no-array-index-key
+              <img
+                key={i}
+                src={m.badge?.image_url ?? iconBadgeCheck}
+                alt=""
+                className="notice-card__badge-chip"
+                aria-hidden="true"
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </button>
+  );
+};
+
+// ── New path banner ───────────────────────────────────────
+
+interface NewPathBannerProps {
+  curriculum: import('../api/curriculum').LearnerCurriculum;
+  onDismiss: () => void;
+  onClick: () => void;
+}
+
+const NewPathBanner = ({ curriculum, onDismiss, onClick }: NewPathBannerProps) => (
+  <div className="notice-card notice-card--caught-up notice-card--new-path">
+    <button
+      type="button"
+      className="notice-card__inner-tap"
+      onClick={onClick}
+      aria-label={`View new learning path: ${curriculum.title}`}
+    >
+      <div className="notice-card__band">
+        <img src={sceneEducation} alt="" className="notice-card__scene notice-card__scene--education" aria-hidden="true" />
+      </div>
+      <div className="notice-card__body notice-card__body--new-path">
+        <h2 className="notice-card__title">New learning path</h2>
+        {curriculum.description && (
+          <p className="notice-card__desc">{curriculum.description}</p>
+        )}
+      </div>
+    </button>
+    <button
+      type="button"
+      className="notice-card__dismiss"
+      aria-label="Dismiss new learning path notification"
+      onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+    >
+      <img src={iconDismiss} alt="" className="notice-card__dismiss-icon" aria-hidden="true" />
+    </button>
+  </div>
+);
 
 // ── All courses card ─────────────────────────────────────
 
@@ -466,32 +587,45 @@ export const CourseCatalog = () => {
   const {
     data: courses, isLoading, isError, refetch,
   } = useQuery({
-    queryKey: ['enrolled-courses'],
+    queryKey: qk.enrolledCourses(),
     queryFn: getEnrolledCourses,
     staleTime: 5 * 60_000,
   });
 
   const { data: gamification } = useGamification();
   const { data: curriculums } = useCurriculums();
+  const { data: badgesData } = useBadges();
+
+  // Catch-all for awards granted asynchronously: celebrate once per award per session.
+  const celebration = useBadgeCelebration();
+  useEffect(() => {
+    if (celebration) { goToBadgeCelebration(navigate, celebration); }
+  }, [celebration, navigate]);
 
   const greeting = `${getGreeting()}.`;
   const enrolledCourses = courses ?? [];
-  const completedCount = 0; // TODO: sum from progress API
+
+  // When there are no enrolled courses (and no API error), redirect to the
+  // no-required-courses page — the driver has nothing assigned in their city.
+  useEffect(() => {
+    if (!isLoading && !isError && enrolledCourses.length === 0) {
+      navigate('/no-courses', { replace: true });
+    }
+  }, [isLoading, isError, enrolledCourses.length, navigate]);
+
+  // Count of completed courses: a course badge is only awarded when the course is fully complete.
+  const completedCount = badgesData?.course_badges.filter((b) => b.awarded).length ?? 0;
   const allCoursesComplete = enrolledCourses.length > 0 && completedCount >= enrolledCourses.length;
 
   // Stat chip values from gamification API (fall back to 0 while loading)
   const pointsValue = String(gamification?.lifetime_points ?? 0);
   const streakValue = String(gamification?.current_streak_weeks ?? 0);
 
-  // Badge count: earned milestones from first curriculum
-  const curriculum = curriculums?.[0];
-  const badgesEarned = curriculum
-    ? (['halfway', 'complete', 'retained'] as const).filter(
-      (s) => curriculum.milestones[s]?.reached_at != null,
-    ).length
-    : 0;
-  const badgesTotal = curriculum ? 3 : 3;
-  const badgesValue = `${badgesEarned}/${badgesTotal}`;
+  // Badge count: only earned badges shown in the header chip.
+  const badgesValue = String(
+    (badgesData?.curriculum_badges.filter((b) => b.awarded).length ?? 0)
+    + (badgesData?.course_badges.filter((b) => b.awarded).length ?? 0),
+  );
 
   // This-week card state: derive from API when available, otherwise fall back to static
   const apiThisWeek = gamification?.this_week;
@@ -506,31 +640,85 @@ export const CourseCatalog = () => {
 
   const continueVariant: ContinueVariant = allCoursesComplete ? 'thirtyDayCheck' : 'lesson';
 
+  const firstCourseId = enrolledCourses[0]?.courseId;
+  const firstCourseCurriculum = curriculums?.find(
+    (c) => c.courses.some((course) => course.course_id === firstCourseId),
+  );
+  const finalCheckMeta = firstCourseCurriculum?.knowledge_check?.display_name ?? null;
+
+  // ── Banner detection ────────────────────────────────────
+  const allPathsDone = Boolean(
+    curriculums && curriculums.length > 0 && curriculums.every((c) => {
+      if (c.courses_total === 0) { return true; }
+      const coursesDone = c.courses_finished === c.courses_total;
+      const checkDone = !c.knowledge_check.exists || c.milestones.retained?.reached_at != null;
+      return coursesDone && checkDone;
+    }),
+  );
+
+  const [dismissedPathIds, setDismissedPathIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('uber-learn:dismissed-new-paths');
+      return stored ? new Set(JSON.parse(stored) as string[]) : new Set<string>();
+    } catch { return new Set<string>(); }
+  });
+
+  const dismissNewPath = (uuid: string) => {
+    setDismissedPathIds((prev) => {
+      const next = new Set(prev);
+      next.add(uuid);
+      try { localStorage.setItem('uber-learn:dismissed-new-paths', JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  const undismissedNewPaths = curriculums?.filter(
+    (c) => c.courses_total > 0 && c.courses_finished === 0 && !dismissedPathIds.has(c.uuid),
+  ) ?? [];
+  const featuredNewPath = !allPathsDone ? (undismissedNewPaths[0] ?? null) : null;
+
+  const firstNewPathEnrolledCourse = featuredNewPath
+    ? enrolledCourses.find((ec) => {
+      const sorted = featuredNewPath.courses.slice().sort((a, b) => a.position - b.position);
+      return ec.courseId === sorted[0]?.course_id;
+    }) ?? null
+    : null;
+
   return (
     <div className="home-page">
       {/* Discovery header */}
       <header className="home-header">
         <img src={uberLogo} alt="Uber" className="home-header__logo" />
-        <nav className="home-header__stats" aria-label="Learning stats">
-          <StatChip
-            icon={iconLightning}
-            value={pointsValue}
-            label={`${pointsValue} points — view points`}
-            onClick={() => navigate('/progress', { state: { tab: 'Points' } })}
-          />
-          <StatChip
-            icon={iconCalendar}
-            value={streakValue}
-            label={`${streakValue}-week streak — view streak`}
-            onClick={() => navigate('/progress', { state: { tab: 'Streak' } })}
-          />
-          <StatChip
-            icon={iconBadgeCheck}
-            value={badgesValue}
-            label={`${badgesEarned} of ${badgesTotal} badges — view badges`}
-            onClick={() => navigate('/progress', { state: { tab: 'Badges' } })}
-          />
-        </nav>
+        <div className="home-header__actions">
+          <nav className="home-header__stats" aria-label="Learning stats">
+            <StatChip
+              icon={iconLightning}
+              value={pointsValue}
+              label={`${pointsValue} points — view points`}
+              onClick={() => navigate('/progress', { state: { tab: 'Points' } })}
+            />
+            <StatChip
+              icon={iconCalendar}
+              value={streakValue}
+              label={`${streakValue}-week streak — view streak`}
+              onClick={() => navigate('/progress', { state: { tab: 'Streak' } })}
+            />
+            <StatChip
+              icon={iconBadgeCheck}
+              value={badgesValue}
+              label={`${badgesValue} badges earned — view badges`}
+              onClick={() => navigate('/progress', { state: { tab: 'Badges' } })}
+            />
+          </nav>
+          <button
+            type="button"
+            className="home-header__search"
+            aria-label="Search courses"
+            onClick={() => navigate('/search')}
+          >
+            <SearchIcon />
+          </button>
+        </div>
       </header>
 
       {/* Scrollable content */}
@@ -547,18 +735,41 @@ export const CourseCatalog = () => {
           />
         )}
 
-        {/* Empty state — no enrolled courses: hero Explore card before This week */}
-        {!isLoading && !isError && enrolledCourses.length === 0 && (
-          <AllCoursesCard onClick={() => navigate('/library')} count={0} isEmpty />
-        )}
-
-        {/* Continue card — shown when there are enrolled courses */}
+        {/* Top card — every-path-done, new-path, or normal continue */}
         {!isLoading && !isError && enrolledCourses.length > 0 && (
-          <ConnectedContinueCard
-            courses={enrolledCourses}
-            onContinue={(courseId) => navigate(`/course/${courseId}`)}
-            variant={continueVariant}
-          />
+          <>
+            {allPathsDone && curriculums && (
+              <EveryPathDoneCard
+                curriculums={curriculums}
+                onClick={() => navigate('/library')}
+              />
+            )}
+            {!allPathsDone && featuredNewPath && (
+              <>
+                <NewPathBanner
+                  curriculum={featuredNewPath}
+                  onDismiss={() => dismissNewPath(featuredNewPath.uuid)}
+                  onClick={() => navigate(`/learning-path/${featuredNewPath.uuid}`)}
+                />
+                {firstNewPathEnrolledCourse && (
+                  <ConnectedContinueCard
+                    courses={[firstNewPathEnrolledCourse]}
+                    onContinue={(courseId) => navigate(`/course/${courseId}`)}
+                    variant="lesson"
+                    finalCheckMeta={null}
+                  />
+                )}
+              </>
+            )}
+            {!allPathsDone && !featuredNewPath && (
+              <ConnectedContinueCard
+                courses={enrolledCourses}
+                onContinue={(courseId) => navigate(`/course/${courseId}`)}
+                variant={continueVariant}
+                finalCheckMeta={finalCheckMeta}
+              />
+            )}
+          </>
         )}
 
         {/* This week */}

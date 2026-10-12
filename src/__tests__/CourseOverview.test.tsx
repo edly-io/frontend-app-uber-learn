@@ -14,7 +14,7 @@ import {
   render, screen, waitFor, fireEvent,
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { CourseOverview } from '../pages/CourseOverview';
+import { CourseOverview, resetResumedLocationKeys } from '../pages/CourseOverview';
 import * as coursewareApi from '../api/courseware';
 
 // ---------------------------------------------------------------------------
@@ -27,6 +27,9 @@ jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
   useParams: () => ({ courseId: 'course-v1:Uber+L2024' }),
+  useLocation: () => ({
+    key: 'test-key', pathname: '/course/course-v1:Uber+L2024', search: '', hash: '', state: null,
+  }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -91,6 +94,7 @@ function renderComponent() {
 // ---------------------------------------------------------------------------
 
 beforeEach(() => {
+  resetResumedLocationKeys();
   mockNavigate.mockClear();
   jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue(RESUME_FRESH);
   jest.mocked(coursewareApi.getCourseOutline).mockResolvedValue(OUTLINE);

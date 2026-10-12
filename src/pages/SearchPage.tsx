@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
+import { qk } from '../api/queries';
 
 import iconClockFilled from '../assets/icons/icon-clock-filled.svg';
 import iconDismiss from '../assets/icons/icon-dismiss.svg';
@@ -41,7 +42,8 @@ function removeRecentSearch(query: string) {
 
 // ── Topics ────────────────────────────────────────────────
 
-const TOPICS = ['Safety', 'Driving', 'Riders', 'Vehicle', 'Basics'];
+// TODO: derive topics from course tags/categories via API (no backend endpoint exists yet — needs uber-features work)
+// const TOPICS = ['Safety', 'Driving', 'Riders', 'Vehicle', 'Basics'];
 
 // ── Icons ─────────────────────────────────────────────────
 
@@ -98,7 +100,7 @@ export const SearchPage = () => {
   const [recents, setRecents] = useState<string[]>(() => getRecentSearches());
 
   const { data: courses = [] } = useQuery({
-    queryKey: ['enrolled-courses'],
+    queryKey: qk.enrolledCourses(),
     queryFn: getEnrolledCourses,
     staleTime: 5 * 60_000,
   });
@@ -134,10 +136,10 @@ export const SearchPage = () => {
     handleSubmit(s);
   };
 
-  const handleTopicClick = (topic: string) => {
-    setQuery(topic);
-    handleSubmit(topic);
-  };
+  // const handleTopicClick = (topic: string) => {
+  //   setQuery(topic);
+  //   handleSubmit(topic);
+  // };
 
   const isSearching = submitted.length > 0;
 
@@ -154,11 +156,11 @@ export const SearchPage = () => {
             ref={inputRef}
             type="search"
             className="sp-bar__input"
-            placeholder="Search courses and lessons"
+            placeholder="Search paths and courses"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { handleSubmit(query); } }}
-            aria-label="Search courses and lessons"
+            aria-label="Search paths and courses"
           />
           {query.length > 0 && (
             <button type="button" className="sp-bar__clear" aria-label="Clear" onClick={handleClear}>
@@ -192,14 +194,15 @@ export const SearchPage = () => {
               /* ── No results ── */
               <div className="sp-empty">
                 <p className="sp-empty__title">No results for &ldquo;{submitted}&rdquo;</p>
-                <p className="sp-empty__sub">Try a different keyword or browse topics below.</p>
-                <div className="sp-topics">
+                <p className="sp-empty__sub">Try a different keyword.</p>
+                {/* TODO: re-enable topic chips once backend endpoint exists */}
+                {/* <div className="sp-topics">
                   {TOPICS.map((t) => (
                     <button key={t} type="button" className="sp-topic-chip" onClick={() => handleTopicClick(t)}>
                       {t}
                     </button>
                   ))}
-                </div>
+                </div> */}
               </div>
             )}
           </>
@@ -234,7 +237,8 @@ export const SearchPage = () => {
               </section>
             )}
 
-            <section className="sp-section">
+            {/* TODO: re-enable Topics section once backend endpoint exists */}
+            {/* <section className="sp-section">
               <h2 className="sp-section-title">Topics</h2>
               <div className="sp-topics">
                 {TOPICS.map((t) => (
@@ -243,7 +247,7 @@ export const SearchPage = () => {
                   </button>
                 ))}
               </div>
-            </section>
+            </section> */}
           </>
         )}
       </div>

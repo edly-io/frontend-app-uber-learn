@@ -29,6 +29,35 @@
   align-items: center;
 }
 
+.home-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.home-header__search {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 9999px;
+  background: var(--u-background-secondary);
+  color: var(--u-content-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.home-header__search:active { opacity: 0.7; }
+
+.home-header__search:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
+
 /* ── Stat chip ────────────────────────────────────────── */
 .stat-chip {
   display: flex;
@@ -179,10 +208,12 @@
   left: 0;
   top: 0;
   height: 100%;
+  width: 100%;
   background: var(--u-background-accent);
   border-radius: 2px;
-  transition: width var(--u-duration-normal) var(--u-ease-out);
-  min-width: 4px;
+  transform-origin: left center;
+  transform: scaleX(var(--progress, 0));
+  transition: transform var(--u-duration-normal) var(--u-ease-out);
 }
 
 /* ── Primary button ───────────────────────────────────── */
@@ -605,13 +636,17 @@
 
 .notice-card__scene {
   position: absolute;
-  left: 0;
-  top: -110px;
-  width: 358px;
-  height: 358px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+  object-position: center top;
   display: block;
   pointer-events: none;
+}
+
+.notice-card__scene--education {
+  object-position: center 40%;
 }
 
 .notice-card__dismiss {
@@ -705,6 +740,77 @@
   flex-shrink: 0;
 }
 
+.notice-card__kicker {
+  font-family: var(--u-font-body);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.33;
+  color: var(--u-content-secondary);
+}
+
+/* Overlapping badge chips in every-path-done banner */
+.notice-card__badge-chip {
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  background: var(--u-background-primary);
+  border: 2px solid var(--u-background-primary);
+  object-fit: contain;
+  flex-shrink: 0;
+  margin-left: -6px;
+  position: relative;
+}
+
+.notice-card__badges .notice-card__badge-chip:first-child {
+  margin-left: 0;
+}
+
+/* Every-path-done card as a tappable button */
+.notice-card--full-tap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.notice-card--full-tap:active {
+  opacity: 0.85;
+}
+
+.notice-card--full-tap:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
+
+/* New-path banner layout */
+.notice-card--new-path {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.notice-card__inner-tap {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+.notice-card__inner-tap:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+  border-radius: 20px;
+}
+
+.notice-card__body--new-path {
+  padding-right: 52px; /* leave room for dismiss button */
+}
+
 /* ── Optional tile tints ─────────────────────────────── */
 .course-tile__band--lime {
   background: var(--u-learning-course-tint-lime);
@@ -756,15 +862,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--u-background-secondary);
+  background: var(--u-learning-course-tint-blue);
   border-radius: 999px;
+  border: 2px solid var(--u-background-primary);
+  overflow: hidden;
 }
 
-.path-card__seal-icon {
-  width: 20px;
-  height: 20px;
+.path-card__seal-art {
+  width: 24px;
+  height: 24px;
   object-fit: contain;
-  opacity: 0.5;
+  position: relative;
+  z-index: 1;
+}
+
+.path-card__seal-art--locked {
+  filter: grayscale(1);
+  opacity: 0.7;
 }
 
 .path-card__body {
@@ -819,5 +933,4 @@
   flex-shrink: 0;
   width: 24px;
   height: 24px;
-  opacity: 0.4;
 }

@@ -20,33 +20,60 @@ const ArrowLeft = () => (
 
 // ── Path card ─────────────────────────────────────────────
 
+const formatCompletionDate = (dateStr: string) => {
+  const d = new Date(dateStr);
+  const day = d.getDate();
+  const month = d.toLocaleDateString('en-US', { month: 'short' });
+  return `${day} ${month}`;
+};
+
 const PathCard = ({ curriculum, onClick }: { curriculum: LearnerCurriculum; onClick: () => void }) => {
-  const nextCourse = curriculum.courses
-    .slice()
-    .sort((a, b) => a.position - b.position)
-    .find((c) => !c.finished);
+  const sortedCourses = curriculum.courses.slice().sort((a, b) => a.position - b.position);
+  const nextCourse = sortedCourses.find((c) => !c.finished);
+  const isComplete = curriculum.courses_finished > 0
+    && curriculum.courses_finished === curriculum.courses_total;
+  const badgeArt = curriculum.milestones.complete?.badge?.image_url ?? iconBadgeCheck;
+  const completeMilestone = curriculum.milestones.complete;
+  const completionLabel = isComplete && completeMilestone?.badge?.title && completeMilestone?.reached_at
+    ? `${completeMilestone.badge.title} · ${formatCompletionDate(completeMilestone.reached_at)}`
+    : null;
+
+  const size = 56;
+  const strokeWidth = 3;
+  const cx = size / 2;
+  const r = cx - strokeWidth / 2;
+  const circ = 2 * Math.PI * r;
+  const progress = curriculum.courses_total > 0
+    ? Math.min(1, curriculum.courses_finished / curriculum.courses_total)
+    : 0;
+  const offset = circ * (1 - progress);
 
   return (
     <button type="button" className="path-card" onClick={onClick} aria-label={`View ${curriculum.title}`}>
       <div className="path-card__seal">
-        <svg className="path-card__ring" viewBox="0 0 56 56" fill="none" aria-hidden="true">
-          <circle cx="28" cy="28" r="24" stroke="var(--u-border-opaque)" strokeWidth="3" />
-          {curriculum.courses_total > 0 && (
+        <svg className="path-card__ring" viewBox={`0 0 ${size} ${size}`} fill="none" aria-hidden="true">
+          <circle cx={cx} cy={cx} r={r} stroke="var(--u-border-opaque)" strokeWidth={strokeWidth} />
+          {progress > 0 && (
             <circle
-              cx="28"
-              cy="28"
-              r="24"
-              stroke="var(--u-content-accent)"
-              strokeWidth="3"
+              cx={cx}
+              cy={cx}
+              r={r}
+              stroke="var(--u-background-accent)"
+              strokeWidth={strokeWidth}
               strokeLinecap="round"
-              strokeDasharray={`${2 * Math.PI * 24}`}
-              strokeDashoffset={`${2 * Math.PI * 24 * (1 - curriculum.courses_finished / curriculum.courses_total)}`}
-              transform="rotate(-90 28 28)"
+              strokeDasharray={circ}
+              strokeDashoffset={offset}
+              transform={`rotate(-90 ${cx} ${cx})`}
             />
           )}
         </svg>
         <div className="path-card__seal-inner">
-          <img src={iconBadgeCheck} alt="" className="path-card__seal-icon" aria-hidden="true" />
+          <img
+            src={badgeArt}
+            alt=""
+            className={`path-card__seal-art${isComplete ? '' : ' path-card__seal-art--locked'}`}
+            aria-hidden="true"
+          />
         </div>
       </div>
       <div className="path-card__body">
@@ -55,17 +82,28 @@ const PathCard = ({ curriculum, onClick }: { curriculum: LearnerCurriculum; onCl
           <span className="path-card__progress">
             {curriculum.courses_finished} of {curriculum.courses_total} courses done
           </span>
-          {nextCourse && (
+          {completionLabel ? (
+            <span className="path-card__next">{completionLabel}</span>
+          ) : nextCourse ? (
             <span className="path-card__next">
               Next: {nextCourse.display_name ?? nextCourse.course_id}
             </span>
-          )}
+          ) : null}
         </div>
       </div>
       <img src={iconChevronRight} alt="" className="path-card__chevron" aria-hidden="true" />
     </button>
   );
 };
+
+// ── Section header ────────────────────────────────────────
+
+const SectionHeader = ({ title, count }: { title: string; count: number }) => (
+  <div className="alp-section-header">
+    <h2 className="alp-section-title">{title}</h2>
+    <span className="alp-section-count">{count === 1 ? '1 path' : `${count} paths`}</span>
+  </div>
+);
 
 // ── Empty state illustration ──────────────────────────────
 
@@ -141,34 +179,58 @@ export const AllLearningPathsPage = () => {
         </>
       )}
 
-      {hasPaths && (
-        <>
-          <div className="alp-content">
-            <h1 className="alp-heading">Learning paths</h1>
-            <p className="alp-subheading">Picked for where and how you drive.</p>
-            <div className="alp-section-header">
-              <h2 className="alp-section-title">Your paths</h2>
-              <span className="alp-section-count">
-                {curriculums!.length === 1 ? '1 path' : `${curriculums!.length} paths`}
-              </span>
+      {hasPaths && (() => {
+        const all = curriculums!;
+        const inProgress = all.filter(
+          (c) => c.courses_finished > 0 && c.courses_finished < c.courses_total,
+        );
+        const yourPaths = all.filter(
+          (c) => c.courses_finished === 0 || c.courses_finished === c.courses_total,
+        );
+        return (
+          <>
+            <div className="alp-content">
+              <h1 className="alp-heading">Learning paths</h1>
+              <p className="alp-subheading">Picked for where and how you drive.</p>
+
+              {inProgress.length > 0 && (
+                <>
+                  <SectionHeader title="In progress" count={inProgress.length} />
+                  <div className="path-list alp-path-list">
+                    {inProgress.map((c) => (
+                      <PathCard
+                        key={c.uuid}
+                        curriculum={c}
+                        onClick={() => navigate(`/learning-path/${c.uuid}`)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {yourPaths.length > 0 && (
+                <>
+                  <SectionHeader title="Your paths" count={yourPaths.length} />
+                  <div className="path-list alp-path-list">
+                    {yourPaths.map((c) => (
+                      <PathCard
+                        key={c.uuid}
+                        curriculum={c}
+                        onClick={() => navigate(`/learning-path/${c.uuid}`)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
-            <div className="path-list">
-              {curriculums!.map((c) => (
-                <PathCard
-                  key={c.uuid}
-                  curriculum={c}
-                  onClick={() => navigate(`/learning-path/${c.uuid}`)}
-                />
-              ))}
-            </div>
-          </div>
-          <footer className="alp-footer">
-            <button type="button" className="btn-primary" onClick={() => navigate('/')}>
-              Back to learning home
-            </button>
-          </footer>
-        </>
-      )}
+            <footer className="alp-footer">
+              <button type="button" className="btn-primary" onClick={() => navigate('/')}>
+                Back to learning home
+              </button>
+            </footer>
+          </>
+        );
+      })()}
     </div>
   );
 };

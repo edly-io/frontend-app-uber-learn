@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import './info-sheet.scss';
 
 export interface InfoSheetData {
@@ -12,12 +13,22 @@ interface InfoSheetProps {
 }
 
 export const InfoSheet = ({ data, onClose }: InfoSheetProps) => {
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  // useCallback ensures useFocusTrap's effect does not re-run on every render
+  // due to an unstable onClose reference from the parent.
+  const stableOnClose = useCallback(onClose, [onClose]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // WCAG 2.1 SC 2.4.3 / SC 2.1.2: trap focus and handle Escape when open.
+  useFocusTrap(sheetRef, data !== null, stableOnClose);
+
   if (!data) { return null; }
 
   return (
     <>
       <div className="bds-backdrop" onClick={onClose} aria-hidden="true" />
       <div
+        ref={sheetRef}
         className="bds-sheet info-sheet"
         role="dialog"
         aria-modal="true"

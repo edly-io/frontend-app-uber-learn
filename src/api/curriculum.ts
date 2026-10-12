@@ -1,6 +1,10 @@
 import { getAuthenticatedHttpClient } from '@edx/frontend-platform/auth';
 import { getConfig } from '@edx/frontend-platform';
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 export type BadgeSlot = 'halfway' | 'complete' | 'retained';
 
 export interface BadgeDetail {
@@ -16,6 +20,8 @@ export interface CurriculumCourse {
   exists: boolean;
   position: number;
   finished: boolean;
+  description: string | null;
+  image_url: string | null;
 }
 
 export interface Milestone {
@@ -35,6 +41,7 @@ export interface LearnerCurriculum {
   uuid: string;
   title: string;
   description: string;
+  image_url: string | null;
   assigned_at: string;
   courses: CurriculumCourse[];
   courses_finished: number;
@@ -47,19 +54,24 @@ export type AwardSource =
   | { type: 'curriculum'; curriculum: { uuid: string; title: string }; slot: BadgeSlot }
   | { type: 'course'; course_id: string; display_name: string | null };
 
-export interface BadgeAward {
-  id: string;
-  awarded_at: string;
-  seen: boolean;
+/**
+ * One badge entry from the learner badges API.
+ * Includes both earned (awarded: true) and still-to-earn (awarded: false) badges.
+ * id and awarded_at are null when the badge has not yet been earned.
+ */
+export interface BadgeEntry {
+  awarded: boolean;
+  id: string | null;
+  awarded_at: string | null;
+  seen: boolean | null;
   badge: BadgeDetail;
   source: AwardSource;
 }
 
-export interface BadgesPage {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: BadgeAward[];
+/** Response shape from GET /api/uber/curriculum/v1/learner/badges/ */
+export interface BadgesResponse {
+  curriculum_badges: BadgeEntry[];
+  course_badges: BadgeEntry[];
 }
 
 function lmsBase(): string {
@@ -73,10 +85,10 @@ export async function getLearnerCurriculums(): Promise<LearnerCurriculum[]> {
   return data as LearnerCurriculum[];
 }
 
-export async function getLearnerBadges(unseen = false): Promise<BadgesPage> {
+export async function getLearnerBadges(unseen = false): Promise<BadgesResponse> {
   const url = `${lmsBase()}/api/uber/curriculum/v1/learner/badges/${unseen ? '?unseen=true' : ''}`;
   const { data } = await getAuthenticatedHttpClient().get(url);
-  return data as BadgesPage;
+  return data as BadgesResponse;
 }
 
 export async function markBadgesSeen(awardIds: string[]): Promise<void> {
@@ -84,4 +96,22 @@ export async function markBadgesSeen(awardIds: string[]): Promise<void> {
     `${lmsBase()}/api/uber/curriculum/v1/learner/badges/seen/`,
     { award_ids: awardIds },
   );
+}
+
+export interface LastActivityCourse {
+  course_id: string;
+  display_name: string;
+  last_activity_at: string;
+  curriculum_ids: string[];
+}
+
+export interface LastActivityResponse {
+  course: LastActivityCourse | null;
+}
+
+export async function getLastActivity(): Promise<LastActivityResponse> {
+  const { data } = await getAuthenticatedHttpClient().get(
+    `${lmsBase()}/api/uber/curriculum/v1/learner/last-activity/`,
+  );
+  return data as LastActivityResponse;
 }

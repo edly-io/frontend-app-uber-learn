@@ -72,6 +72,7 @@ function makeCurriculum(overrides: Partial<LearnerCurriculum> = {}): LearnerCurr
     uuid: 'c-1',
     title: 'New driver onboarding',
     description: '',
+    image_url: null,
     assigned_at: '2026-10-01T00:00:00Z',
     courses: [],
     courses_finished: 1,
@@ -97,24 +98,20 @@ const COURSE: EnrolledCourse = {
   isActive: true,
 };
 
-const BADGE_PAGE_EMPTY = {
-  count: 0, next: null, previous: null, results: [],
+const BADGE_ENTRY_ONE = {
+  awarded: true,
+  id: 'award-1',
+  awarded_at: '2026-11-01T00:00:00Z',
+  seen: false,
+  badge: {
+    uuid: 'b-1', title: 'Road ready', description: 'Done.', image_url: null,
+  },
+  source: { type: 'course' as const, course_id: 'course-v1:Uber+Safety', display_name: 'Road safety' },
 };
-const BADGE_PAGE_ONE = {
-  count: 1,
-  next: null,
-  previous: null,
-  results: [{
-    id: 'award-1',
-    awarded_at: '2026-11-01T00:00:00Z',
-    seen: false,
-    badge: {
-      uuid: 'b-1', title: 'Road ready', description: 'Done.', image_url: null,
-    },
-    source: { type: 'course' as const, course_id: 'course-v1:Uber+Safety', display_name: 'Road safety' },
-  }],
-};
-const BADGE_PAGE_TWO = { ...BADGE_PAGE_ONE, count: 2 };
+
+const BADGE_DATA_EMPTY = { curriculum_badges: [], course_badges: [] };
+const BADGE_DATA_ONE = { curriculum_badges: [], course_badges: [BADGE_ENTRY_ONE] };
+const BADGE_DATA_TWO = { curriculum_badges: [], course_badges: [BADGE_ENTRY_ONE, { ...BADGE_ENTRY_ONE, id: 'award-2' }] };
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -135,7 +132,7 @@ const switchToBadgesTab = () => {
 describe('BadgesTab inside LearningProgress', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
-    mockUseBadges.mockReturnValue({ data: BADGE_PAGE_EMPTY });
+    mockUseBadges.mockReturnValue({ data: BADGE_DATA_EMPTY });
     mockUseCurriculums.mockReturnValue({ data: [] });
     // stub catalog for the parent query
     const catalogMod = jest.requireMock('../api/catalog') as { getEnrolledCourses: jest.Mock };
@@ -153,7 +150,7 @@ describe('BadgesTab inside LearningProgress', () => {
   });
 
   it('shows "badge earned" (singular) when count is 1 (BT-HERO-SINGULAR)', async () => {
-    mockUseBadges.mockReturnValue({ data: BADGE_PAGE_ONE });
+    mockUseBadges.mockReturnValue({ data: BADGE_DATA_ONE });
     renderProgress();
     switchToBadgesTab();
     await waitFor(() => {
@@ -163,7 +160,7 @@ describe('BadgesTab inside LearningProgress', () => {
   });
 
   it('shows "badges earned" (plural) when count is 2 (BT-HERO-PLURAL)', async () => {
-    mockUseBadges.mockReturnValue({ data: BADGE_PAGE_TWO });
+    mockUseBadges.mockReturnValue({ data: BADGE_DATA_TWO });
     renderProgress();
     switchToBadgesTab();
     await waitFor(() => {
@@ -239,7 +236,7 @@ describe('BadgesTab inside LearningProgress', () => {
   it('shows "New" chip on unseen badge award (BT-NEW-CHIP)', async () => {
     const catalogMod = jest.requireMock('../api/catalog') as { getEnrolledCourses: jest.Mock };
     catalogMod.getEnrolledCourses.mockResolvedValue([COURSE]);
-    mockUseBadges.mockReturnValue({ data: BADGE_PAGE_ONE }); // seen: false
+    mockUseBadges.mockReturnValue({ data: BADGE_DATA_ONE }); // seen: false
     renderProgress();
     switchToBadgesTab();
     await waitFor(() => {

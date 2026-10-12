@@ -48,7 +48,7 @@
   flex: 1;
   background: none;
   border: none;
-  outline: none;
+  /* DEF-034: Do not suppress outline — allow :focus-visible to provide a visible indicator. */
   font-family: var(--u-font-body);
   font-size: 16px;
   font-weight: 400;
@@ -56,6 +56,12 @@
   color: var(--u-content-primary);
   -webkit-appearance: none;
   appearance: none;
+}
+
+/* DEF-034 fix: Visible focus ring for the search input (WCAG 2.4.7). */
+.sp-bar__input:focus-visible {
+  outline: 2px solid var(--u-background-accent);
+  outline-offset: 2px;
 }
 
 .sp-bar__input::placeholder {

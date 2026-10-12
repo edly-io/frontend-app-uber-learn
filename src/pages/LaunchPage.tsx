@@ -16,7 +16,6 @@ import React, {
 import { getAuthenticatedUser, redirectToLogout } from '@edx/frontend-platform/auth';
 import { postLaunch, toLaunchError, type LaunchErrorCode } from '../api/launch';
 import { appBasePath, coursePathFor, leavePage } from '../lib/launch';
-import { Button } from '../components/ui/Button';
 import { ErrorView } from '../components/ui/ErrorView';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import './launch-page.css';
@@ -88,6 +87,11 @@ type LaunchState =
   | { status: 'loading' }
   | { status: 'error'; code: LaunchErrorCode; userMessage: string | null };
 
+interface LaunchAction {
+  label: string;
+  run: () => void;
+}
+
 export interface LaunchPageProps {
   /** The raw launch string from the URL, or null when it was missing or too long. */
   launch: string | null;
@@ -142,38 +146,35 @@ export const LaunchPage = ({ launch }: LaunchPageProps) => {
   const { code, userMessage } = state;
   const copy = LAUNCH_COPY[code];
   const message = SHOWS_USER_MESSAGE.has(code) && userMessage ? userMessage : copy.message;
-  const showMyCourses = !HIDES_MY_COURSES.has(code) && getAuthenticatedUser() !== null;
-  const showSignOut = code === 'session_conflict';
+  const myCourses: LaunchAction | null = !HIDES_MY_COURSES.has(code) && getAuthenticatedUser() !== null
+    ? { label: 'Go to my courses', run: () => leavePage(appBasePath()) }
+    : null;
+
+  // ErrorView is a whole page (SystemStateView) with its own <main> and footer,
+  // so it is rendered on its own and every action goes in its footer, on the
+  // first screen: the outcome's own action, then "Go to my courses" under it;
+  // "Go to my courses" is the main action when the outcome has none.
+  let action: LaunchAction | null = myCourses;
+  let secondaryAction: LaunchAction | null = null;
+  if (code === 'session_conflict') {
+    action = {
+      label: 'Sign out',
+      run: () => redirectToLogout(`${window.location.origin}${appBasePath()}launch`),
+    };
+  } else if (code === 'try_again') {
+    action = { label: 'Try again', run: send };
+    secondaryAction = myCourses;
+  }
 
   return (
-    <main className="launch-page">
-      <ErrorView
-        title={copy.title}
-        message={message}
-        onRetry={code === 'try_again' ? send : undefined}
-      />
-      {(showSignOut || showMyCourses) && (
-        <div className="launch-page__actions">
-          {showSignOut && (
-            <Button
-              fullWidth
-              onClick={() => redirectToLogout(`${window.location.origin}${appBasePath()}launch`)}
-            >
-              Sign out
-            </Button>
-          )}
-          {showMyCourses && (
-            <Button
-              fullWidth
-              variant="secondary"
-              onClick={() => leavePage(appBasePath())}
-            >
-              Go to my courses
-            </Button>
-          )}
-        </div>
-      )}
-    </main>
+    <ErrorView
+      title={copy.title}
+      message={message}
+      buttonLabel={action?.label}
+      onAction={action?.run}
+      secondaryLabel={secondaryAction?.label}
+      onSecondaryAction={secondaryAction?.run}
+    />
   );
 };
 

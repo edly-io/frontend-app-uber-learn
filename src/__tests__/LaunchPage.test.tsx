@@ -9,6 +9,7 @@
  *   - LAUNCH-05: a course_id that is not a course-v1 key is never navigated to
  *   - LAUNCH-06: every outcome renders its title and copy
  *   - LAUNCH-07: secondary actions (Try again, Sign out, Go to my courses)
+ *   - LAUNCH-08: layout: one <main>, and every action in the ErrorView footer
  */
 import React, { StrictMode } from 'react';
 import {
@@ -62,6 +63,12 @@ function rejectWith(code: LaunchErrorCode, userMessage: string | null = null) {
 
 async function findAlert() {
   return screen.findByRole('alert');
+}
+
+/** The labels of the buttons in the ErrorView footer, in order. */
+function footerButtons(): Array<[string, string]> {
+  return Array.from(document.querySelectorAll('.ss-page > .ss-footer > button'))
+    .map((button) => [button.textContent ?? '', button.className]);
 }
 
 // ---------------------------------------------------------------------------
@@ -304,5 +311,75 @@ describe('LaunchPage', () => {
         expect(screen.queryByRole('button', { name: 'Go to my courses' })).not.toBeInTheDocument();
       },
     );
+  });
+
+  describe('LAUNCH-08: layout', () => {
+    it('the loading state is a single main landmark', () => {
+      jest.mocked(postLaunch).mockReturnValue(new Promise(() => {}));
+
+      renderPage();
+
+      expect(screen.getAllByRole('main')).toHaveLength(1);
+      expect(document.querySelectorAll('main')).toHaveLength(1);
+    });
+
+    it.each([
+      'incomplete_link', 'used_link', 'account_unavailable', 'session_conflict', 'try_again',
+    ] as LaunchErrorCode[])('%p is the ErrorView page itself, with a single <main>', async (code) => {
+      jest.mocked(getAuthenticatedUser).mockReturnValue(LEARNER);
+      rejectWith(code);
+
+      const { container } = renderPage(code === 'incomplete_link' ? null : LAUNCH);
+
+      const alert = await findAlert();
+      // No wrapper around the full-height ErrorView: nothing can sit below it.
+      expect(container.children).toHaveLength(1);
+      expect(container.firstElementChild).toHaveClass('ss-page');
+      expect(container.firstElementChild).toContainElement(alert);
+      expect(document.querySelectorAll('main')).toHaveLength(1);
+      expect(document.querySelector('main main')).toBeNull();
+    });
+
+    it('session_conflict puts "Sign out" in the ErrorView footer', async () => {
+      rejectWith('session_conflict');
+
+      renderPage();
+
+      const signOut = await screen.findByRole('button', { name: 'Sign out' });
+      expect(signOut.closest('.ss-footer')).not.toBeNull();
+      expect(footerButtons()).toEqual([['Sign out', 'ss-footer__btn']]);
+    });
+
+    it('try_again puts "Try again" first and "Go to my courses" under it, in the footer', async () => {
+      jest.mocked(getAuthenticatedUser).mockReturnValue(LEARNER);
+      rejectWith('try_again');
+
+      renderPage();
+
+      await findAlert();
+      expect(footerButtons()).toEqual([
+        ['Try again', 'ss-footer__btn'],
+        ['Go to my courses', 'ss-footer__secondary'],
+      ]);
+    });
+
+    it('"Go to my courses" is the footer action when the outcome has none', async () => {
+      jest.mocked(getAuthenticatedUser).mockReturnValue(LEARNER);
+      rejectWith('used_link');
+
+      renderPage();
+
+      await findAlert();
+      expect(footerButtons()).toEqual([['Go to my courses', 'ss-footer__btn']]);
+    });
+
+    it('an outcome with no action for this learner has no footer', async () => {
+      rejectWith('used_link');
+
+      renderPage();
+
+      await findAlert();
+      expect(document.querySelector('.ss-footer')).toBeNull();
+    });
   });
 });

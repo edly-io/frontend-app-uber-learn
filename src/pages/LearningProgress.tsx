@@ -280,6 +280,23 @@ const GridSealRing = ({
   );
 };
 
+// ── Badge grid item ───────────────────────────────────────
+
+const BadgeGridItem = ({
+  title, sub, ring, isNew, onClick,
+}: {
+  title: string; sub: string; ring: React.ReactNode; isNew?: boolean; onClick: () => void;
+}) => (
+  <button type="button" className="lp-badge-grid-item" onClick={onClick}>
+    <div className="lp-badge-grid-item__ring-wrap">
+      {ring}
+      {isNew && <span className="lp-badge-grid-item__new">New</span>}
+    </div>
+    <span className="lp-badge-grid-item__name">{title}</span>
+    <span className="lp-badge-grid-item__sub">{sub}</span>
+  </button>
+);
+
 // ── Course badge grid item with real progress ─────────────
 
 const CourseGridBadgeItem = ({
@@ -296,7 +313,7 @@ const CourseGridBadgeItem = ({
   let sub: string;
   if (earned && award?.awarded_at) {
     sub = new Date(award.awarded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  } else if (progressQuery.data?.totalUnits) {
+  } else if (progressQuery.data?.totalUnits != null) {
     sub = `${progressQuery.data.totalUnits} lessons`;
   } else {
     sub = '';
@@ -320,23 +337,6 @@ const CourseGridBadgeItem = ({
   );
 };
 
-// ── Badge grid item ───────────────────────────────────────
-
-const BadgeGridItem = ({
-  title, sub, ring, isNew, onClick,
-}: {
-  title: string; sub: string; ring: React.ReactNode; isNew?: boolean; onClick: () => void;
-}) => (
-  <button type="button" className="lp-badge-grid-item" onClick={onClick}>
-    <div className="lp-badge-grid-item__ring-wrap">
-      {ring}
-      {isNew && <span className="lp-badge-grid-item__new">New</span>}
-    </div>
-    <span className="lp-badge-grid-item__name">{title}</span>
-    <span className="lp-badge-grid-item__sub">{sub}</span>
-  </button>
-);
-
 // ── Main BadgesTab ────────────────────────────────────────
 
 interface BadgesTabProps {
@@ -347,6 +347,7 @@ interface BadgesTabProps {
 
 const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) => {
   const [sheet, setSheet] = useState<SheetBadgeData | null>(null);
+  const handleSheetClose = useCallback(() => setSheet(null), []);
   const { data: badgesData } = useBadges();
   const earnedAwards: BadgeEntry[] = [
     ...(badgesData?.curriculum_badges.filter((b) => b.awarded) ?? []),
@@ -486,7 +487,7 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
         </>
       )}
 
-      <BadgeDetailSheet data={sheet} onClose={() => setSheet(null)} />
+      <BadgeDetailSheet data={sheet} onClose={handleSheetClose} />
     </div>
   );
 };

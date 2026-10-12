@@ -17,9 +17,15 @@ const buildOutline = (): CourseOutline => ({
     },
   },
   sequences: {
-    'seq-1a': { id: 'seq-1a', title: 'Intro Video', sectionId: 'section-1' },
-    'seq-1b': { id: 'seq-1b', title: 'Quiz 1', sectionId: 'section-1' },
-    'seq-2a': { id: 'seq-2a', title: 'Advanced Topics', sectionId: 'section-2' },
+    'seq-1a': {
+      id: 'seq-1a', title: 'Intro Video', sectionId: 'section-1', complete: false,
+    },
+    'seq-1b': {
+      id: 'seq-1b', title: 'Quiz 1', sectionId: 'section-1', complete: false,
+    },
+    'seq-2a': {
+      id: 'seq-2a', title: 'Advanced Topics', sectionId: 'section-2', complete: false,
+    },
   },
 });
 
@@ -65,7 +71,9 @@ describe('mapOutlineToLessons', () => {
         s1: { id: 's1', title: 'S1', sequenceIds: ['existing', 'missing'] },
       },
       sequences: {
-        existing: { id: 'existing', title: 'Good', sectionId: 's1' },
+        existing: {
+          id: 'existing', title: 'Good', sectionId: 's1', complete: false,
+        },
         // 'missing' is not in sequences map
       },
     };

@@ -78,7 +78,6 @@ function makeCurriculum(overrides: Partial<LearnerCurriculum> = {}): LearnerCurr
     courses_finished: 1,
     courses_total: 3,
     milestones: {
-      halfway: { reached_at: null, badge: null },
       complete: { reached_at: null, badge: null },
       retained: { reached_at: null, badge: null },
     },

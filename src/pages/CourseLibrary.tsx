@@ -454,7 +454,7 @@ export const CourseLibrary = () => {
           type="button"
           className="cl-nav__back"
           aria-label="Back to learning home"
-          onClick={() => navigate(-1)}
+          onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
         >
           <img src={iconArrowLeft} alt="" className="cl-nav__back-icon" aria-hidden="true" />
         </button>

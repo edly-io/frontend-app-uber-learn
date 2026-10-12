@@ -82,13 +82,14 @@ const PathCard = ({ curriculum, onClick }: { curriculum: LearnerCurriculum; onCl
           <span className="path-card__progress">
             {curriculum.courses_finished} of {curriculum.courses_total} courses done
           </span>
-          {completionLabel ? (
+          {completionLabel && (
             <span className="path-card__next">{completionLabel}</span>
-          ) : nextCourse ? (
+          )}
+          {!completionLabel && nextCourse && (
             <span className="path-card__next">
               Next: {nextCourse.display_name ?? nextCourse.course_id}
             </span>
-          ) : null}
+          )}
         </div>
       </div>
       <img src={iconChevronRight} alt="" className="path-card__chevron" aria-hidden="true" />

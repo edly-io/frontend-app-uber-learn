@@ -109,7 +109,6 @@ const CURRICULUM: LearnerCurriculum = {
   courses_finished: 0,
   courses_total: 1,
   milestones: {
-    halfway: { reached_at: null, badge: null },
     complete: { reached_at: null, badge: null },
     retained: { reached_at: null, badge: null },
   },
@@ -262,7 +261,7 @@ describe('CourseLibrary', () => {
       await waitFor(() => screen.getByText('You have no courses yet'));
       const backBtn = screen.getByLabelText('Back to learning home');
       fireEvent.click(backBtn);
-      expect(mockNavigate).toHaveBeenCalledWith(-1);
+      expect(mockNavigate).toHaveBeenCalledWith('/');
     });
   });
 

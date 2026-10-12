@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import type { LearnerCurriculum } from '../../api/curriculum';
@@ -135,9 +135,13 @@ const CourseBadgeSheet = ({ data, onClose }: { data: CourseBadgeData; onClose: (
     : data.description;
 
   let ctaLabel: string;
-  if (data.earned) { ctaLabel = 'Review course'; }
-  else if (isInProgress) { ctaLabel = 'Continue course'; }
-  else { ctaLabel = 'See course'; }
+  if (data.earned) {
+    ctaLabel = 'Review course';
+  } else if (isInProgress) {
+    ctaLabel = 'Continue course';
+  } else {
+    ctaLabel = 'See course';
+  }
 
   return (
     <div className="bds-content">
@@ -240,12 +244,9 @@ const PathBadgeSheet = ({ data, onClose }: { data: PathBadgeData; onClose: () =>
 export const BadgeDetailSheet = ({ data, onClose }: BadgeDetailSheetProps) => {
   const sheetRef = useRef<HTMLDivElement>(null);
 
-  // useCallback ensures useFocusTrap's effect does not re-run on every render
-  // due to an unstable onClose reference from the parent.
-  const stableOnClose = useCallback(onClose, [onClose]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // WCAG 2.1 SC 2.4.3 / SC 2.1.2: trap focus and handle Escape when open.
-  useFocusTrap(sheetRef, data !== null, stableOnClose);
+  // Callers must pass a stable onClose reference (memoised with useCallback).
+  useFocusTrap(sheetRef, data !== null, onClose);
 
   if (!data) { return null; }
 

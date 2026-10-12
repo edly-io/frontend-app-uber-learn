@@ -117,8 +117,8 @@ const OUTLINE_TWO_LESSONS: CourseOutline = {
     'sec-1': { id: 'sec-1', title: 'Section One', sequenceIds: [SEQ_ID_1, SEQ_ID_2] },
   },
   sequences: {
-    [SEQ_ID_1]: { id: SEQ_ID_1, title: 'Lesson One', sectionId: 'sec-1' },
-    [SEQ_ID_2]: { id: SEQ_ID_2, title: 'Lesson Two', sectionId: 'sec-1' },
+    [SEQ_ID_1]: { id: SEQ_ID_1, title: 'Lesson One', sectionId: 'sec-1', complete: false },
+    [SEQ_ID_2]: { id: SEQ_ID_2, title: 'Lesson Two', sectionId: 'sec-1', complete: false },
   },
 };
 
@@ -130,7 +130,7 @@ const OUTLINE_ONE_LESSON: CourseOutline = {
     'sec-1': { id: 'sec-1', title: 'Section One', sequenceIds: [SEQ_ID_1] },
   },
   sequences: {
-    [SEQ_ID_1]: { id: SEQ_ID_1, title: 'Only Lesson', sectionId: 'sec-1' },
+    [SEQ_ID_1]: { id: SEQ_ID_1, title: 'Only Lesson', sectionId: 'sec-1', complete: false },
   },
 };
 
@@ -149,7 +149,6 @@ function makeCurriculum(overrides: Partial<LearnerCurriculum> = {}): LearnerCurr
     courses_finished: 1,
     courses_total: 3,
     milestones: {
-      halfway: { reached_at: null, badge: null },
       complete: { reached_at: null, badge: null },
       retained: { reached_at: null, badge: null },
     },
@@ -187,7 +186,6 @@ const DEFAULT_LESSON_RESULTS = {
   course_key: COURSE_ID,
   points_earned: 0,
   correct_percent: null,
-  passed: null,
   questions: 0,
   already_completed_before: false,
   steps_count: null,
@@ -214,7 +212,9 @@ describe('LessonCompletePage', () => {
     setDefaultMocks();
   });
 
-  it('LCP-LOADING: shows LoadingSkeleton while results query is in-flight', () => {
+  it('LCP-LOADING: shows LoadingSkeleton while results query is in-flight (when since is provided)', () => {
+    // Query only runs when `since` is present — provide it so the loading state triggers.
+    mockUseLocation.mockReturnValue({ state: { since: '2026-10-01T00:00:00Z' }, pathname: '/completion' });
     getLessonResultsMock().getLessonResults.mockReturnValue(new Promise(() => {}));
     wrap(<LessonCompletePage />);
     expect(screen.getByLabelText('Loading…')).toBeInTheDocument();
@@ -274,11 +274,12 @@ describe('LessonCompletePage', () => {
       course_key: COURSE_ID,
       points_earned: 5,
       correct_percent: 80,
-      passed: true,
+      first_try_goal_met: true,
       questions: 5,
       already_completed_before: true,
       steps_count: null,
     });
+    mockUseLocation.mockReturnValue({ state: { since: '2026-10-01T00:00:00Z' }, pathname: '/completion' });
     mockUseCourseOutline.mockReturnValue({ data: OUTLINE_ONE_LESSON, isLoading: false });
     mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID_1 });
     wrap(<LessonCompletePage />);
@@ -321,7 +322,6 @@ describe('CourseCompletePage', () => {
   it('CCP-BADGE-VISIBLE: earned date shown when complete milestone reached_at is set', () => {
     const curriculum = makeCurriculum({
       milestones: {
-        halfway: { reached_at: null, badge: null },
         complete: {
           reached_at: '2026-10-01T00:00:00Z',
           badge: {
@@ -487,7 +487,7 @@ describe('RetentionCheckResultPage', () => {
       course_key: COURSE_ID,
       points_earned: 10,
       correct_percent: 80,
-      passed: true,
+      first_try_goal_met: true,
       questions: 5,
       already_completed_before: false,
       steps_count: null,
@@ -504,7 +504,7 @@ describe('RetentionCheckResultPage', () => {
       course_key: COURSE_ID,
       points_earned: 5,
       correct_percent: 60,
-      passed: false,
+      first_try_goal_met: false,
       questions: 5,
       already_completed_before: false,
       steps_count: null,
@@ -521,7 +521,7 @@ describe('RetentionCheckResultPage', () => {
       course_key: COURSE_ID,
       points_earned: 10,
       correct_percent: 80,
-      passed: true,
+      first_try_goal_met: true,
       questions: 5,
       already_completed_before: false,
       steps_count: null,
@@ -539,7 +539,7 @@ describe('RetentionCheckResultPage', () => {
       course_key: COURSE_ID,
       points_earned: 10,
       correct_percent: 100,
-      passed: true,
+      first_try_goal_met: true,
       questions: 5,
       already_completed_before: false,
       steps_count: null,
@@ -556,7 +556,7 @@ describe('RetentionCheckResultPage', () => {
       course_key: COURSE_ID,
       points_earned: 0,
       correct_percent: 40,
-      passed: false,
+      first_try_goal_met: false,
       questions: 5,
       already_completed_before: false,
       steps_count: null,
@@ -573,7 +573,7 @@ describe('RetentionCheckResultPage', () => {
       course_key: COURSE_ID,
       points_earned: 0,
       correct_percent: null,
-      passed: false,
+      first_try_goal_met: false,
       questions: 0,
       already_completed_before: false,
       steps_count: null,

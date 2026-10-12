@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
-import { getResumeBlock } from '../api/courseware';
 import { useSequence } from '../hooks/useSequence';
 import { qk } from '../api/queries';
 import { useGamification } from '../hooks/useGamification';
@@ -210,36 +209,25 @@ const ConnectedContinueCard = ({
   const courseId = firstCourse?.courseId ?? '';
 
   const outlineQuery = useCourseOutline(courseId);
-  const resumeQuery = useQuery({
-    queryKey: qk.resume(courseId),
-    queryFn: () => getResumeBlock(courseId),
-    enabled: Boolean(courseId),
-    staleTime: 0,
-  });
 
   const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
   const totalLessons = allLessons.length;
 
-  // Resume position comes from the LMS Resume Block API — the authoritative server-side position.
-  const apiSequenceId = resumeQuery.data?.sectionId ?? null;
-  const resumeIdx = apiSequenceId
-    ? allLessons.findIndex((l) => l.sequenceId === apiSequenceId)
-    : -1;
-
-  // completedLessons is the count of fully-finished lessons (resume index > 0 means
-  // we stored the NEXT lesson after completion, so resumeIdx = number of completed lessons).
-  // "hasStarted" drives "Continue" vs "Start" — only true once at least 1 lesson is done.
-  const completedLessons = resumeIdx > 0 ? resumeIdx : 0;
+  // Use outline complete flags to find the first unfinished lesson — avoids the
+  // resume block API call that sent learners back to the last *completed* lesson
+  // (off-by-one) and caused a deep-link loop when history was empty.
+  const completedLessons = allLessons.filter((l) => l.complete).length;
   const hasStarted = completedLessons > 0;
-  const resumeLesson = allLessons[resumeIdx >= 0 ? resumeIdx : 0];
+  const nextLesson = allLessons.find((l) => !l.complete) ?? allLessons[0];
 
-  // Fetch unit count for the resume lesson to show "N steps" in the subtitle.
-  const { units: resumeUnits } = useSequence(resumeLesson?.sequenceId ?? '');
-  const stepCount = resumeUnits.length;
+  // Fetch unit count for the next lesson to show "N steps" in the subtitle.
+  const { units: nextUnits } = useSequence(nextLesson?.sequenceId ?? '');
+  const stepCount = nextUnits.length;
 
-  const lessonTitle = resumeLesson?.lessonTitle ?? firstCourse?.title ?? 'Start learning';
+  const nextLessonIdx = nextLesson ? allLessons.indexOf(nextLesson) : 0;
+  const lessonTitle = nextLesson?.lessonTitle ?? firstCourse?.title ?? 'Start learning';
   const lessonPosition = totalLessons > 0
-    ? `Lesson ${hasStarted ? resumeIdx + 1 : 1} of ${totalLessons}`
+    ? `Lesson ${nextLessonIdx + 1} of ${totalLessons}`
     : 'Start course';
   const courseMeta = firstCourse
     ? `${firstCourse.title}${stepCount > 0 ? ` · ${stepCount} step${stepCount !== 1 ? 's' : ''}` : ` · ${totalLessons} lessons`}`
@@ -460,11 +448,12 @@ const LearningPathCard = ({ curriculum, onClick }: LearningPathCardProps) => {
           <span className="path-card__progress">
             {curriculum.courses_finished} of {curriculum.courses_total} courses done
           </span>
-          {completionLabel ? (
+          {completionLabel && (
             <span className="path-card__next">{completionLabel}</span>
-          ) : nextCourse ? (
+          )}
+          {!completionLabel && nextCourse && (
             <span className="path-card__next">Next: {nextCourse.display_name ?? nextCourse.course_id}</span>
-          ) : null}
+          )}
         </div>
       </div>
       <img src={iconChevronRight} alt="" className="path-card__chevron" aria-hidden="true" />
@@ -494,10 +483,9 @@ const EveryPathDoneCard = ({ curriculums, onClick }: EveryPathDoneCardProps) => 
         <p className="notice-card__desc">You&apos;ve earned every path badge. Explore courses to keep learning.</p>
         {earnedBadges.length > 0 && (
           <div className="notice-card__badges">
-            {earnedBadges.slice(0, 6).map((m, i) => (
-              // eslint-disable-next-line react/no-array-index-key
+            {earnedBadges.slice(0, 6).map((m) => (
               <img
-                key={i}
+                key={m.badge?.uuid ?? m.reached_at ?? String(earnedBadges.indexOf(m))}
                 src={m.badge?.image_url ?? iconBadgeCheck}
                 alt=""
                 className="notice-card__badge-chip"

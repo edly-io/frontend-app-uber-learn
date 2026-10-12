@@ -6,7 +6,6 @@ import { useCurriculums } from '../hooks/useCurriculums';
 import { useBadges } from '../hooks/useBadges';
 import { qk } from '../api/queries';
 
-import badgeHalfwayEarned from '../assets/badges/badge-halfway-earned.svg';
 import badgeCompleteEarned from '../assets/badges/badge-complete-earned.svg';
 import badgeRetainedEarned from '../assets/badges/badge-retained-earned.svg';
 import badgeRingTrack from '../assets/icons/badge-ring-track.svg';
@@ -14,15 +13,10 @@ import badgeRingEarned from '../assets/icons/badge-ring-earned.svg';
 
 import './badge-earned.scss';
 
-type BadgeType = 'halfway' | 'complete' | 'retained';
+type BadgeType = 'complete' | 'retained';
 
 // Static fallback config used when no API data is available
 const FALLBACK: Record<BadgeType, { title: string; desc: string; artSrc: string }> = {
-  halfway: {
-    title: 'Road ready',
-    desc: "You're halfway through your learning path. Keep going!",
-    artSrc: badgeHalfwayEarned,
-  },
   complete: {
     title: 'Complete',
     desc: "You've finished every required course and its final check.",
@@ -46,7 +40,7 @@ export const BadgeEarned = () => {
   const queryClient = useQueryClient();
   const { type } = useParams<{ type: string }>();
   let badgeType: BadgeType = 'complete';
-  if (type === 'halfway') { badgeType = 'halfway'; } else if (type === 'retained') { badgeType = 'retained'; }
+  if (type === 'retained') { badgeType = 'retained'; }
 
   const state = (location.state as NavState | null) ?? {};
   const { awardId, alsoEarned = [] } = state;
@@ -121,7 +115,7 @@ export const BadgeEarned = () => {
               <div key={alsoBadge.id} className="badge-earned__also-card">
                 <div className="badge-earned__also-art">
                   <img
-                    src={alsoBadge.imageUrl ?? badgeHalfwayEarned}
+                    src={alsoBadge.imageUrl ?? badgeCompleteEarned}
                     alt=""
                     className="badge-earned__also-img"
                     aria-hidden="true"

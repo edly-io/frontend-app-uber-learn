@@ -21,7 +21,9 @@
  *   - BDS-BACKDROP: backdrop click triggers onClose
  */
 import React from 'react';
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render, screen, fireEvent,
+} from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BadgeDetailSheet, type SheetBadgeData } from '../components/ui/BadgeDetailSheet';
 import type { LearnerCurriculum } from '../api/curriculum';
@@ -106,7 +108,6 @@ function makeCurriculum(overrides: Partial<LearnerCurriculum> = {}): LearnerCurr
     courses_finished: 1,
     courses_total: 3,
     milestones: {
-      halfway: { reached_at: null, badge: null },
       complete: { reached_at: null, badge: null },
       retained: { reached_at: null, badge: null },
     },
@@ -133,7 +134,6 @@ const PATH_DATA_COMPLETE: SheetBadgeData = {
     courses_finished: 3,
     courses_total: 3,
     milestones: {
-      halfway: { reached_at: null, badge: null },
       complete: { reached_at: '2026-11-01T00:00:00Z', badge: null },
       retained: { reached_at: null, badge: null },
     },
@@ -146,7 +146,6 @@ const PATH_DATA_THIRTY_EARNED: SheetBadgeData = {
     courses_finished: 3,
     courses_total: 3,
     milestones: {
-      halfway: { reached_at: null, badge: null },
       complete: { reached_at: '2026-11-01T00:00:00Z', badge: null },
       retained: { reached_at: '2026-12-01T00:00:00Z', badge: null },
     },
@@ -159,7 +158,6 @@ const PATH_DATA_CHECK_OPEN: SheetBadgeData = {
   kind: 'path',
   curriculum: makeCurriculum({
     milestones: {
-      halfway: { reached_at: null, badge: null },
       complete: { reached_at: '2026-11-01T00:00:00Z', badge: null },
       retained: { reached_at: null, badge: null },
     },

@@ -46,6 +46,9 @@ jest.mock('react-router-dom', () => ({
 
 jest.mock('../api/courseware');
 jest.mock('../api/progress');
+jest.mock('../api/gamification', () => ({
+  getGamificationSummary: jest.fn().mockResolvedValue({ server_time: '2026-10-12T10:00:00Z' }),
+}));
 
 // ---------------------------------------------------------------------------
 // Test data

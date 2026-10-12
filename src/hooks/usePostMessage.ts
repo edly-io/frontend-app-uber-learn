@@ -1,9 +1,5 @@
 import { useEffect } from 'react';
-import { getConfig } from '@edx/frontend-platform';
-
-function getLmsOrigin(): string {
-  return new URL(getConfig().LMS_BASE_URL).origin;
-}
+import { getLmsOrigin } from '../lib/lms';
 
 /**
  * Listens for postMessage events from the XBlock iframe hosted on the LMS

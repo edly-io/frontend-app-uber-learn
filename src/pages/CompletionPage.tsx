@@ -25,7 +25,7 @@ import courseArtBook from '../assets/icons/course-art-book.svg';
 import badgeArtRetained from '../assets/icons/badge-art-retained.svg';
 import './completion-page.scss';
 
-const LESSON_CELEBRATION_SLOTS: readonly BadgeSlot[] = ['halfway', 'complete'];
+const LESSON_CELEBRATION_SLOTS: readonly BadgeSlot[] = ['complete'];
 const COURSE_CELEBRATION_SLOTS: readonly BadgeSlot[] = ['complete'];
 const RETENTION_CELEBRATION_SLOTS: readonly BadgeSlot[] = ['retained'];
 
@@ -130,16 +130,16 @@ export const LessonCompletePage = () => {
   const { courseId = '', sequenceId = '' } = useParams<{ courseId: string; sequenceId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const since = (location.state as { since?: string } | null)?.since ?? new Date(0).toISOString();
+  const since = (location.state as { since?: string } | null)?.since as string | undefined;
 
   const outlineQuery = useCourseOutline(courseId);
   const progressQuery = useCourseProgressSummary(courseId);
   const { data: gamificationData } = useGamification();
 
   const resultsQuery = useQuery({
-    queryKey: qk.lessonResults(sequenceId, since),
-    queryFn: () => getLessonResults(sequenceId, since),
-    enabled: Boolean(sequenceId),
+    queryKey: qk.lessonResults(sequenceId, since ?? ''),
+    queryFn: () => getLessonResults(sequenceId, since!),
+    enabled: Boolean(sequenceId) && Boolean(since),
     staleTime: Infinity,
     retry: 1,
   });
@@ -170,15 +170,19 @@ export const LessonCompletePage = () => {
   const weekGoal = thisWeek?.goal ?? 0;
   const weekDays = thisWeek?.learning_days ?? 0;
   const goalMet = thisWeek?.status === 'goal_met';
-  const weekLabel = weekGoal > 0
-    ? (goalMet ? `Goal met, ${weekDays} of ${weekGoal} days` : `${weekDays} of ${weekGoal} days`)
-    : null;
+  let weekLabel: string | null = null;
+  if (weekGoal > 0) {
+    weekLabel = goalMet
+      ? `Goal met, ${weekDays} of ${weekGoal} days`
+      : `${weekDays} of ${weekGoal} days`;
+  }
 
   const celebration = useBadgeCelebration(LESSON_CELEBRATION_SLOTS);
 
   // Guard against heading flash: "Lesson complete" → "Course refreshed" on repeat completion.
-  // resultsQuery must settle before we know isRepeat, so show skeleton until it does.
-  if (resultsQuery.isLoading) {
+  // Only wait for results when `since` is provided — without it the query is disabled and
+  // we show the page immediately with default (non-repeat) state.
+  if (since && resultsQuery.isLoading) {
     return <LoadingSkeleton />;
   }
 
@@ -223,8 +227,8 @@ export const LessonCompletePage = () => {
           )}
         </div>
 
-        {/* Points */}
-        {pointsEarned > 0 && (
+        {/* Points — only shown when `since` was provided (results are scoped to this attempt) */}
+        {since && pointsEarned > 0 && (
           <div className="cpl-points">
             <div className="cpl-points__figure">
               <img src={iconLightning} alt="" aria-hidden="true" className="cpl-points__icon" />
@@ -239,7 +243,7 @@ export const LessonCompletePage = () => {
 
         {/* Stats card */}
         <div className="cp-stats-card">
-          {correctCount !== null && questions > 0 && (
+          {since && correctCount !== null && questions > 0 && (
             <StatsRow
               icon={iconCircleCheck}
               label="Right first time"
@@ -475,12 +479,12 @@ export const RetentionCheckResultPage = () => {
   const { courseId = '', sequenceId = '' } = useParams<{ courseId: string; sequenceId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const since = (location.state as { since?: string } | null)?.since ?? new Date(0).toISOString();
+  const since = (location.state as { since?: string } | null)?.since as string | undefined;
 
   const resultsQuery = useQuery({
-    queryKey: qk.lessonResults(sequenceId, since),
-    queryFn: () => getLessonResults(sequenceId, since),
-    enabled: Boolean(sequenceId),
+    queryKey: qk.lessonResults(sequenceId, since ?? ''),
+    queryFn: () => getLessonResults(sequenceId, since!),
+    enabled: Boolean(sequenceId) && Boolean(since),
     staleTime: Infinity,
     retry: 1,
   });
@@ -493,7 +497,7 @@ export const RetentionCheckResultPage = () => {
   const score = correctPercent !== null && total > 0
     ? Math.round((correctPercent / 100) * total)
     : null;
-  const passed = resultsQuery.data?.passed ?? null;
+  const passed = resultsQuery.data?.first_try_goal_met ?? null;
 
   const earnedAt = parentCurriculum?.milestones.retained.reached_at ?? null;
   const earnedDate = earnedAt
@@ -504,7 +508,6 @@ export const RetentionCheckResultPage = () => {
 
   const celebration = useBadgeCelebration(RETENTION_CELEBRATION_SLOTS);
 
-  const handleBack = () => navigate(`/course/${courseId}`);
   const handleContinue = () => (
     celebration ? goToBadgeCelebration(navigate, celebration) : navigate('/')
   );
@@ -512,7 +515,7 @@ export const RetentionCheckResultPage = () => {
   const handleReviewCourse = () => navigate(`/course/${courseId}`);
   const handleTryAgain = () => navigate(`/course/${courseId}/retention`);
 
-  if (resultsQuery.isLoading) {
+  if (since && resultsQuery.isLoading) {
     return <LoadingSkeleton />;
   }
 

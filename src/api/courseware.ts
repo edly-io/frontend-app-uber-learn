@@ -46,6 +46,8 @@ export interface OutlineSequence {
   id: string;
   title: string;
   sectionId: string;
+  /** True when every unit in this sequence is complete. Populated from the API when available. */
+  complete: boolean;
 }
 
 export interface CourseOutline {
@@ -79,7 +81,8 @@ export async function getCourseOutline(courseId: string): Promise<CourseOutline>
   const now = new Date();
 
   type ReleasedBlock = { accessible?: boolean; effective_start?: string | null };
-  type RawSeq = ReleasedBlock & { title: string };
+  type RawCompletionSummary = { complete_count?: number; incomplete_count?: number };
+  type RawSeq = ReleasedBlock & { title: string; complete?: boolean; completion_summary?: RawCompletionSummary };
   type RawSection = ReleasedBlock & {
     id: string; title: string; sequence_ids: string[];
   };
@@ -96,7 +99,14 @@ export async function getCourseOutline(courseId: string): Promise<CourseOutline>
   Object.entries(data.outline.sequences as Record<string, RawSeq>).forEach(
     ([seqId, seq]) => {
       if (!isReleased(seq)) { return; }
-      sequences[seqId] = { id: seqId, title: seq.title, sectionId: '' };
+      // A sequence is considered complete when its completion_summary reports no
+      // remaining incomplete/locked units, or when the API explicitly sets complete=true.
+      const cs = seq.completion_summary;
+      const complete = seq.complete === true
+        || (cs != null && (cs.complete_count ?? 0) > 0 && (cs.incomplete_count ?? 0) === 0);
+      sequences[seqId] = {
+        id: seqId, title: seq.title, sectionId: '', complete,
+      };
     },
   );
 

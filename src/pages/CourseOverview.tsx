@@ -1,13 +1,5 @@
-import React, { useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-
-// Tracks location keys that have already triggered auto-resume to prevent
-// back navigation from the lesson screen from re-firing the redirect.
-const resumedLocationKeys = new Set<string>();
-
-export function resetResumedLocationKeys(): void {
-  resumedLocationKeys.clear();
-}
+import React from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getResumeBlock } from '../api/courseware';
 import { qk } from '../api/queries';
@@ -28,6 +20,10 @@ import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
 import courseArtBook from '../assets/icons/course-art-book.svg';
 import courseArtSteering from '../assets/icons/course-art-steering.svg';
 import './course-page.scss';
+
+/** @deprecated The auto-resume redirect has been removed. This is a no-op kept for test compatibility. */
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+export function resetResumedLocationKeys(): void {}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -235,8 +231,6 @@ const ArtPanel = ({
 export const CourseOverview = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
-
   const { data: gamification } = useGamification();
   const { data: curriculums } = useCurriculums();
   const { data: progressSummary } = useCourseProgressSummary(courseId);
@@ -272,21 +266,13 @@ export const CourseOverview = () => {
 
   const outlineQuery = useCourseOutline(courseId);
 
-  // Auto-navigate returning users to their last position — must be before early returns.
-  // Guard against re-firing when the learner navigates *back* from a lesson:
-  // React Router preserves the same location.key on back navigation, so keying
-  // on courseId+location.key ensures we fire at most once per history entry.
-  const isCourseFinished = parentCurriculum?.courses.find((c) => c.course_id === courseId)?.finished === true;
-  const apiResumeSequenceIdForEffect = resumeQuery.data?.sectionId ?? null;
-  const resumeKey = `${courseId}:${location.key}`;
-  useEffect(() => {
-    if (apiResumeSequenceIdForEffect && !resumedLocationKeys.has(resumeKey) && !isCourseFinished) {
-      resumedLocationKeys.add(resumeKey);
-      navigate(`/course/${courseId}/lesson/${apiResumeSequenceIdForEffect}/step/0`, { replace: true });
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/');
     }
-  }, [apiResumeSequenceIdForEffect, courseId, isCourseFinished, navigate, resumeKey]);
-
-  const handleBack = () => navigate(-1);
+  };
 
   if (outlineQuery.isLoading || resumeQuery.isLoading) {
     return (

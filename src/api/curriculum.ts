@@ -5,7 +5,7 @@ import { getConfig } from '@edx/frontend-platform';
 // Types
 // ---------------------------------------------------------------------------
 
-export type BadgeSlot = 'halfway' | 'complete' | 'retained';
+export type BadgeSlot = 'complete' | 'retained';
 
 export interface BadgeDetail {
   uuid: string;

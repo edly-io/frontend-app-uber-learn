@@ -73,7 +73,7 @@ export interface LessonResults {
   course_key: string;
   points_earned: number;
   correct_percent: number | null;
-  passed: boolean;
+  first_try_goal_met?: boolean;
   questions: number;
   already_completed_before: boolean;
   steps_count: number | null;

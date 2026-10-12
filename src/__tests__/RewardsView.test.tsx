@@ -79,7 +79,6 @@ const BASE_CURRICULUM: LearnerCurriculum = {
   courses_finished: 0,
   courses_total: 1,
   milestones: {
-    halfway: { reached_at: null, badge: null },
     complete: { reached_at: null, badge: null },
     retained: { reached_at: null, badge: null },
   },
@@ -88,11 +87,11 @@ const BASE_CURRICULUM: LearnerCurriculum = {
   },
 };
 
-const HALFWAY_CURRICULUM: LearnerCurriculum = {
+const COMPLETE_CURRICULUM: LearnerCurriculum = {
   ...BASE_CURRICULUM,
   milestones: {
     ...BASE_CURRICULUM.milestones,
-    halfway: { reached_at: '2026-09-01T00:00:00Z', badge: null },
+    complete: { reached_at: '2026-09-01T00:00:00Z', badge: null },
   },
 };
 
@@ -160,23 +159,21 @@ describe('RewardsView', () => {
   });
 
   describe('RWD-BADGES: badge collection', () => {
-    it('RWD-BADGES-01: renders all three badge types as not yet earned', () => {
+    it('RWD-BADGES-01: renders both badge types as not yet earned', () => {
       renderComponent();
-      // Component uses BADGE_LABELS: { halfway: 'Halfway', complete: 'Complete', retained: 'Retained' }
-      expect(screen.getByLabelText('Halfway badge — not yet earned')).toBeInTheDocument();
+      // Component uses BADGE_LABELS: { complete: 'Complete', retained: 'Retained' }
       expect(screen.getByLabelText('Complete badge — not yet earned')).toBeInTheDocument();
       expect(screen.getByLabelText('Retained badge — not yet earned')).toBeInTheDocument();
     });
 
-    it('RWD-BADGES-EARNED: earned halfway badge shows "— earned"; others remain "not yet earned"', () => {
+    it('RWD-BADGES-EARNED: earned complete badge shows "— earned"; retained remains "not yet earned"', () => {
       mockUseCurriculums.mockReturnValue({
-        data: [HALFWAY_CURRICULUM],
+        data: [COMPLETE_CURRICULUM],
         isLoading: false,
         isError: false,
       });
       renderComponent();
-      expect(screen.getByLabelText('Halfway badge — earned')).toBeInTheDocument();
-      expect(screen.getByLabelText('Complete badge — not yet earned')).toBeInTheDocument();
+      expect(screen.getByLabelText('Complete badge — earned')).toBeInTheDocument();
       expect(screen.getByLabelText('Retained badge — not yet earned')).toBeInTheDocument();
     });
   });

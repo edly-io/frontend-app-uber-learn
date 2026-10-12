@@ -30,8 +30,8 @@ let mockLocationState: Record<string, unknown> | null = null;
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
-  useParams: () => ({ type: 'halfway' }),
-  useLocation: () => ({ state: mockLocationState, pathname: '/badge/halfway' }),
+  useParams: () => ({ type: 'complete' }),
+  useLocation: () => ({ state: mockLocationState, pathname: '/badge/complete' }),
 }));
 
 jest.mock('../api/curriculum');
@@ -55,7 +55,6 @@ const makeCurriculum = (overrides: Partial<LearnerCurriculum['milestones']> = {}
     is_open: false,
   },
   milestones: {
-    halfway: { reached_at: null, badge: null },
     complete: { reached_at: null, badge: null },
     retained: { reached_at: null, badge: null },
     ...overrides,
@@ -88,14 +87,14 @@ describe('BadgeEarned', () => {
     renderBadgeEarned();
     expect(screen.getByText('Badge earned')).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /road ready/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /^complete$/i })).toBeInTheDocument();
     });
   });
 
   it('uses badge title from curriculum milestones API (BE-API-TITLE)', async () => {
     (curriculumApi.getLearnerCurriculums as jest.Mock).mockResolvedValue([
       makeCurriculum({
-        halfway: {
+        complete: {
           reached_at: '2026-11-18T12:00:00Z',
           badge: {
             uuid: 'b1',
@@ -115,7 +114,7 @@ describe('BadgeEarned', () => {
   it('formats and shows earned date from curriculum milestones API (BE-API-DATE)', async () => {
     (curriculumApi.getLearnerCurriculums as jest.Mock).mockResolvedValue([
       makeCurriculum({
-        halfway: {
+        complete: {
           reached_at: '2026-11-18T12:00:00Z',
           badge: null,
         },
@@ -133,7 +132,7 @@ describe('BadgeEarned', () => {
   it('omits earned date line when milestone.reached_at is null (BE-NO-DATE)', async () => {
     renderBadgeEarned();
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /road ready/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /^complete$/i })).toBeInTheDocument();
     });
     expect(screen.queryByText(/Earned \d/)).not.toBeInTheDocument();
   });

@@ -14,16 +14,14 @@ import type { BadgeSlot, Milestone } from '../api/curriculum';
 // Badge definitions
 // ---------------------------------------------------------------------------
 
-const BADGE_SLOTS: BadgeSlot[] = ['halfway', 'complete', 'retained'];
+const BADGE_SLOTS: BadgeSlot[] = ['complete', 'retained'];
 
 const BADGE_LABELS: Record<BadgeSlot, string> = {
-  halfway: 'Halfway',
   complete: 'Complete',
   retained: 'Retained',
 };
 
 const BADGE_DESCRIPTIONS: Record<BadgeSlot, string> = {
-  halfway: 'Finished half the courses in your path',
   complete: 'Finished every course in your path',
   retained: 'Passed your 30-day retention check',
 };
@@ -168,7 +166,6 @@ export const RewardsView = () => {
   const curriculum = curriculums?.find((c) => c.courses.some((course) => course.course_id === courseId));
 
   const milestones = curriculum?.milestones ?? {
-    halfway: { reached_at: null, badge: null },
     complete: { reached_at: null, badge: null },
     retained: { reached_at: null, badge: null },
   };

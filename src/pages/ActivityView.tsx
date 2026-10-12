@@ -8,8 +8,9 @@ import { useSequence } from '../hooks/useSequence';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
+import { getLmsOrigin } from '../lib/lms';
 import { saveSequencePosition } from '../api/progress';
-import { useGamification } from '../hooks/useGamification';
+import { getGamificationSummary } from '../api/gamification';
 import { qk } from '../api/queries';
 import { ContentIFrame } from '../components/content-iframe/ContentIFrame';
 import { ButtonDock } from '../components/button-dock/ButtonDock';
@@ -18,10 +19,6 @@ import { StepIndicator } from '../components/step-indicator/StepIndicator';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
 import { OfflineView } from '../components/offline-view/OfflineView';
-
-function getLmsOrigin(): string {
-  return new URL(getConfig().LMS_BASE_URL).origin;
-}
 
 export const ActivityView = () => {
   const {
@@ -43,18 +40,26 @@ export const ActivityView = () => {
   const [shownVisit, setShownVisit] = useState<number | null>(null);
   const lastCorrectRef = useRef<boolean | null>(null);
 
-  // Capture server_time when the lesson mounts so it can be used as the `since`
-  // value for the lesson results endpoint. Using server_time (not device clock)
-  // prevents a fast device clock from making a first run look like a repeat.
-  const { data: gamificationData } = useGamification();
-  const serverTimeRef = useRef<string>(new Date().toISOString());
+  // Capture server_time once when the lesson mounts (not on every window focus) so the
+  // `since` value for the lesson results endpoint stays stable for the duration of the lesson.
+  // Using server_time (not device clock) prevents a fast device clock from making a first run
+  // look like a repeat.
+  const serverTimeRef = useRef<string | null>(null);
   useEffect(() => {
-    if (gamificationData?.server_time) {
-      serverTimeRef.current = gamificationData.server_time;
-    }
-  // Re-run whenever sequenceId changes (new lesson) OR when gamificationData first resolves
-  // (cold-start: gamification API may not have responded yet when the lesson mounts).
-  }, [sequenceId, gamificationData]);
+    serverTimeRef.current = null; // reset on new lesson
+    queryClient.fetchQuery({
+      queryKey: qk.gamification(),
+      queryFn: getGamificationSummary,
+      staleTime: 0,
+    }).then((data) => {
+      if (serverTimeRef.current === null && data?.server_time) {
+        serverTimeRef.current = data.server_time;
+      }
+    }).catch(() => {
+      // Falls back to device clock — serverTimeRef stays null,
+      // CompletionPage will skip the results query when since is absent.
+    });
+  }, [sequenceId, queryClient]); // re-fetch when a new lesson loads
 
   // Network availability — drives the offline error screen
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -91,7 +96,6 @@ export const ActivityView = () => {
   // standard CAPA (contentType === 'problem') and graded custom XBlocks like
   // sortable/DnD-v2 (graded === true). Plain HTML/text units auto-enable once shown.
   const isProblemUnit = currentUnit?.contentType === 'problem' || currentUnit?.graded === true;
-  const isAssessmentSequence = false;
 
   // Reset correctness whenever the unit changes.
   useEffect(() => {
@@ -112,7 +116,7 @@ export const ActivityView = () => {
   // is on screen.
   const isCompleted = currentUnitId !== null && (
     completedUnitId === currentUnitId
-    || (isProblemUnit ? Boolean(currentUnit?.complete) : (!isAssessmentSequence && isIframeLoaded))
+    || (isProblemUnit ? Boolean(currentUnit?.complete) : isIframeLoaded)
   );
 
   const handleCompleted = useCallback((correct: boolean | null) => {
@@ -159,18 +163,19 @@ export const ActivityView = () => {
 
       if (isRetentionCourse && !nextLesson) {
         // Last lesson of a retention check course: go to the result page.
-        // Pass `since` so the result page can scope its getLessonResults call to this attempt.
-        navigate(`/course/${courseId}/retention-result/${sequenceId}`, {
-          state: { since: serverTimeRef.current },
-        });
+        // Pass `since` when available so the result page can scope its
+        // getLessonResults call to this attempt only.
+        navigate(
+          `/course/${courseId}/retention-result/${sequenceId}`,
+          serverTimeRef.current ? { state: { since: serverTimeRef.current } } : undefined,
+        );
       } else {
-        // Regular lesson: navigate to lesson-complete and let it query lesson
-        // results directly (TanStack Query will cache-hit since ActivityView
-        // pre-fetches via useGamification). Pass `since` so the results are
-        // scoped to this attempt (not a previous one by the same learner).
-        navigate(`/course/${courseId}/lesson-complete/${sequenceId}`, {
-          state: { since: serverTimeRef.current },
-        });
+        // Regular lesson: navigate to lesson-complete and pass `since` so results
+        // are scoped to this attempt (not a previous one by the same learner).
+        navigate(
+          `/course/${courseId}/lesson-complete/${sequenceId}`,
+          serverTimeRef.current ? { state: { since: serverTimeRef.current } } : undefined,
+        );
       }
     }
   }, [
@@ -185,14 +190,16 @@ export const ActivityView = () => {
     queryClient,
   ]);
 
-  // Back arrow: step back within the lesson; if on step 0, pop history so
-  // CourseOverview re-uses its original location.key and the auto-resume guard
-  // suppresses the redirect (avoids an infinite lesson → back → lesson loop).
+  // Back arrow: step back within the lesson; if on step 0, try browser history
+  // first, then fall back to the course overview (handles deep-link launches
+  // where window.history is empty and navigate(-1) would do nothing).
   const handleBack = useCallback(() => {
     if (unitIdx > 0) {
       navigate(`/course/${courseId}/lesson/${sequenceId}/step/${unitIdx - 1}`);
-    } else {
+    } else if (window.history.length > 1) {
       navigate(-1);
+    } else {
+      navigate(`/course/${courseId}`);
     }
   }, [navigate, courseId, sequenceId, unitIdx]);
 

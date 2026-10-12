@@ -41,9 +41,12 @@ const MilestoneBadge = ({ slot, curriculum }: MilestoneBadgeProps) => {
   const imageUrl = milestone?.badge?.image_url ?? null;
   const title = milestone?.badge?.title ?? (isRetained ? '30-day check' : 'Path badge');
 
-  const toGo = isRetained
-    ? (curriculum.knowledge_check.is_open ? null : curriculum.courses_total - curriculum.courses_finished)
-    : curriculum.courses_total - curriculum.courses_finished;
+  let toGo: number | null;
+  if (isRetained) {
+    toGo = curriculum.knowledge_check.is_open ? null : curriculum.courses_total - curriculum.courses_finished;
+  } else {
+    toGo = curriculum.courses_total - curriculum.courses_finished;
+  }
 
   return (
     <div className={`lp-milestone${earned ? ' lp-milestone--earned' : ''}`}>
@@ -70,15 +73,17 @@ const MilestoneBadge = ({ slot, curriculum }: MilestoneBadgeProps) => {
         )}
       </div>
       <span className="lp-milestone__label">{title}</span>
-      {earned && milestone?.reached_at ? (
+      {earned && milestone?.reached_at && (
         <span className="lp-milestone__sub">
           {new Date(milestone.reached_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
         </span>
-      ) : isRetained && curriculum.knowledge_check.is_open ? (
+      )}
+      {!earned && isRetained && curriculum.knowledge_check.is_open && (
         <span className="lp-milestone__sub">Open now</span>
-      ) : toGo != null && toGo > 0 ? (
+      )}
+      {!earned && !(isRetained && curriculum.knowledge_check.is_open) && toGo != null && toGo > 0 && (
         <span className="lp-milestone__sub">{toGo} to go</span>
-      ) : null}
+      )}
     </div>
   );
 };
@@ -150,14 +155,19 @@ export const LearningPathView = () => {
   type CtaState = 'start' | 'continue' | 'check' | 'home';
 
   const getCtaState = (): CtaState => {
-    if (!curriculum) return 'home';
-    const { courses_finished, courses_total, knowledge_check, milestones } = curriculum;
-    if (courses_finished === 0) return 'start';
-    if (courses_finished < courses_total) return 'continue';
+    if (!curriculum) { return 'home'; }
+    const {
+      courses_finished: coursesFinished,
+      courses_total: coursesTotal,
+      knowledge_check: knowledgeCheck,
+      milestones,
+    } = curriculum;
+    if (coursesFinished === 0) { return 'start'; }
+    if (coursesFinished < coursesTotal) { return 'continue'; }
     // All courses done
     const checkDone = milestones.retained?.reached_at != null;
-    if (checkDone) return 'home';
-    if (knowledge_check.exists && knowledge_check.is_open) return 'check';
+    if (checkDone) { return 'home'; }
+    if (knowledgeCheck.exists && knowledgeCheck.is_open) { return 'check'; }
     return 'home';
   };
 

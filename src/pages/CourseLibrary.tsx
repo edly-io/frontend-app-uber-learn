@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
 import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
+import { qk } from '../api/queries';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
-import { getStoredResumeIdx } from '../lib/resume-storage';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
 
@@ -30,6 +30,12 @@ import './course-library.scss';
 type CourseStatus = 'not-started' | 'in-progress' | 'completed';
 type FilterKey = CourseStatus | 'in-paths';
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function courseCountLabel(n: number): string {
+  return n === 1 ? '1 course' : `${n} courses`;
+}
+
 // ── Art cycling ───────────────────────────────────────────────────────────────
 
 type CourseTint = 'blue' | 'teal' | 'lime' | 'purple' | 'magenta' | 'teen-rides' | 'orange';
@@ -48,7 +54,6 @@ const ART_SRCS: Record<CourseTint, string> = {
 // ── Filters ───────────────────────────────────────────────────────────────────
 
 const QUICK_CHIPS: { key: FilterKey; label: string }[] = [
-  { key: 'in-progress', label: 'In progress' },
   { key: 'completed', label: 'Completed' },
   { key: 'in-paths', label: 'In your paths' },
 ];
@@ -88,23 +93,18 @@ const ConnectedCourseCard = ({
   activeFilters,
   onResolved,
 }: ConnectedCourseCardProps) => {
-  const { data: outline } = useCourseOutline(course.courseId);
+  const { data: outline, isError: outlineError } = useCourseOutline(course.courseId);
   const { data: progressData } = useCourseProgressSummary(course.courseId);
   const [imgError, setImgError] = useState(false);
 
   const allLessons = useMemo(() => (outline ? mapOutlineToLessons(outline) : []), [outline]);
-  const storedIdx = allLessons.length > 0 ? getStoredResumeIdx(course.courseId, allLessons) : -1;
-  const resumeIdx = storedIdx > 0 ? storedIdx : 0;
-  const nextLesson = allLessons[resumeIdx];
 
-  let fraction: number;
-  if (progressData != null) {
-    fraction = progressData.fraction;
-  } else if (storedIdx > 0 && allLessons.length > 0) {
-    fraction = storedIdx / allLessons.length;
-  } else {
-    fraction = 0;
-  }
+  const fraction = progressData?.fraction ?? 0;
+
+  const resumeIdx = allLessons.length > 0
+    ? Math.min(Math.floor(fraction * allLessons.length), allLessons.length - 1)
+    : 0;
+  const nextLesson = allLessons[resumeIdx];
 
   let status: CourseStatus = 'not-started';
   if (fraction >= 1) { status = 'completed'; } else if (fraction > 0) { status = 'in-progress'; }
@@ -122,28 +122,44 @@ const ConnectedCourseCard = ({
   const artSrc = ART_SRCS[tint];
   const showRealImage = Boolean(course.imageUrl) && !imgError;
 
-  if (!outline) {
+  if (outlineError) {
     return (
-      <div className="cl-card cl-card--loading" aria-busy="true">
+      <div className="cl-card cl-card--error">
         <div className={`cl-card__tile cl-card__tile--${tint}`} />
         <div className="cl-card__body">
-          <LoadingSkeleton />
+          <span className="cl-card__title">{course.title}</span>
+          <span className="cl-card__next cl-card__next--error">Could not load</span>
         </div>
       </div>
     );
   }
 
-  let subtitle: string | null = null;
+  if (!outline) {
+    return (
+      <div className="cl-card cl-card--loading" aria-busy="true">
+        <div className={`cl-card__tile cl-card__tile--${tint}`} />
+        <div className="cl-card__body">
+          <LoadingSkeleton variant="card" />
+        </div>
+      </div>
+    );
+  }
+
+  let subtitle: React.ReactNode = null;
   if (status === 'completed') {
-    subtitle = 'Complete';
+    subtitle = <span className="cl-card__next cl-card__next--done">Complete</span>;
   } else if (status === 'in-progress' && nextLesson) {
-    subtitle = `Next: ${nextLesson.lessonTitle}`;
+    subtitle = <span className="cl-card__next">Next: {nextLesson.lessonTitle}</span>;
   } else if (allLessons.length > 0) {
-    subtitle = `${allLessons.length} ${allLessons.length === 1 ? 'lesson' : 'lessons'}`;
+    subtitle = (
+      <span className="cl-card__next">
+        {allLessons.length === 1 ? '1 lesson' : `${allLessons.length} lessons`}
+      </span>
+    );
   }
 
   return (
-    <button type="button" className="cl-card" onClick={onClick}>
+    <button type="button" className="cl-card" onClick={onClick} aria-label={`Open ${course.title}`}>
       <div className={`cl-card__tile${showRealImage ? '' : ` cl-card__tile--${tint}`}`}>
         {showRealImage ? (
           <img
@@ -159,11 +175,7 @@ const ConnectedCourseCard = ({
       <div className="cl-card__body">
         {category && <span className="cl-card__category">{category}</span>}
         <span className="cl-card__title">{course.title}</span>
-        {subtitle && (
-          <span className={`cl-card__next${status === 'completed' ? ' cl-card__next--done' : ''}`}>
-            {subtitle}
-          </span>
-        )}
+        {subtitle}
         {status === 'in-progress' && fraction > 0 && (
           <div className="cl-card__progress-wrap">
             <div className="cl-card__progress-bar">
@@ -299,12 +311,21 @@ const FiltersSheet = ({
   </>
 );
 
-// ── Section header ────────────────────────────────────────────────────────────
+// ── Section ───────────────────────────────────────────────────────────────────
 
-const SectionHeader = ({ title, meta }: { title: string; meta?: string }) => (
-  <div className="cl-section-header">
-    <h2 className="cl-section-header__title">{title}</h2>
-    {meta && <span className="cl-section-header__meta">{meta}</span>}
+interface SectionProps {
+  title: string;
+  count: number;
+  children: React.ReactNode;
+}
+
+const Section = ({ title, count, children }: SectionProps) => (
+  <div className="cl-section">
+    <div className="cl-section-header">
+      <h2 className="cl-section-header__title">{title}</h2>
+      <span className="cl-section-header__meta">{courseCountLabel(count)}</span>
+    </div>
+    <div className="cl-course-list">{children}</div>
   </div>
 );
 
@@ -327,17 +348,17 @@ const NoResults = ({ onClear }: { onClear: () => void }) => (
 
 export const CourseLibrary = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set());
   const [pendingFilters, setPendingFilters] = useState<Set<FilterKey>>(new Set());
   const [sheetOpen, setSheetOpen] = useState(false);
-
   const [resolvedStatuses, setResolvedStatuses] = useState<Record<string, CourseStatus>>({});
 
   const {
     data: courses, isLoading, isError, refetch,
   } = useQuery({
-    queryKey: ['enrolled-courses'],
+    queryKey: qk.enrolledCourses(),
     queryFn: getEnrolledCourses,
     staleTime: 5 * 60_000,
   });
@@ -346,7 +367,6 @@ export const CourseLibrary = () => {
 
   const enrolledCourses = useMemo(() => courses ?? [], [courses]);
 
-  // Build set of course IDs in any curriculum, and map courseId → curriculum title for category kicker
   const pathCourseIds = useMemo(() => {
     const ids = new Set<string>();
     curricula?.forEach((c) => c.courses.forEach((cc) => ids.add(cc.course_id)));
@@ -361,22 +381,26 @@ export const CourseLibrary = () => {
     return map;
   }, [curricula]);
 
-  const inPathCourses = useMemo(
-    () => enrolledCourses.filter((c) => pathCourseIds.has(c.courseId)),
-    [enrolledCourses, pathCourseIds],
+  // ── Three-section split ───────────────────────────────────────────────────
+  // In progress: any course (path or not) with status === 'in-progress'
+  // In your paths: path courses that are completed or not-started
+  // More courses: non-path courses that are completed or not-started
+  const inProgressCourses = useMemo(
+    () => enrolledCourses.filter((c) => resolvedStatuses[c.courseId] === 'in-progress'),
+    [enrolledCourses, resolvedStatuses],
   );
-  const moreCourses = useMemo(
-    () => enrolledCourses.filter((c) => !pathCourseIds.has(c.courseId)),
-    [enrolledCourses, pathCourseIds],
+  const inProgressIds = useMemo(
+    () => new Set(inProgressCourses.map((c) => c.courseId)),
+    [inProgressCourses],
   );
-
-  // Path section meta: "X of Y done" — prefer curriculum server data; fall back to resolved statuses
-  const pathDoneCount = inPathCourses.filter((c) => resolvedStatuses[c.courseId] === 'completed').length;
-  const curriculaFinished = curricula?.reduce((sum, c) => sum + c.courses_finished, 0);
-  const curriculaTotal = curricula?.reduce((sum, c) => sum + c.courses_total, 0);
-  const pathMetaCount = curriculaFinished != null ? curriculaFinished : pathDoneCount;
-  const pathMetaTotal = curriculaTotal != null && curriculaTotal > 0 ? curriculaTotal : inPathCourses.length;
-  const pathMeta = inPathCourses.length > 0 ? `${pathMetaCount} of ${pathMetaTotal} done` : undefined;
+  const inYourPathsCourses = useMemo(
+    () => enrolledCourses.filter((c) => pathCourseIds.has(c.courseId) && !inProgressIds.has(c.courseId)),
+    [enrolledCourses, pathCourseIds, inProgressIds],
+  );
+  const moreCoursesList = useMemo(
+    () => enrolledCourses.filter((c) => !pathCourseIds.has(c.courseId) && !inProgressIds.has(c.courseId)),
+    [enrolledCourses, pathCourseIds, inProgressIds],
+  );
 
   const handleStatusResolved = (courseId: string, status: CourseStatus) => {
     setResolvedStatuses((prev) => {
@@ -417,20 +441,24 @@ export const CourseLibrary = () => {
     setSheetOpen(false);
   };
 
-  const countVisible = (list: EnrolledCourse[], filters: Set<FilterKey>) => {
-    if (filters.size === 0) { return list.length; }
-    return list.filter((c) => {
-      const s = resolvedStatuses[c.courseId] ?? 'not-started';
-      const inPath = pathCourseIds.has(c.courseId);
-      return passesFilters(s, inPath, filters);
-    }).length;
-  };
+  // Visible counts per section (for "Show N courses" in filter sheet and section metas)
+  const countVisible = (list: EnrolledCourse[], filters: Set<FilterKey>, defaultInPath: boolean) => list.filter((c) => {
+    const s = resolvedStatuses[c.courseId] ?? 'not-started';
+    const inPath = pathCourseIds.has(c.courseId);
+    return passesFilters(s, inPath ?? defaultInPath, filters);
+  }).length;
 
-  const visibleCount = countVisible(enrolledCourses, pendingFilters);
-  const activeVisibleCount = countVisible(enrolledCourses, activeFilters);
+  const inProgressVisible = countVisible(inProgressCourses, activeFilters, false);
+  const inYourPathsVisible = countVisible(inYourPathsCourses, activeFilters, true);
+  const moreVisible = countVisible(moreCoursesList, activeFilters, false);
+  const totalVisible = inProgressVisible + inYourPathsVisible + moreVisible;
+
+  // For pending-filter count in sheet
+  const pendingTotal = countVisible(enrolledCourses, pendingFilters, false);
+
   const hasFilters = activeFilters.size > 0;
   const allResolved = Object.keys(resolvedStatuses).length === enrolledCourses.length;
-  const showNoResults = hasFilters && activeVisibleCount === 0 && allResolved;
+  const showNoResults = hasFilters && totalVisible === 0 && allResolved;
 
   return (
     <div className="cl-page">
@@ -439,7 +467,7 @@ export const CourseLibrary = () => {
           type="button"
           className="cl-nav__back"
           aria-label="Back to learning home"
-          onClick={() => navigate('/')}
+          onClick={() => (location.key === 'default' ? navigate('/') : navigate(-1))}
         >
           <img src={iconArrowLeft} alt="" className="cl-nav__back-icon" aria-hidden="true" />
         </button>
@@ -470,9 +498,7 @@ export const CourseLibrary = () => {
         {!isLoading && !isError && enrolledCourses.length > 0 && (
           <>
             <p className="cl-results-line">
-              <span className="cl-results-line__count">
-                {activeVisibleCount === 1 ? '1 course' : `${activeVisibleCount} courses`}
-              </span>
+              <span className="cl-results-line__count">{courseCountLabel(totalVisible)}</span>
               {hasFilters && (
                 <button type="button" className="cl-results-line__reset" onClick={clearFilters}>
                   Reset
@@ -481,57 +507,80 @@ export const CourseLibrary = () => {
             </p>
 
             {showNoResults && <NoResults onClear={clearFilters} />}
-            {!showNoResults && inPathCourses.length > 0 && (
+
+            {!showNoResults && (
               <>
-                <SectionHeader title="In your paths" meta={pathMeta} />
-                <div className="cl-course-list">
-                  {inPathCourses.map((course, idx) => (
-                    <ConnectedCourseCard
-                      key={course.courseId}
-                      course={course}
-                      index={idx}
-                      inPath
-                      category={courseCategoryMap[course.courseId]}
-                      activeFilters={activeFilters}
-                      onResolved={handleStatusResolved}
-                      onClick={() => navigate(`/course/${course.courseId}`)}
-                    />
-                  ))}
-                </div>
-                {moreCourses.length > 0 && (
-                  <>
-                    <SectionHeader title="More courses" />
-                    <div className="cl-course-list">
-                      {moreCourses.map((course, idx) => (
-                        <ConnectedCourseCard
-                          key={course.courseId}
-                          course={course}
-                          index={inPathCourses.length + idx}
-                          inPath={false}
-                          activeFilters={activeFilters}
-                          onResolved={handleStatusResolved}
-                          onClick={() => navigate(`/course/${course.courseId}`)}
-                        />
-                      ))}
-                    </div>
-                  </>
+                {/* In progress */}
+                {inProgressCourses.length > 0 && inProgressVisible > 0 && (
+                  <Section title="In progress" count={inProgressVisible}>
+                    {inProgressCourses.map((course, idx) => (
+                      <ConnectedCourseCard
+                        key={course.courseId}
+                        course={course}
+                        index={idx}
+                        inPath={pathCourseIds.has(course.courseId)}
+                        category={courseCategoryMap[course.courseId]}
+                        activeFilters={activeFilters}
+                        onResolved={handleStatusResolved}
+                        onClick={() => navigate(`/course/${course.courseId}`)}
+                      />
+                    ))}
+                  </Section>
+                )}
+
+                {/* In your paths */}
+                {inYourPathsCourses.length > 0 && inYourPathsVisible > 0 && (
+                  <Section title="In your paths" count={inYourPathsVisible}>
+                    {inYourPathsCourses.map((course, idx) => (
+                      <ConnectedCourseCard
+                        key={course.courseId}
+                        course={course}
+                        index={inProgressCourses.length + idx}
+                        inPath
+                        category={courseCategoryMap[course.courseId]}
+                        activeFilters={activeFilters}
+                        onResolved={handleStatusResolved}
+                        onClick={() => navigate(`/course/${course.courseId}`)}
+                      />
+                    ))}
+                  </Section>
+                )}
+
+                {/* More courses */}
+                {moreCoursesList.length > 0 && moreVisible > 0 && (
+                  <Section title="More courses" count={moreVisible}>
+                    {moreCoursesList.map((course, idx) => (
+                      <ConnectedCourseCard
+                        key={course.courseId}
+                        course={course}
+                        index={inProgressCourses.length + inYourPathsCourses.length + idx}
+                        inPath={false}
+                        activeFilters={activeFilters}
+                        onResolved={handleStatusResolved}
+                        onClick={() => navigate(`/course/${course.courseId}`)}
+                      />
+                    ))}
+                  </Section>
+                )}
+
+                {/* Flat list fallback: no path courses at all */}
+                {inYourPathsCourses.length === 0 && moreCoursesList.length === 0
+                  && inProgressCourses.length === 0 && enrolledCourses.length > 0 && (
+                  <div className="cl-course-list">
+                    {enrolledCourses.map((course, idx) => (
+                      <ConnectedCourseCard
+                        key={course.courseId}
+                        course={course}
+                        index={idx}
+                        inPath={false}
+                        activeFilters={activeFilters}
+                        onResolved={handleStatusResolved}
+                        onClick={() => navigate(`/course/${course.courseId}`)}
+                      />
+                    ))}
+                  </div>
                 )}
               </>
-            )}
-            {!showNoResults && inPathCourses.length === 0 && (
-              <div className="cl-course-list">
-                {enrolledCourses.map((course, idx) => (
-                  <ConnectedCourseCard
-                    key={course.courseId}
-                    course={course}
-                    index={idx}
-                    inPath={false}
-                    activeFilters={activeFilters}
-                    onResolved={handleStatusResolved}
-                    onClick={() => navigate(`/course/${course.courseId}`)}
-                  />
-                ))}
-              </div>
             )}
           </>
         )}
@@ -559,8 +608,8 @@ export const CourseLibrary = () => {
           onReset={() => setPendingFilters(new Set())}
           onApply={applySheet}
           onClose={() => setSheetOpen(false)}
-          totalVisible={visibleCount}
-          hasPathCourses={inPathCourses.length > 0}
+          totalVisible={pendingTotal}
+          hasPathCourses={pathCourseIds.size > 0}
         />
       )}
     </div>

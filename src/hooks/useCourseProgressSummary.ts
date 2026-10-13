@@ -9,4 +9,5 @@ export const useCourseProgressSummary = (courseId: string) => useQuery<CoursePro
   queryFn: () => getCourseProgressSummary(courseId),
   staleTime: 2 * 60_000,
   retry: 1,
+  enabled: Boolean(courseId),
 });

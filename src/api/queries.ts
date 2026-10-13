@@ -8,9 +8,13 @@ export const qk = {
   sequence: (seqId: string) => ['sequence', seqId] as const,
   resume: (courseId: string) => ['resume', courseId] as const,
   gamification: () => ['gamification', 'summary'] as const,
-  leaderboard: () => ['gamification', 'leaderboard'] as const,
+  leaderboard: (above: number, below: number) => ['gamification', 'leaderboard', above, below] as const,
+  /** Prefix key for invalidating ALL leaderboard queries regardless of neighbor count. */
+  leaderboardAll: () => ['gamification', 'leaderboard'] as const,
   lessonResults: (sequenceKey: string, since: string) => ['gamification', 'lesson-results', sequenceKey, since] as const,
   curriculums: () => ['curriculum', 'learner'] as const,
   badges: (unseen?: boolean) => ['curriculum', 'badges', unseen ?? false] as const,
   courseProgress: (courseId: string) => ['course-progress', courseId] as const,
+  enrolledCourses: () => ['enrolled-courses'] as const,
+  lastActivity: () => ['curriculum', 'last-activity'] as const,
 } as const;

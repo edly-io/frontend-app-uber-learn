@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
+import { qk } from '../api/queries';
 
 import iconClockFilled from '../assets/icons/icon-clock-filled.svg';
 import iconDismiss from '../assets/icons/icon-dismiss.svg';
@@ -41,7 +42,8 @@ function removeRecentSearch(query: string) {
 
 // ── Topics ────────────────────────────────────────────────
 
-const TOPICS = ['Safety', 'Driving', 'Riders', 'Vehicle', 'Basics'];
+// TODO: derive topics from course tags/categories via API (no backend endpoint exists yet — needs uber-features work)
+// const TOPICS = ['Safety', 'Driving', 'Riders', 'Vehicle', 'Basics'];
 
 // ── Icons ─────────────────────────────────────────────────
 
@@ -92,13 +94,16 @@ const CourseResult = ({ course, onClick }: { course: EnrolledCourse; onClick: ()
 
 export const SearchPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [submitted, setSubmitted] = useState('');
   const [recents, setRecents] = useState<string[]>(() => getRecentSearches());
 
-  const { data: courses = [] } = useQuery({
-    queryKey: ['enrolled-courses'],
+  const {
+    data: courses = [], isLoading: isCoursesLoading, isError: isCoursesError, refetch: refetchCourses,
+  } = useQuery({
+    queryKey: qk.enrolledCourses(),
     queryFn: getEnrolledCourses,
     staleTime: 5 * 60_000,
   });
@@ -134,10 +139,10 @@ export const SearchPage = () => {
     handleSubmit(s);
   };
 
-  const handleTopicClick = (topic: string) => {
-    setQuery(topic);
-    handleSubmit(topic);
-  };
+  // const handleTopicClick = (topic: string) => {
+  //   setQuery(topic);
+  //   handleSubmit(topic);
+  // };
 
   const isSearching = submitted.length > 0;
 
@@ -145,7 +150,7 @@ export const SearchPage = () => {
     <div className="sp-page">
       {/* Search bar */}
       <div className="sp-bar">
-        <button type="button" className="sp-bar__back" aria-label="Go back" onClick={() => navigate(-1)}>
+        <button type="button" className="sp-bar__back" aria-label="Go back" onClick={() => (location.key === 'default' ? navigate('/') : navigate(-1))}>
           <ArrowLeft />
         </button>
         <div className="sp-bar__field">
@@ -154,11 +159,11 @@ export const SearchPage = () => {
             ref={inputRef}
             type="search"
             className="sp-bar__input"
-            placeholder="Search courses and lessons"
+            placeholder="Search paths and courses"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { handleSubmit(query); } }}
-            aria-label="Search courses and lessons"
+            aria-label="Search paths and courses"
           />
           {query.length > 0 && (
             <button type="button" className="sp-bar__clear" aria-label="Clear" onClick={handleClear}>
@@ -170,41 +175,61 @@ export const SearchPage = () => {
 
       <div className="sp-body">
         {isSearching ? (
-          /* ── Results ── */
+          /* ── Results (with loading / error guards) ── */
           <>
-            <p className="sp-results-count">
-              {results.length} {results.length === 1 ? 'result' : 'results'}
-            </p>
-            {results.length > 0 ? (
-              <>
-                <h2 className="sp-section-title">Courses</h2>
-                <div className="sp-results-list">
-                  {results.map((course) => (
-                    <CourseResult
-                      key={course.courseId}
-                      course={course}
-                      onClick={() => navigate(`/course/${course.courseId}`)}
-                    />
-                  ))}
-                </div>
-              </>
-            ) : (
-              /* ── No results ── */
-              <div className="sp-empty">
-                <p className="sp-empty__title">No results for &ldquo;{submitted}&rdquo;</p>
-                <p className="sp-empty__sub">Try a different keyword or browse topics below.</p>
-                <div className="sp-topics">
-                  {TOPICS.map((t) => (
-                    <button key={t} type="button" className="sp-topic-chip" onClick={() => handleTopicClick(t)}>
-                      {t}
-                    </button>
-                  ))}
-                </div>
+            {isCoursesLoading && (
+              <div className="sp-loading" aria-label="Loading…" aria-busy="true">
+                <div className="sp-loading__row" aria-hidden="true" />
+                <div className="sp-loading__row" aria-hidden="true" />
+                <div className="sp-loading__row" aria-hidden="true" />
               </div>
+            )}
+            {isCoursesError && !isCoursesLoading && (
+              <div className="sp-error">
+                <p className="sp-error__message">Could not load courses</p>
+                <button type="button" className="sp-error__retry" onClick={() => refetchCourses()}>
+                  Try again
+                </button>
+              </div>
+            )}
+            {!isCoursesLoading && !isCoursesError && (
+              <>
+                <p className="sp-results-count">
+                  {results.length} {results.length === 1 ? 'result' : 'results'}
+                </p>
+                {results.length > 0 ? (
+                  <>
+                    <h2 className="sp-section-title">Courses</h2>
+                    <div className="sp-results-list">
+                      {results.map((course) => (
+                        <CourseResult
+                          key={course.courseId}
+                          course={course}
+                          onClick={() => navigate(`/course/${course.courseId}`)}
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  /* ── No results ── */
+                  <div className="sp-empty">
+                    <p className="sp-empty__title">No results for &ldquo;{submitted}&rdquo;</p>
+                    <p className="sp-empty__sub">Try a different keyword.</p>
+                    {/* TODO: re-enable topic chips once backend endpoint exists */}
+                    {/* <div className="sp-topics">
+                      {TOPICS.map((t) => (
+                        <button key={t} type="button" className="sp-topic-chip" onClick={() => handleTopicClick(t)}>
+                          {t}
+                        </button>
+                      ))}
+                    </div> */}
+                  </div>
+                )}
+              </>
             )}
           </>
         ) : (
-          /* ── Pre-search ── */
+          /* ── Pre-search (shown regardless of courses loading state) ── */
           <>
             {recents.length > 0 && (
               <section className="sp-section">
@@ -234,7 +259,8 @@ export const SearchPage = () => {
               </section>
             )}
 
-            <section className="sp-section">
+            {/* TODO: re-enable Topics section once backend endpoint exists */}
+            {/* <section className="sp-section">
               <h2 className="sp-section-title">Topics</h2>
               <div className="sp-topics">
                 {TOPICS.map((t) => (
@@ -243,7 +269,7 @@ export const SearchPage = () => {
                   </button>
                 ))}
               </div>
-            </section>
+            </section> */}
           </>
         )}
       </div>

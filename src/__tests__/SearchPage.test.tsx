@@ -3,7 +3,7 @@
  *
  * AC coverage:
  *   - SP-FOCUS: input auto-focuses on mount
- *   - SP-PRE-TOPICS: topic chips shown before search
+ *   - SP-PRE-TOPICS: topic chips NOT shown (commented out pending backend endpoint)
  *   - SP-PRE-NO-RECENTS: "Recent" section absent when localStorage empty
  *   - SP-RECENT-SHOWN: recent search shown after a submit
  *   - SP-RECENT-REMOVE: clicking remove dismisses a recent search
@@ -11,7 +11,7 @@
  *   - SP-RESULT-NAV: clicking a result navigates to course
  *   - SP-NO-RESULTS: zero-match search shows no-results message
  *   - SP-CLEAR: pressing the clear button resets query and results
- *   - SP-TOPIC-CLICK: clicking a topic chip submits that topic as query
+ *   - SP-TOPIC-CLICK: topic chip click disabled (chips commented out)
  *   - SP-ENTER: pressing Enter submits the query
  *   - SP-BACK: back button calls navigate(-1)
  */
@@ -30,6 +30,13 @@ const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
+  useLocation: () => ({
+    key: 'test-key',
+    pathname: '/',
+    search: '',
+    hash: '',
+    state: null,
+  }),
 }));
 
 jest.mock('../api/catalog');
@@ -91,10 +98,18 @@ describe('SearchPage', () => {
     });
   });
 
-  it('shows topic chips before any search (SP-PRE-TOPICS)', async () => {
+  it('search input has correct placeholder and aria-label (SP-PLACEHOLDER)', () => {
     renderPage();
-    expect(screen.getByRole('button', { name: 'Safety' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Driving' })).toBeInTheDocument();
+    const input = screen.getByRole('searchbox');
+    expect(input).toHaveAttribute('placeholder', 'Search paths and courses');
+    expect(input).toHaveAttribute('aria-label', 'Search paths and courses');
+  });
+
+  // SP-PRE-TOPICS: topic chips are commented out pending a backend endpoint — verify they are absent
+  it('does NOT show topic chips before any search (SP-PRE-TOPICS)', async () => {
+    renderPage();
+    expect(screen.queryByRole('button', { name: 'Safety' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Driving' })).not.toBeInTheDocument();
   });
 
   it('hides "Recent" section when localStorage is empty (SP-PRE-NO-RECENTS)', () => {
@@ -172,14 +187,11 @@ describe('SearchPage', () => {
     expect((input as HTMLInputElement).value).toBe('');
   });
 
-  it('submits the topic name when a topic chip is clicked (SP-TOPIC-CLICK)', async () => {
+  // SP-TOPIC-CLICK: topic chips are commented out pending backend endpoint — chip is not rendered
+  it('does NOT render topic chip buttons (SP-TOPIC-CLICK)', async () => {
     renderPage();
     await waitFor(() => screen.getByRole('searchbox'));
-    fireEvent.click(screen.getByRole('button', { name: 'Safety' }));
-    await waitFor(() => {
-      // "Regional safety training" matches "Safety"
-      expect(screen.getByText('Regional safety training')).toBeInTheDocument();
-    });
+    expect(screen.queryByRole('button', { name: 'Safety' })).not.toBeInTheDocument();
   });
 
   it('submits on Enter key press (SP-ENTER)', async () => {

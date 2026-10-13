@@ -1,15 +1,16 @@
-import React, { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getResumeBlock } from '../api/courseware';
 import { qk } from '../api/queries';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
 import type { LessonDescriptor } from '../lib/outline-mapper';
-import { getStoredResumeIdx, getStoredResumeSequenceId } from '../lib/resume-storage';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
 import { useGamification } from '../hooks/useGamification';
+import { useCurriculums } from '../hooks/useCurriculums';
+import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
 import scenePhoto from '../assets/images/scene-safety-education.png';
 import iconCheckWhite from '../assets/icons/icon-check-white.svg';
 import iconLock from '../assets/icons/icon-lock.svg';
@@ -18,10 +19,11 @@ import iconChevronRight from '../assets/icons/chevron-right.svg';
 import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
 import courseArtBook from '../assets/icons/course-art-book.svg';
 import courseArtSteering from '../assets/icons/course-art-steering.svg';
-import courseArtLime from '../assets/icons/course-art-lime.svg';
-import courseArtMagenta from '../assets/icons/course-art-magenta.svg';
-import courseArtPurple from '../assets/icons/course-art-purple.svg';
 import './course-page.scss';
+
+/** @deprecated The auto-resume redirect has been removed. This is a no-op kept for test compatibility. */
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+export function resetResumedLocationKeys(): void {}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -34,26 +36,6 @@ interface LessonSection {
   sectionTitle: string;
   lessons: LessonDescriptor[];
 }
-
-// ── Static course config ───────────────────────────────────────────────────
-
-interface CourseConfig {
-  optional: boolean;
-  art: string;
-  kicker: string;
-}
-
-const COURSE_CONFIG: Record<string, CourseConfig> = {
-  'getting-started': { optional: true, art: courseArtSteering, kicker: 'Optional' },
-  'vehicle-maintenance': { optional: true, art: courseArtPurple, kicker: 'Optional' },
-  'tough-situations': { optional: true, art: courseArtMagenta, kicker: 'Optional' },
-};
-
-const DEFAULT_CONFIG: CourseConfig = {
-  optional: false,
-  art: courseArtLime,
-  kicker: 'Required · Safety',
-};
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -71,15 +53,14 @@ function groupBySection(lessons: LessonDescriptor[]): LessonSection[] {
 function getLessonState(
   lesson: LessonDescriptor,
   resumeSequenceId: string | null,
-  allLessons: LessonDescriptor[],
+  _allLessons: LessonDescriptor[],
   courseComplete: boolean,
 ): LessonState {
-  if (courseComplete) { return 'complete'; }
-  if (!resumeSequenceId) { return 'upcoming'; }
-  const resumeIdx = allLessons.findIndex((l) => l.sequenceId === resumeSequenceId);
-  if (resumeIdx < 0) { return 'upcoming'; }
+  // Use the outline's per-sequence complete flag as the source of truth.
+  // Do NOT derive completion from resume pointer position — a lesson before
+  // the resume point is not necessarily complete (e.g. first visit, skipped).
+  if (courseComplete || lesson.complete) { return 'complete'; }
   if (lesson.sequenceId === resumeSequenceId) { return 'current'; }
-  if (lesson.lessonIndex < resumeIdx) { return 'complete'; }
   return 'upcoming';
 }
 
@@ -249,10 +230,32 @@ const ArtPanel = ({
 export const CourseOverview = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-
-  const config = COURSE_CONFIG[courseId] ?? DEFAULT_CONFIG;
-
+  const location = useLocation();
   const { data: gamification } = useGamification();
+  const { data: curriculums } = useCurriculums();
+  const { data: progressSummary } = useCourseProgressSummary(courseId);
+
+  // Derive optional: course is optional when it does not belong to any curriculum.
+  // Default to false (required) while curriculums are still loading to avoid a header flash.
+  const isOptional = curriculums !== undefined
+    ? !curriculums.some((c) => c.courses.some((course) => course.course_id === courseId))
+    : false;
+  const parentCurriculum = curriculums?.find((c) => c.courses.some((course) => course.course_id === courseId));
+  let kicker: string;
+  if (isOptional) {
+    kicker = 'Optional';
+  } else if (parentCurriculum) {
+    kicker = `Required · ${parentCurriculum.title}`;
+  } else {
+    kicker = 'Required';
+  }
+  const courseDescription = parentCurriculum?.courses.find((c) => c.course_id === courseId)?.description ?? null;
+  const config = {
+    optional: isOptional,
+    // TODO: no API provides per-course art — using a shared default
+    art: courseArtSteering,
+    kicker,
+  };
 
   const resumeQuery = useQuery({
     queryKey: qk.resume(courseId),
@@ -263,15 +266,13 @@ export const CourseOverview = () => {
 
   const outlineQuery = useCourseOutline(courseId);
 
-  // Auto-navigate returning users to their last position — must be before early returns.
-  const apiResumeSequenceIdForEffect = resumeQuery.data?.sectionId ?? null;
-  useEffect(() => {
-    if (apiResumeSequenceIdForEffect) {
-      navigate(`/course/${courseId}/lesson/${apiResumeSequenceIdForEffect}/step/0`, { replace: true });
+  const handleBack = () => {
+    if (location.key === 'default') {
+      navigate('/');
+    } else {
+      navigate(-1);
     }
-  }, [apiResumeSequenceIdForEffect, courseId, navigate]);
-
-  const handleBack = () => navigate('/');
+  };
 
   if (outlineQuery.isLoading || resumeQuery.isLoading) {
     return (
@@ -292,11 +293,16 @@ export const CourseOverview = () => {
   }
 
   if (outlineQuery.isError) {
+    const courseDisplayName = outlineQuery.data?.title
+      ?? parentCurriculum?.courses.find((c) => c.course_id === courseId)?.display_name
+      ?? 'Course';
     return (
       <ErrorView
         title="Could not load course"
         message="We could not retrieve the course outline. Please try again."
         onRetry={() => outlineQuery.refetch()}
+        navTitle={courseDisplayName}
+        onBack={handleBack}
       />
     );
   }
@@ -306,29 +312,16 @@ export const CourseOverview = () => {
   const sections = groupBySection(lessons);
 
   const apiResumeSequenceId = resumeQuery.data?.sectionId ?? null;
-  const fraction = 0;
-  const courseComplete = false;
-  const pointsEarned = 0;
+  const fraction = progressSummary?.fraction ?? 0;
+  const courseComplete = fraction >= 1;
+  const pointsEarned = gamification?.courses?.find((c) => c.course_key === courseId)?.points ?? 0;
 
-  const apiResumeIdx = apiResumeSequenceId
-    ? lessons.findIndex((r) => r.sequenceId === apiResumeSequenceId)
-    : -1;
-  const storedResumeIdx = getStoredResumeIdx(courseId, lessons);
-  const effectiveResumeIdx = Math.max(apiResumeIdx, storedResumeIdx);
-  const resumeSequenceId = effectiveResumeIdx >= 0
-    ? lessons[effectiveResumeIdx].sequenceId
-    : (getStoredResumeSequenceId(courseId) ?? apiResumeSequenceId);
+  const resumeSequenceId = apiResumeSequenceId;
 
-  let completedLessons: number;
-  if (courseComplete) {
-    completedLessons = lessons.length;
-  } else {
-    completedLessons = effectiveResumeIdx > 0 ? effectiveResumeIdx : 0;
-  }
   const totalLessons = lessons.length;
-  const derivedFraction = totalLessons > 0 && completedLessons > 0
-    ? completedLessons / totalLessons : 0;
-  const effectiveFraction = derivedFraction > 0 ? derivedFraction : fraction;
+  const completedLessons = courseComplete
+    ? totalLessons
+    : Math.round(fraction * totalLessons);
 
   const handleContinue = () => {
     if (courseComplete) {
@@ -364,9 +357,7 @@ export const CourseOverview = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <p className="cd-kicker">{config.kicker}</p>
             <h1 className="cd-title">{outline?.title ?? 'Course'}</h1>
-            <p className="cd-lead">
-              Practical guidance for respectful boundaries, awareness, and safe reporting.
-            </p>
+            {courseDescription && <p className="cd-lead">{courseDescription}</p>}
           </div>
 
           {/* Course progress row */}
@@ -377,16 +368,16 @@ export const CourseOverview = () => {
                   {`${completedLessons} of ${totalLessons} lesson${totalLessons !== 1 ? 's' : ''} complete`}
                 </p>
                 <div className="cd-progress-track">
-                  {effectiveFraction > 0 && (
+                  {fraction > 0 && (
                     <div
                       className="cd-progress-fill"
-                      style={{ width: `${Math.round(effectiveFraction * 100)}%` }}
+                      style={{ width: `${Math.round(fraction * 100)}%` }}
                     />
                   )}
                 </div>
-                {gamification?.lifetime_points != null && gamification.lifetime_points > 0 ? (
+                {pointsEarned > 0 ? (
                   <p className="cd-progress-points">
-                    {`${gamification.lifetime_points} points earned`}
+                    {`${pointsEarned} points earned`}
                   </p>
                 ) : (
                   <p className="cd-progress-points">Earn points</p>

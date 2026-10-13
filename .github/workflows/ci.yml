@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - 'master'
+      - 'uber'
   pull_request:
     branches:
       - '**'

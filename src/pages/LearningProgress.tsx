@@ -1,27 +1,35 @@
-import React, { useState } from 'react';
+import React, {
+  useState, useCallback, useMemo, useRef, useEffect,
+} from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
-import { useCourseOutline } from '../hooks/useCourseOutline';
-import { mapOutlineToLessons } from '../lib/outline-mapper';
-import { getStoredResumeIdx } from '../lib/resume-storage';
+import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
+import { ErrorView } from '../components/ui/ErrorView';
+import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
 import { useGamification, type GamificationSummary } from '../hooks/useGamification';
 import { useLeaderboard, type LeaderboardData } from '../hooks/useLeaderboard';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { useBadges } from '../hooks/useBadges';
-import type { LearnerCurriculum, BadgeAward } from '../api/curriculum';
+import { qk } from '../api/queries';
+import type { LearnerCurriculum, BadgeEntry } from '../api/curriculum';
+import { getLastActivity } from '../api/curriculum';
 import type { GamificationDay, WeekdayKey } from '../api/gamification';
 import { BadgeDetailSheet, type SheetBadgeData } from '../components/ui/BadgeDetailSheet';
 import { InfoSheet, type InfoSheetData } from '../components/ui/InfoSheet';
 import { GoalRing } from '../components/ui/GoalRing';
+import {
+  type TabId, TABS, INFO_MAP,
+} from './learning-progress/info-content';
+import { toOrdinal, getResetsText } from './learning-progress/format';
+import { PointsTab } from './learning-progress/PointsTab';
 
 import iconCircleInfo from '../assets/icons/icon-circle-info.svg';
-import courseArtBlue from '../assets/icons/course-art-blue2.svg';
-import courseArtTeal from '../assets/icons/course-art-teal2.svg';
-import iconLightningLarge from '../assets/icons/icon-lightning-large.svg';
 import iconCircleCheck from '../assets/icons/icon-circle-check.svg';
 import iconCalendar from '../assets/icons/icon-calendar.svg';
 import iconBadgeCheck from '../assets/icons/icon-badge-check.svg';
+import iconTrophyEarned from '../assets/icons/badge-art-trophy-earned.svg';
+import iconTrophyLocked from '../assets/icons/badge-art-retained.svg';
 import courseArtBlue1 from '../assets/icons/course-art-blue.svg';
 import courseArtOrange from '../assets/icons/course-art-orange.svg';
 import courseArtMagenta from '../assets/icons/course-art-magenta.svg';
@@ -32,61 +40,6 @@ import courseArtToolbox from '../assets/icons/course-art-toolbox.svg';
 
 import './learning-progress.scss';
 
-// ── Tab types ────────────────────────────────────────────
-
-type TabId = 'Points' | 'Streak' | 'Badges' | 'Leaderboard';
-
-const TABS: TabId[] = ['Points', 'Streak', 'Badges', 'Leaderboard'];
-
-// ── Info sheet content ───────────────────────────────────
-
-const INFO_POINTS: InfoSheetData = {
-  title: 'How points work',
-  bullets: [
-    '10 points for each step, the first time you finish a lesson.',
-    'Plus 5 for each question you get right on the first try.',
-    "Repeats and checks don't add points.",
-    'Points are never taken away.',
-  ],
-};
-
-const INFO_STREAK: InfoSheetData = {
-  title: 'How your streak works',
-  bullets: [
-    'Learn on 2 days a week, Monday to Sunday.',
-    'Every course counts, in a path or not.',
-    "One missed week in any eight is forgiven. That's the outlined week.",
-    "If there's no course left to take, your streak pauses.",
-  ],
-};
-
-const INFO_BADGES: InfoSheetData = {
-  title: 'How badges work',
-  bullets: [
-    'Every course has a badge. Finish its lessons and final check to earn it.',
-    'Every learning path has a badge too, for finishing all its courses.',
-    '30 days later, a check on the path earns one more.',
-    "Badges turn from grey to colour when earned. They're never taken away.",
-  ],
-};
-
-const INFO_LEADERBOARD: InfoSheetData = {
-  title: 'How the leaderboard works',
-  bullets: [
-    'Ranked by points earned this month. Everyone starts again on the 1st.',
-    'Your total stays on the Points tab.',
-    "Other drivers' names are hidden.",
-    "Drivers with no points this month aren't listed.",
-  ],
-};
-
-const INFO_MAP: Record<TabId, InfoSheetData> = {
-  Points: INFO_POINTS,
-  Streak: INFO_STREAK,
-  Badges: INFO_BADGES,
-  Leaderboard: INFO_LEADERBOARD,
-};
-
 // ── Icons ────────────────────────────────────────────────
 
 const CloseX = () => (
@@ -95,114 +48,7 @@ const CloseX = () => (
   </svg>
 );
 
-// ── Helpers ──────────────────────────────────────────────
-
-const toOrdinal = (n: number): string => {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
-};
-
-const getResetsText = (resetsOn?: string): string => {
-  if (resetsOn) {
-    const d = new Date(resetsOn);
-    return `resets ${d.toLocaleString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}`;
-  }
-  const d = new Date();
-  d.setMonth(d.getMonth() + 1, 1);
-  return `resets 1 ${d.toLocaleString('en-US', { month: 'long' })}`;
-};
-
-// ── Points tab ───────────────────────────────────────────
-
-interface CourseRowProps {
-  course: EnrolledCourse;
-  artSrc: string;
-  tintClass: string;
-  gamificationPoints?: number;
-}
-
-const PointsCourseRow = ({
-  course, artSrc, tintClass, gamificationPoints,
-}: CourseRowProps) => {
-  const outlineQuery = useCourseOutline(course.courseId);
-  const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
-  const totalLessons = allLessons.length;
-  const storedIdx = totalLessons > 0 ? getStoredResumeIdx(course.courseId, allLessons) : -1;
-  const completedLessons = storedIdx > 0 ? storedIdx : 0;
-  const pointsEarned = gamificationPoints ?? 0;
-
-  const statusText = totalLessons > 0
-    ? `${completedLessons} of ${totalLessons} lessons complete`
-    : 'Not started';
-
-  return (
-    <div className="lp-course-row">
-      <div className={`lp-course-row__art ${tintClass}`}>
-        <img src={artSrc} alt="" className="lp-course-row__art-img" aria-hidden="true" />
-      </div>
-      <div className="lp-course-row__body">
-        <span className="lp-course-row__title">{course.title}</span>
-        <span className="lp-course-row__status">{statusText}</span>
-      </div>
-      <span className="lp-course-row__points">
-        {pointsEarned > 0 ? `+${pointsEarned}` : '0'}
-      </span>
-    </div>
-  );
-};
-
-const COURSE_ART = [
-  { artSrc: courseArtBlue, tintClass: 'lp-course-row__art--blue' },
-  { artSrc: courseArtTeal, tintClass: 'lp-course-row__art--teal' },
-];
-
-interface PointsTabProps {
-  courses: EnrolledCourse[];
-  totalPoints: number;
-  monthPoints?: number;
-  coursePointsByKey?: Record<string, number>;
-}
-
-const PointsTab = ({
-  courses, totalPoints, monthPoints, coursePointsByKey,
-}: PointsTabProps) => (
-  <div className="lp-tab-content">
-    {/* Hero card */}
-    <div className="lp-points-hero">
-      <div className="lp-points-hero__figure">
-        <span className="lp-points-hero__label">Total points</span>
-        <span className="lp-points-hero__value">{totalPoints}</span>
-        <span className="lp-points-hero__sub">{monthPoints ?? totalPoints} this month</span>
-      </div>
-      <div className="lp-points-hero__art">
-        <img src={iconLightningLarge} alt="" className="lp-points-hero__icon" aria-hidden="true" />
-      </div>
-    </div>
-
-    {/* By course */}
-    {courses.length > 0 && (
-      <>
-        <h2 className="lp-section-heading">By course</h2>
-        <div className="lp-course-list">
-          {courses.map((course, i) => (
-            <PointsCourseRow
-              key={course.courseId}
-              course={course}
-              artSrc={COURSE_ART[i % COURSE_ART.length].artSrc}
-              tintClass={COURSE_ART[i % COURSE_ART.length].tintClass}
-              gamificationPoints={coursePointsByKey?.[course.courseId]}
-            />
-          ))}
-        </div>
-      </>
-    )}
-  </div>
-);
-
 // ── Streak tab ───────────────────────────────────────────
-
-type StreakState = 'none' | 'reset';
 
 type WeekCellState = 'empty' | 'met' | 'forgiven' | 'missed' | 'current';
 
@@ -243,28 +89,6 @@ function mapApiRecentWeeks(summary: GamificationSummary): WeekCellData[] {
   return result;
 }
 
-const STREAK_NONE_WEEKS: WeekCellData[] = [
-  { monthLabel: 'Sep', dateLabel: '7', state: 'empty' },
-  { monthLabel: '', dateLabel: '14', state: 'empty' },
-  { monthLabel: '', dateLabel: '21', state: 'empty' },
-  { monthLabel: '', dateLabel: '28', state: 'empty' },
-  { monthLabel: 'Oct', dateLabel: '5', state: 'empty' },
-  { monthLabel: '', dateLabel: '12', state: 'empty' },
-  { monthLabel: '', dateLabel: '19', state: 'empty' },
-  { monthLabel: '', dateLabel: 'Now', state: 'current' },
-];
-
-const STREAK_RESET_WEEKS: WeekCellData[] = [
-  { monthLabel: 'Sep', dateLabel: '7', state: 'met' },
-  { monthLabel: '', dateLabel: '14', state: 'met' },
-  { monthLabel: '', dateLabel: '21', state: 'met' },
-  { monthLabel: '', dateLabel: '28', state: 'met' },
-  { monthLabel: 'Oct', dateLabel: '5', state: 'forgiven' },
-  { monthLabel: '', dateLabel: '12', state: 'missed' },
-  { monthLabel: '', dateLabel: '19', state: 'missed' },
-  { monthLabel: '', dateLabel: 'Now', state: 'current' },
-];
-
 type LpDayState = 'learned' | 'today' | 'missed' | 'upcoming';
 
 interface LpDayProps {
@@ -285,79 +109,36 @@ const LpDay = ({ state, label }: LpDayProps) => (
   </div>
 );
 
-interface StreakThisWeekProps {
-  streakState?: StreakState;
-  apiSummary?: GamificationSummary;
-}
-
-const STREAK_THIS_WEEK_DAYS: Record<StreakState, Array<{ label: string; state: LpDayState }>> = {
-  none: [
-    { label: 'M', state: 'missed' },
-    { label: 'T', state: 'missed' },
-    { label: 'W', state: 'today' },
-    { label: 'T', state: 'upcoming' },
-    { label: 'F', state: 'upcoming' },
-    { label: 'S', state: 'upcoming' },
-    { label: 'S', state: 'upcoming' },
-  ],
-  reset: [
-    { label: 'M', state: 'learned' },
-    { label: 'T', state: 'missed' },
-    { label: 'W', state: 'today' },
-    { label: 'T', state: 'upcoming' },
-    { label: 'F', state: 'upcoming' },
-    { label: 'S', state: 'upcoming' },
-    { label: 'S', state: 'upcoming' },
-  ],
-};
-
-const STREAK_THIS_WEEK_CONFIG: Record<StreakState, { completed: number; heading: string; desc: string }> = {
-  none: {
-    completed: 0,
-    heading: 'Two days to go',
-    desc: 'Learn on 2 days this week to start a week streak.',
-  },
-  reset: {
-    completed: 1,
-    heading: 'One more day to go',
-    desc: 'Learn on one more day this week to start a new streak.',
-  },
-};
-
-const StreakThisWeek = ({ streakState = 'none', apiSummary }: StreakThisWeekProps) => {
-  const apiWeek = apiSummary?.this_week;
-  const days = apiWeek ? mapApiDaysToLp(apiWeek.days) : STREAK_THIS_WEEK_DAYS[streakState];
-  const daysCompleted = apiWeek ? apiWeek.learning_days : STREAK_THIS_WEEK_CONFIG[streakState].completed;
-  const goal = apiWeek ? apiWeek.goal : 2;
-  const currentStreak = apiSummary?.current_streak_weeks ?? 0;
+const StreakThisWeek = ({ apiSummary }: { apiSummary: GamificationSummary }) => {
+  const apiWeek = apiSummary.this_week;
+  if (!apiWeek) { return null; }
+  const days = mapApiDaysToLp(apiWeek.days);
+  const daysCompleted = apiWeek.learning_days;
+  const { goal } = apiWeek;
+  const currentStreak = apiSummary.current_streak_weeks;
 
   let heading: string;
   let desc: string;
 
-  if (apiWeek) {
-    if (apiWeek.status === 'paused') {
-      heading = 'Streak paused';
-      desc = 'Nothing required is left, so your streak is safe.';
-    } else if (apiWeek.status === 'goal_met') {
-      heading = 'Goal met this week';
-      desc = apiWeek.projected_streak_weeks > currentStreak
-        ? `Your streak grows to ${apiWeek.projected_streak_weeks} weeks when the week ends.`
-        : 'Keep learning — your streak is already growing.';
-    } else {
-      const remaining = goal - daysCompleted;
-      heading = remaining === 1 ? 'One more day to go' : `${remaining} days to go`;
-      if (remaining === 1) {
-        desc = currentStreak > 0
-          ? `Learn on one more day this week to keep your ${currentStreak}-week streak.`
-          : 'Learn on one more day this week to start your first streak.';
-      } else {
-        desc = `Learn on ${remaining} days this week to ${currentStreak > 0 ? 'keep your streak' : 'start a streak'}.`;
-      }
-    }
+  if (apiWeek.status === 'paused') {
+    heading = 'Streak paused';
+    desc = 'Nothing required is left, so your streak is safe.';
+  } else if (apiWeek.status === 'goal_met') {
+    heading = 'Goal met this week';
+    desc = apiWeek.projected_streak_weeks > currentStreak
+      ? `Your streak grows to ${apiWeek.projected_streak_weeks} weeks when the week ends.`
+      : 'Keep learning — your streak is already growing.';
   } else {
-    const cfg = STREAK_THIS_WEEK_CONFIG[streakState];
-    heading = cfg.heading;
-    desc = cfg.desc;
+    const remaining = goal - daysCompleted;
+    heading = remaining === 1 ? 'One more day to go' : `${remaining} days to go`;
+    if (remaining === 1) {
+      desc = currentStreak > 0
+        ? `Learn on one more day this week to keep your ${currentStreak}-week streak.`
+        : 'Learn on one more day this week to start your first streak.';
+    } else {
+      const streakAction = currentStreak > 0 ? 'keep your streak' : 'start a streak';
+      desc = `Learn on ${remaining} days this week to ${streakAction}.`;
+    }
   }
 
   return (
@@ -379,16 +160,11 @@ const StreakThisWeek = ({ streakState = 'none', apiSummary }: StreakThisWeekProp
   );
 };
 
-interface StreakTabProps {
-  streakState?: StreakState;
-  apiSummary?: GamificationSummary;
-}
-
-const StreakTab = ({ streakState = 'none', apiSummary }: StreakTabProps) => {
-  const streakCount = apiSummary?.current_streak_weeks ?? (streakState === 'reset' ? 0 : 0);
-  const longestStreak = apiSummary?.longest_streak_weeks ?? (streakState === 'reset' ? 4 : 0);
-  let weeks: WeekCellData[];
-  if (apiSummary) { weeks = mapApiRecentWeeks(apiSummary); } else if (streakState === 'reset') { weeks = STREAK_RESET_WEEKS; } else { weeks = STREAK_NONE_WEEKS; }
+const StreakTab = ({ apiSummary }: { apiSummary?: GamificationSummary }) => {
+  if (!apiSummary) { return <LoadingSkeleton />; }
+  const streakCount = apiSummary.current_streak_weeks;
+  const longestStreak = apiSummary.longest_streak_weeks;
+  const weeks = mapApiRecentWeeks(apiSummary);
   const subLine = longestStreak > streakCount
     ? `weeks in a row · longest ${longestStreak}`
     : 'weeks in a row';
@@ -426,7 +202,7 @@ const StreakTab = ({ streakState = 'none', apiSummary }: StreakTabProps) => {
       </div>
 
       {/* This week */}
-      <StreakThisWeek streakState={streakState} apiSummary={apiSummary} />
+      <StreakThisWeek apiSummary={apiSummary} />
     </div>
   );
 };
@@ -452,22 +228,23 @@ const GridSealRing = ({
   hasThirty?: boolean; thirtyOpen?: boolean;
 }) => {
   const size = 88;
-  const r = (size - 12) / 2;
+  const strokeWidth = 3;
   const c = size / 2;
+  const r = c - strokeWidth / 2;
   const circ = 2 * Math.PI * r;
   const offset = circ * (1 - Math.min(1, progress));
 
   return (
     <div className="lp-badge-grid-ring" style={{ width: size, height: size }}>
       <svg className="lp-badge-grid-ring__svg" viewBox={`0 0 ${size} ${size}`}>
-        <circle cx={c} cy={c} r={r} stroke="var(--u-border-opaque)" strokeWidth="4" fill="none" />
+        <circle cx={c} cy={c} r={r} stroke="var(--u-border-opaque)" strokeWidth={strokeWidth} fill="none" />
         {progress > 0 && (
           <circle
             cx={c}
             cy={c}
             r={r}
             stroke="var(--u-background-accent)"
-            strokeWidth="4"
+            strokeWidth={strokeWidth}
             fill="none"
             strokeLinecap="round"
             strokeDasharray={circ}
@@ -490,12 +267,15 @@ const GridSealRing = ({
       {hasThirty && (
         <div
           className={`lp-badge-grid-ring__thirty${thirtyOpen ? ' lp-badge-grid-ring__thirty--open' : ''}`}
-          aria-label={thirtyOpen ? '30-day check open' : '30-day check locked'}
+          aria-label={thirtyOpen ? '30-day check earned' : '30-day check locked'}
         >
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-            <path d="M10 13c-3.314 0-6-2.686-6-6V3h12v4c0 3.314-2.686 6-6 6Z" stroke="currentColor" strokeWidth="1.5" fill="none" />
-            <path d="M4 5H2v2c0 1.657 1.343 3 3 3M16 5h2v2c0 1.657-1.343 3-3 3M10 13v4M7 17h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
+          <img
+            src={thirtyOpen ? iconTrophyEarned : iconTrophyLocked}
+            width="16"
+            height="16"
+            alt=""
+            aria-hidden="true"
+          />
         </div>
       )}
     </div>
@@ -519,6 +299,46 @@ const BadgeGridItem = ({
   </button>
 );
 
+// ── Course badge grid item with real progress ─────────────
+
+const CourseGridBadgeItem = ({
+  course, idx, award, isNew, onClick,
+}: {
+  course: EnrolledCourse; idx: number; award?: BadgeEntry; isNew?: boolean; onClick: () => void;
+}) => {
+  const progressQuery = useCourseProgressSummary(course.courseId);
+  const artMeta = COURSE_ARTS[idx % COURSE_ARTS.length];
+  const earned = Boolean(award?.awarded);
+  const progress = earned ? 1 : (progressQuery.data?.fraction ?? 0);
+  const artSrc = (earned && award?.badge?.image_url) ? award.badge.image_url : artMeta.art;
+
+  let sub: string;
+  if (earned && award?.awarded_at) {
+    sub = new Date(award.awarded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  } else if (progressQuery.data?.totalUnits != null) {
+    sub = `${progressQuery.data.totalUnits} lessons`;
+  } else {
+    sub = '';
+  }
+
+  return (
+    <BadgeGridItem
+      title={course.title}
+      sub={sub}
+      isNew={isNew}
+      onClick={onClick}
+      ring={(
+        <GridSealRing
+          progress={progress}
+          art={artSrc}
+          tintColor={artMeta.tint}
+          earned={earned}
+        />
+      )}
+    />
+  );
+};
+
 // ── Main BadgesTab ────────────────────────────────────────
 
 interface BadgesTabProps {
@@ -529,17 +349,34 @@ interface BadgesTabProps {
 
 const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) => {
   const [sheet, setSheet] = useState<SheetBadgeData | null>(null);
-  const { data: badgesPage } = useBadges();
-  const totalBadges = badgesPage?.count ?? 0;
-  const earnedAwards = badgesPage?.results ?? [];
+  const handleSheetClose = useCallback(() => setSheet(null), []);
+  const { data: badgesData, isError: badgesError, refetch: refetchBadges } = useBadges();
 
-  // Build map of course_id → BadgeAward for quick lookup
-  const courseAwardMap = new Map<string, BadgeAward>();
-  earnedAwards.forEach((a) => {
+  if (badgesError) {
+    return (
+      <ErrorView
+        title="Could not load badges"
+        message="We could not retrieve your badge data. Please try again."
+        onRetry={() => refetchBadges()}
+      />
+    );
+  }
+  const earnedAwards: BadgeEntry[] = [
+    ...(badgesData?.curriculum_badges.filter((b) => b.awarded) ?? []),
+    ...(badgesData?.course_badges.filter((b) => b.awarded) ?? []),
+  ];
+  const totalBadges = earnedAwards.length;
+
+  // Build map of course_id → BadgeEntry for quick lookup (all badge entries, not just earned)
+  const courseAwardMap = new Map<string, BadgeEntry>();
+  (badgesData?.course_badges ?? []).forEach((a) => {
     if (a.source.type === 'course') {
       courseAwardMap.set(a.source.course_id, a);
     }
   });
+
+  // Only show courses that have a badge configured in the API
+  const badgedCourses = courses.filter((c) => courseAwardMap.has(c.courseId));
 
   const handlePathClick = (curriculum: LearnerCurriculum) => {
     setSheet({ kind: 'path', curriculum });
@@ -548,18 +385,18 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
   const handleCourseClick = (course: EnrolledCourse, idx: number) => {
     const award = courseAwardMap.get(course.courseId);
     const artMeta = COURSE_ARTS[idx % COURSE_ARTS.length];
-    const earned = Boolean(award);
+    const earned = Boolean(award?.awarded);
     const badgeImageUrl = award?.badge?.image_url;
     setSheet({
       kind: 'course',
       courseId: course.courseId,
       title: award?.badge.title ?? course.title,
-      description: award?.badge.description ?? 'Earned when you finish all lessons and the final check.',
+      description: award?.badge?.description ?? '',
       art: (earned && badgeImageUrl) ? badgeImageUrl : artMeta.art,
       tintColor: artMeta.tint,
       progress: 'In progress',
       earned,
-      earnedDate: award
+      earnedDate: award?.awarded_at
         ? new Date(award.awarded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
         : undefined,
     });
@@ -595,9 +432,14 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
               const progress = c.courses_total > 0
                 ? c.courses_finished / c.courses_total
                 : 0;
-              const sub = isComplete
-                ? new Date(complete!.reached_at!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-                : `${c.courses_finished}/${c.courses_total} courses`;
+              let sub: string;
+              if (!isComplete) {
+                sub = `${c.courses_finished}/${c.courses_total} courses`;
+              } else if (thirtyOpen && !thirtyEarned) {
+                sub = '30-day check open';
+              } else {
+                sub = new Date(complete!.reached_at!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+              }
 
               return (
                 <BadgeGridItem
@@ -611,8 +453,8 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
                       art={complete?.badge?.image_url ?? iconBadgeCheck}
                       tintColor="var(--u-learning-course-tint-blue)"
                       earned={isComplete}
-                      hasThirty={!thirtyEarned}
-                      thirtyOpen={thirtyOpen}
+                      hasThirty
+                      thirtyOpen={thirtyEarned}
                     />
                   )}
                 />
@@ -635,35 +477,21 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
           </div>
         </>
       )}
-      {courses.length > 0 && (
+      {badgedCourses.length > 0 && (
         <>
           <h2 className="lp-section-heading lp-section-heading--badges lp-section-heading--with-divider">Courses</h2>
           <div className="lp-badge-grid">
-            {courses.map((course, idx) => {
+            {badgedCourses.map((course, idx) => {
               const award = courseAwardMap.get(course.courseId);
-              const artMeta = COURSE_ARTS[idx % COURSE_ARTS.length];
-              const earned = Boolean(award);
-              const isNew = award && !award.seen;
-              const sub = earned
-                ? new Date(award!.awarded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-                : 'In progress';
-              const artSrc = (earned && award?.badge?.image_url) ? award.badge.image_url : artMeta.art;
-
+              const isNew = award?.awarded && !award.seen;
               return (
-                <BadgeGridItem
+                <CourseGridBadgeItem
                   key={course.courseId}
-                  title={course.title}
-                  sub={sub}
+                  course={course}
+                  idx={idx}
+                  award={award}
                   isNew={Boolean(isNew)}
                   onClick={() => handleCourseClick(course, idx)}
-                  ring={(
-                    <GridSealRing
-                      progress={earned ? 1 : 0.2}
-                      art={artSrc}
-                      tintColor={artMeta.tint}
-                      earned={earned}
-                    />
-                  )}
                 />
               );
             })}
@@ -671,7 +499,7 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
         </>
       )}
 
-      <BadgeDetailSheet data={sheet} onClose={() => setSheet(null)} />
+      <BadgeDetailSheet data={sheet} onClose={handleSheetClose} />
     </div>
   );
 };
@@ -685,21 +513,50 @@ const PersonIcon = () => (
   </svg>
 );
 
+const LeaderboardRowSkeleton = () => (
+  <div className="lp-leaderboard-row--hifi" aria-hidden="true">
+    <div className="skel-bone" style={{ width: 24, height: 16, borderRadius: 4 }} />
+    <div className="lp-leaderboard-avatar">
+      <span className="lp-leaderboard-avatar__icon"><PersonIcon /></span>
+    </div>
+    <div className="skel-bone" style={{ flex: 1, height: 16, borderRadius: 4 }} />
+    <div className="skel-bone" style={{ width: 32, height: 16, borderRadius: 4 }} />
+  </div>
+);
+
 interface LeaderboardTabProps {
   apiData?: LeaderboardData;
+  isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
 }
 
-const LeaderboardTab = ({ apiData }: LeaderboardTabProps) => {
+const LeaderboardTab = ({
+  apiData, isLoading = false, isError = false, onRetry,
+}: LeaderboardTabProps) => {
+  if (isError) {
+    return (
+      <ErrorView
+        title="Leaderboard unavailable"
+        message="We could not load the leaderboard. Please try again."
+        onRetry={onRetry}
+      />
+    );
+  }
+
   const isRanked = apiData?.status === 'ranked';
   const myRank = apiData?.my_rank ?? null;
   const totalDrivers = apiData?.total_drivers ?? 0;
   const displayRows = apiData?.rows ?? [];
 
   const heroLabel = 'Your rank this month';
-  const heroValue = isRanked && myRank ? toOrdinal(myRank) : '0';
-  const heroSub = isRanked && myRank
-    ? `of ${totalDrivers} drivers · ${getResetsText(apiData?.resets_on)}`
-    : 'Finish a lesson this month to join';
+  let heroValue: string;
+  if (isLoading) { heroValue = '—'; } else if (isRanked && myRank) { heroValue = toOrdinal(myRank); } else { heroValue = 'Not yet'; }
+
+  let heroSub: string;
+  if (isLoading) { heroSub = '—'; } else if (isRanked && myRank) {
+    heroSub = `of ${totalDrivers} drivers · ${getResetsText(apiData?.resets_on)}`;
+  } else { heroSub = 'Earn points this month to join'; }
 
   return (
     <div className="lp-tab-content">
@@ -717,23 +574,31 @@ const LeaderboardTab = ({ apiData }: LeaderboardTabProps) => {
       </div>
 
       <div className="lp-leaderboard-list--hifi">
-        {displayRows.map((row, i) => {
-          const prev = displayRows[i - 1];
-          const hasGap = prev && row.rank - prev.rank > 1;
-          return (
-            <React.Fragment key={row.rank}>
-              {hasGap && <div className="lp-leaderboard-gap">···</div>}
-              <div className={`lp-leaderboard-row--hifi${row.is_me ? ' lp-leaderboard-row--you' : ''}`}>
-                <span className="lp-leaderboard-row__rank--hifi">{row.rank}</span>
-                <div className={`lp-leaderboard-avatar${row.is_me ? ' lp-leaderboard-avatar--me' : ''}`}>
-                  <span className="lp-leaderboard-avatar__icon"><PersonIcon /></span>
+        {isLoading ? (
+          <>
+            <LeaderboardRowSkeleton />
+            <LeaderboardRowSkeleton />
+            <LeaderboardRowSkeleton />
+          </>
+        ) : (
+          displayRows.map((row, i) => {
+            const prev = displayRows[i - 1];
+            const hasGap = prev && row.rank - prev.rank > 1;
+            return (
+              <React.Fragment key={row.rank}>
+                {hasGap && <div className="lp-leaderboard-gap" aria-hidden="true">•••</div>}
+                <div className={`lp-leaderboard-row--hifi${row.is_me ? ' lp-leaderboard-row--you' : ''}`}>
+                  <span className="lp-leaderboard-row__rank--hifi">{row.rank}</span>
+                  <div className={`lp-leaderboard-avatar${row.is_me ? ' lp-leaderboard-avatar--me' : ''}`}>
+                    <span className="lp-leaderboard-avatar__icon"><PersonIcon /></span>
+                  </div>
+                  <span className="lp-leaderboard-row__name--hifi">{row.is_me ? 'You' : (row.display_name ?? '')}</span>
+                  <span className="lp-leaderboard-row__points--hifi">{row.points}</span>
                 </div>
-                <span className="lp-leaderboard-row__name--hifi">{row.is_me ? 'You' : (row.display_name ?? '')}</span>
-                <span className="lp-leaderboard-row__points--hifi">{row.points}</span>
-              </div>
-            </React.Fragment>
-          );
-        })}
+              </React.Fragment>
+            );
+          })
+        )}
       </div>
 
     </div>
@@ -750,15 +615,58 @@ export const LearningProgress = () => {
     : 'Points';
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   const [infoSheet, setInfoSheet] = useState<InfoSheetData | null>(null);
+  const handleCloseInfoSheet = useCallback(() => setInfoSheet(null), []);
+  const tabListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = tabListRef.current;
+    if (!el) { return undefined; }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') { return; }
+      const tabs = Array.from(el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+      const idx = tabs.findIndex((t) => t === document.activeElement);
+      if (idx < 0) { return; }
+      e.preventDefault();
+      const next = tabs[(idx + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+      next.focus();
+      next.click();
+    };
+    el.addEventListener('keydown', handleKeyDown);
+    return () => el.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const { data: courses, isLoading: isCoursesLoading } = useQuery({
-    queryKey: ['enrolled-courses'],
+    queryKey: qk.enrolledCourses(),
     queryFn: getEnrolledCourses,
     staleTime: 5 * 60_000,
   });
 
-  const { data: gamification } = useGamification();
-  const { data: leaderboardData } = useLeaderboard();
+  const { data: lastActivity } = useQuery({
+    queryKey: qk.lastActivity(),
+    queryFn: getLastActivity,
+    staleTime: 60_000,
+  });
+
+  const {
+    data: gamification, isError: gamificationError, isLoading: gamificationLoading,
+  } = useGamification();
+  const queryClient = useQueryClient();
+
+  // Calculate how many neighbor rows fit in the available list area based on viewport height.
+  // Constants: header 44px, tabs 56px, content-padding-top 16px, hero ~140px, gap 20px, footer 72px
+  // Each row is 44px (12+20+12), the gap row is 24px.
+  const leaderboardNeighbors = useMemo(() => {
+    const ROW_H = 44;
+    const GAP_H = 24;
+    const OVERHEAD = 44 + 56 + 16 + 140 + 20 + 72;
+    const available = Math.max(0, window.innerHeight - OVERHEAD);
+    const totalRowSlots = Math.max(7, Math.floor((available - GAP_H) / ROW_H));
+    return Math.min(Math.max(3, Math.floor((totalRowSlots - 3 - 1) / 2)), 15);
+  }, []);
+
+  const {
+    data: leaderboardData, isLoading: leaderboardLoading, isError: leaderboardError, refetch: refetchLeaderboard,
+  } = useLeaderboard(leaderboardNeighbors, leaderboardNeighbors);
   const { data: curriculums } = useCurriculums();
 
   const enrolledCourses = courses ?? [];
@@ -766,16 +674,24 @@ export const LearningProgress = () => {
   const totalPoints = gamification?.lifetime_points ?? 0;
   const monthPoints = gamification?.month_points;
 
-  // Build course_key → gamification points map for PointsTab rows
-  const coursePointsByKey: Record<string, number> = {};
-  gamification?.courses.forEach((c) => { coursePointsByKey[c.course_key] = c.points; });
+  const coursePointsByKey = Object.fromEntries(
+    (gamification?.courses ?? []).map((c) => [c.course_key, c.points]),
+  );
 
   const handleContinue = () => {
-    if (firstCourseId) {
+    const lastCourseId = lastActivity?.course?.course_id;
+    if (lastCourseId) {
+      navigate(`/course/${lastCourseId}`);
+    } else if (firstCourseId) {
       navigate(`/course/${firstCourseId}`);
     } else {
       navigate('/');
     }
+  };
+
+  // On deep-link entry (no in-app history), navigate(-1) would leave the MFE.
+  const handleClose = () => {
+    if (location.key === 'default') { navigate('/'); } else { navigate(-1); }
   };
 
   return (
@@ -786,7 +702,7 @@ export const LearningProgress = () => {
           type="button"
           className="lp-nav__close"
           aria-label="Close"
-          onClick={() => navigate(-1)}
+          onClick={handleClose}
         >
           <CloseX />
         </button>
@@ -802,14 +718,17 @@ export const LearningProgress = () => {
       </header>
 
       {/* Tabs */}
-      <div className="lp-tabs" role="tablist">
+      <div className="lp-tabs" role="tablist" aria-label="Progress tabs" ref={tabListRef}>
         {TABS.map((tab) => (
           <button
             key={tab}
             type="button"
             role="tab"
-            className={`lp-tab${activeTab === tab ? ' lp-tab--active' : ''}`}
+            id={`tab-${tab}`}
             aria-selected={activeTab === tab}
+            aria-controls={`panel-${tab}`}
+            tabIndex={activeTab === tab ? 0 : -1}
+            className={`lp-tab${activeTab === tab ? ' lp-tab--active' : ''}`}
             onClick={() => setActiveTab(tab)}
           >
             <span className="lp-tab__label">{tab}</span>
@@ -821,21 +740,51 @@ export const LearningProgress = () => {
       {/* Scrollable content + footer */}
       <div className="lp-body">
         {activeTab === 'Points' && (
-          <PointsTab
-            courses={enrolledCourses}
-            totalPoints={totalPoints}
-            monthPoints={monthPoints}
-            coursePointsByKey={coursePointsByKey}
-          />
+          <div role="tabpanel" id="panel-Points" aria-labelledby="tab-Points" tabIndex={0}>
+            {gamificationError ? (
+              <ErrorView
+                title="Could not load points"
+                message="We could not load your progress data. Please try again."
+                onRetry={() => queryClient.invalidateQueries({ queryKey: qk.gamification() })}
+              />
+            ) : (
+              <PointsTab
+                courses={enrolledCourses}
+                totalPoints={totalPoints}
+                monthPoints={monthPoints}
+                coursePointsByKey={coursePointsByKey}
+                isLoading={gamificationLoading}
+              />
+            )}
+          </div>
         )}
         {activeTab === 'Streak' && (
-          <StreakTab apiSummary={gamification} />
+          <div role="tabpanel" id="panel-Streak" aria-labelledby="tab-Streak" tabIndex={0}>
+            {gamificationError ? (
+              <ErrorView
+                title="Could not load streak"
+                message="We could not load your streak data. Please try again."
+                onRetry={() => queryClient.invalidateQueries({ queryKey: qk.gamification() })}
+              />
+            ) : (
+              <StreakTab apiSummary={gamification} />
+            )}
+          </div>
         )}
         {activeTab === 'Badges' && (
-          <BadgesTab curriculums={curriculums} courses={enrolledCourses} isCoursesLoading={isCoursesLoading} />
+          <div role="tabpanel" id="panel-Badges" aria-labelledby="tab-Badges" tabIndex={0}>
+            <BadgesTab curriculums={curriculums} courses={enrolledCourses} isCoursesLoading={isCoursesLoading} />
+          </div>
         )}
         {activeTab === 'Leaderboard' && (
-          <LeaderboardTab apiData={leaderboardData} />
+          <div role="tabpanel" id="panel-Leaderboard" aria-labelledby="tab-Leaderboard" tabIndex={0}>
+            <LeaderboardTab
+              apiData={leaderboardData}
+              isLoading={leaderboardLoading}
+              isError={leaderboardError}
+              onRetry={() => refetchLeaderboard()}
+            />
+          </div>
         )}
       </div>
 
@@ -848,7 +797,7 @@ export const LearningProgress = () => {
         </footer>
       )}
 
-      <InfoSheet data={infoSheet} onClose={() => setInfoSheet(null)} />
+      <InfoSheet data={infoSheet} onClose={handleCloseInfoSheet} />
     </div>
   );
 };

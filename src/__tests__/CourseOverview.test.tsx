@@ -14,7 +14,7 @@ import {
   render, screen, waitFor, fireEvent,
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { CourseOverview } from '../pages/CourseOverview';
+import { CourseOverview, resetResumedLocationKeys } from '../pages/CourseOverview';
 import * as coursewareApi from '../api/courseware';
 
 // ---------------------------------------------------------------------------
@@ -27,6 +27,9 @@ jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
   useParams: () => ({ courseId: 'course-v1:Uber+L2024' }),
+  useLocation: () => ({
+    key: 'test-key', pathname: '/course/course-v1:Uber+L2024', search: '', hash: '', state: null,
+  }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -62,8 +65,12 @@ const OUTLINE: coursewareApi.CourseOutline = {
     'section-1': { id: 'section-1', title: 'Module 1', sequenceIds: ['seq-1', 'seq-2'] },
   },
   sequences: {
-    'seq-1': { id: 'seq-1', title: 'Lesson 1: Basics', sectionId: 'section-1' },
-    'seq-2': { id: 'seq-2', title: 'Lesson 2: Advanced', sectionId: 'section-1' },
+    'seq-1': {
+      id: 'seq-1', title: 'Lesson 1: Basics', sectionId: 'section-1', complete: false,
+    },
+    'seq-2': {
+      id: 'seq-2', title: 'Lesson 2: Advanced', sectionId: 'section-1', complete: false,
+    },
   },
 };
 
@@ -91,6 +98,7 @@ function renderComponent() {
 // ---------------------------------------------------------------------------
 
 beforeEach(() => {
+  resetResumedLocationKeys();
   mockNavigate.mockClear();
   jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue(RESUME_FRESH);
   jest.mocked(coursewareApi.getCourseOutline).mockResolvedValue(OUTLINE);
@@ -146,35 +154,18 @@ describe('CourseOverview', () => {
   });
 
   describe('returning user (sectionId is set)', () => {
-    it('AC-NAV-02: navigates to /lesson/:sectionId/step/0 with replace:true', async () => {
+    it('AC-NAV-02: does NOT auto-redirect on mount (resume is driven by the Continue footer, not by auto-redirect)', async () => {
       jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue(RESUME_RETURNING);
 
       renderComponent();
 
+      // Wait for the outline to render so the component has fully mounted
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith(
-          `/course/${COURSE_ID}/lesson/seq-1/step/0`,
-          { replace: true },
-        );
-      });
-    });
-
-    it('AC-NAV-02b: uses sectionId (camelCased from section_id) not sectionId as raw string', async () => {
-      // Verify the camelCased key "sectionId" is what drives navigation,
-      // NOT a raw snake_case field. RESUME_RETURNING.sectionId = 'seq-1'.
-      jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue({
-        ...RESUME_RETURNING,
-        sectionId: 'block-v1:Uber+L2024+type@sequential+block@abc',
+        expect(screen.getByText('Lesson 1: Basics')).toBeInTheDocument();
       });
 
-      renderComponent();
-
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith(
-          expect.stringContaining('block-v1:Uber+L2024+type@sequential+block@abc'),
-          { replace: true },
-        );
-      });
+      // No automatic navigate call should have fired
+      expect(mockNavigate).not.toHaveBeenCalled();
     });
   });
 

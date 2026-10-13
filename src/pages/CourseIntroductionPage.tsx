@@ -4,10 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { getResumeBlock } from '../api/courseware';
 import { qk } from '../api/queries';
 import { useCourseOutline } from '../hooks/useCourseOutline';
-import { mapOutlineToLessons } from '../lib/outline-mapper';
-import { getStoredResumeIdx, getStoredResumeSequenceId } from '../lib/resume-storage';
+import { useCurriculums } from '../hooks/useCurriculums';
+import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
+import { mapOutlineToLessons, countLessons } from '../lib/outline-mapper';
 import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
-import iconAlert from '../assets/icons/icon-alert.svg';
 import courseArtToolbox from '../assets/icons/course-art-toolbox.svg';
 import courseArtBook from '../assets/icons/course-art-book.svg';
 import './course-page.scss';
@@ -15,12 +15,19 @@ import './course-page.scss';
 // ── Shared art panel header ────────────────────────────────────────────────
 
 const ArtPanel = ({
-  art, color, onBack,
-}: { art: string; color: 'blue' | 'green'; onBack: () => void }) => (
+  art, imageUrl, color, onBack,
+}: {
+  art: string;
+  imageUrl?: string | null;
+  color: 'blue' | 'green';
+  onBack: () => void;
+}) => (
   <div className={`cp-art-panel cp-art-panel--${color}`}>
     <div className="cp-art-panel__halo">
       <div className="cp-art-panel__disc">
-        <img src={art} alt="" className="cp-art-panel__art" />
+        {imageUrl
+          ? <img src={imageUrl} alt="" className="cp-art-panel__art cp-art-panel__art--photo" />
+          : <img src={art} alt="" className="cp-art-panel__art" />}
       </div>
     </div>
     <button type="button" className="cp-back-btn" onClick={onBack} aria-label="Back">
@@ -35,6 +42,20 @@ export const CourseIntroductionPage = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const outlineQuery = useCourseOutline(courseId);
+  const { data: curriculums } = useCurriculums();
+
+  // Derive course metadata from the curriculum API
+  const parentCurriculum = curriculums?.find((c) => c.courses.some((course) => course.course_id === courseId));
+  const courseInCurriculum = parentCurriculum?.courses.find((course) => course.course_id === courseId);
+
+  const courseTitle = outlineQuery.data?.title ?? courseInCurriculum?.display_name ?? '';
+  const description = courseInCurriculum?.description ?? null;
+  const imageUrl = courseInCurriculum?.image_url ?? null;
+
+  // Prerequisite: the course at position - 1 in the same curriculum
+  const prerequisiteCourse = courseInCurriculum && courseInCurriculum.position > 1
+    ? (parentCurriculum?.courses.find((c) => c.position === courseInCurriculum.position - 1) ?? null)
+    : null;
 
   const handleBack = () => navigate(`/course/${courseId}`);
 
@@ -50,55 +71,22 @@ export const CourseIntroductionPage = () => {
 
   return (
     <div className="course-page">
-      <ArtPanel art={courseArtToolbox} color="blue" onBack={handleBack} />
+      <ArtPanel art={courseArtToolbox} imageUrl={imageUrl} color="blue" onBack={handleBack} />
 
       <div className="course-scroll">
         <main className="course-content">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <p className="ci-kicker">Before you begin</p>
-            <h1 className="ci-title">Learn at your own pace</h1>
-            <p className="ci-lead">
-              This course includes sensitive topics. Pause whenever you need to;
-              completed progress saves automatically.
-            </p>
+            <h1 className="ci-title">{courseTitle}</h1>
+            {description && <p className="ci-lead">{description}</p>}
           </div>
 
-          <div className="cp-numbered-steps">
-            <div className="cp-numbered-step">
-              <div className="cp-numbered-step__num-wrap">
-                <span className="cp-numbered-step__num">01</span>
-              </div>
-              <div className="cp-numbered-step__body">
-                <p className="cp-numbered-step__title">Learn and practise</p>
-                <p className="cp-numbered-step__desc">
-                  Watch required videos, make decisions, and review the source guidance.
-                </p>
-              </div>
+          {prerequisiteCourse && (
+            <div className="ci-prerequisite">
+              <p className="ci-prerequisite__label">Prerequisite</p>
+              <p className="ci-prerequisite__name">{prerequisiteCourse.display_name ?? prerequisiteCourse.course_id}</p>
             </div>
-            <div className="cp-numbered-step">
-              <div className="cp-numbered-step__num-wrap">
-                <span className="cp-numbered-step__num">02</span>
-              </div>
-              <div className="cp-numbered-step__body">
-                <p className="cp-numbered-step__title">Confirm what you learned</p>
-                <p className="cp-numbered-step__desc">
-                  A five-question final check measures learning gain.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="ci-banner">
-            <div className="ci-banner__icon-wrap">
-              <img src={iconAlert} alt="" className="ci-banner__icon" />
-            </div>
-            <div className="ci-banner__body">
-              <p className="ci-banner__title">Take care of yourself</p>
-              <p className="ci-banner__desc">
-                Support and reporting resources remain available throughout the course.
-              </p>
-            </div>
-          </div>
+          )}
         </main>
       </div>
 
@@ -121,18 +109,10 @@ export const CourseIntroductionPage = () => {
 
 // ── SaveAndResumePage ──────────────────────────────────────────────────────
 
-interface SaveAndResumeState {
-  completedLessons?: number;
-  totalLessons?: number;
-  fraction?: number;
-  resumeSequenceId?: string;
-}
-
 export const SaveAndResumePage = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const routeState = (location.state as SaveAndResumeState) ?? {};
 
   const outlineQuery = useCourseOutline(courseId);
   const resumeQuery = useQuery({
@@ -141,35 +121,20 @@ export const SaveAndResumePage = () => {
     enabled: Boolean(courseId),
     staleTime: 0,
   });
+  const progressQuery = useCourseProgressSummary(courseId);
 
   const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
-
-  const storedSequenceId = getStoredResumeSequenceId(courseId);
-  const apiSequenceId = resumeQuery.data?.sectionId ?? null;
-  const apiResumeIdx = apiSequenceId ? allLessons.findIndex((l) => l.sequenceId === apiSequenceId) : -1;
-  const storedResumeIdx = getStoredResumeIdx(courseId, allLessons);
-  const effectiveResumeIdx = Math.max(apiResumeIdx, storedResumeIdx);
-  const effectiveResumeSequenceId = effectiveResumeIdx >= 0
-    ? allLessons[effectiveResumeIdx].sequenceId
-    : (storedSequenceId ?? apiSequenceId);
-
-  const resumeSequenceId = routeState.resumeSequenceId ?? effectiveResumeSequenceId;
-
-  const totalLessons = routeState.totalLessons ?? allLessons.length;
+  const resumeSequenceId = resumeQuery.data?.sectionId ?? null;
   const resumeIdx = resumeSequenceId
     ? allLessons.findIndex((l) => l.sequenceId === resumeSequenceId)
     : -1;
-  const completedLessons = routeState.completedLessons
-    ?? (resumeIdx > 0 ? resumeIdx : 0);
 
-  const derivedFraction = totalLessons > 0 && completedLessons > 0
-    ? completedLessons / totalLessons
-    : 0;
-  const fraction = derivedFraction > 0
-    ? derivedFraction
-    : (routeState.fraction ?? 0);
-
-  const hasProgress = completedLessons > 0 || fraction > 0 || Boolean(resumeSequenceId);
+  // Use outline-based lesson counts so the display matches lessons (sequences), not steps (units).
+  const outlineCounts = outlineQuery.data ? countLessons(outlineQuery.data) : null;
+  const completedLessons = outlineCounts?.completed ?? 0;
+  const totalLessons = outlineCounts?.total ?? allLessons.length;
+  const fraction = progressQuery.data?.fraction ?? 0;
+  const hasProgress = completedLessons > 0 || Boolean(resumeSequenceId);
 
   const handleResume = () => {
     if (!resumeSequenceId) {
@@ -183,7 +148,11 @@ export const SaveAndResumePage = () => {
 
   return (
     <div className="course-page">
-      <ArtPanel art={courseArtBook} color="blue" onBack={() => navigate(`/course/${courseId}`)} />
+      <ArtPanel
+        art={courseArtBook}
+        color="blue"
+        onBack={() => (location.key === 'default' ? navigate(`/course/${courseId}`) : navigate(-1))}
+      />
 
       <div className="course-scroll">
         <main className="course-content">
@@ -205,7 +174,7 @@ export const SaveAndResumePage = () => {
                 </span>
               </div>
               <div className="sr-progress-track">
-                <div className="sr-progress-fill" style={{ width: `${Math.round(fraction * 100)}%` }} />
+                <div className="sr-progress-fill" style={{ '--progress': String(Math.round(fraction * 100) / 100) } as React.CSSProperties} />
               </div>
             </div>
           )}

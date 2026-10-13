@@ -1,12 +1,12 @@
 import React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
 import type { LearnerCurriculum } from '../api/curriculum';
 
 import iconBadgeCheck from '../assets/icons/icon-badge-check.svg';
-import iconCircleCheck from '../assets/icons/icon-circle-check.svg';
+import iconChevronRight from '../assets/icons/chevron-right.svg';
 import './learning-path-view.scss';
 
 // ── Back arrow ───────────────────────────────────────────
@@ -17,34 +17,50 @@ const ArrowLeft = () => (
   </svg>
 );
 
-// ── Milestone badges ──────────────────────────────────────
+// ── Lock icon ─────────────────────────────────────────────
+
+const LockIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+    <rect x="2" y="5" width="8" height="6" rx="1" fill="currentColor" />
+    <path d="M4 5V3.5a2 2 0 0 1 4 0V5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+  </svg>
+);
+
+// ── Milestone badge ───────────────────────────────────────
 
 interface MilestoneBadgeProps {
-  slot: 'halfway' | 'complete' | 'retained';
+  slot: 'complete' | 'retained';
   curriculum: LearnerCurriculum;
 }
-
-const MILESTONE_LABEL: Record<string, string> = {
-  halfway: 'Road ready',
-  complete: 'Complete',
-  retained: '30-day check',
-};
 
 const MilestoneBadge = ({ slot, curriculum }: MilestoneBadgeProps) => {
   const milestone = curriculum.milestones[slot];
   const earned = milestone?.reached_at != null;
-  const locked = slot === 'retained' && !curriculum.knowledge_check.is_open && !earned;
+  const isRetained = slot === 'retained';
+  const locked = isRetained && !curriculum.knowledge_check.is_open && !earned;
   const imageUrl = milestone?.badge?.image_url ?? null;
-  const title = milestone?.badge?.title ?? MILESTONE_LABEL[slot];
+  const title = milestone?.badge?.title ?? (isRetained ? '30-day check' : 'Path badge');
+
+  let toGo: number | null;
+  if (isRetained) {
+    toGo = curriculum.knowledge_check.is_open ? null : curriculum.courses_total - curriculum.courses_finished;
+  } else {
+    toGo = curriculum.courses_total - curriculum.courses_finished;
+  }
 
   return (
     <div className={`lp-milestone${earned ? ' lp-milestone--earned' : ''}`}>
       <div className="lp-milestone__disc">
         {imageUrl ? (
-          <img src={imageUrl} alt="" className="lp-milestone__img" aria-hidden="true" />
+          <img
+            src={imageUrl}
+            alt=""
+            className={`lp-milestone__img${earned ? '' : ' lp-milestone__img--locked'}`}
+            aria-hidden="true"
+          />
         ) : (
           <img
-            src={earned ? iconCircleCheck : iconBadgeCheck}
+            src={iconBadgeCheck}
             alt=""
             className={`lp-milestone__icon${earned ? ' lp-milestone__icon--earned' : ''}`}
             aria-hidden="true"
@@ -52,56 +68,68 @@ const MilestoneBadge = ({ slot, curriculum }: MilestoneBadgeProps) => {
         )}
         {locked && (
           <span className="lp-milestone__lock" aria-label="locked">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <rect x="2" y="5" width="8" height="6" rx="1" fill="currentColor" />
-              <path d="M4 5V3.5a2 2 0 0 1 4 0V5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
+            <LockIcon />
           </span>
         )}
       </div>
       <span className="lp-milestone__label">{title}</span>
       {earned && milestone?.reached_at && (
         <span className="lp-milestone__sub">
-          {new Date(milestone!.reached_at!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+          {new Date(milestone.reached_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
         </span>
       )}
-      {!earned && slot === 'retained' && (
+      {!earned && isRetained && curriculum.knowledge_check.is_open && (
+        <span className="lp-milestone__sub">Open now</span>
+      )}
+      {!earned && isRetained && !curriculum.knowledge_check.is_open && curriculum.knowledge_check.unlocks_at && (
         <span className="lp-milestone__sub">
-          {curriculum.knowledge_check.is_open ? 'Open now' : `${curriculum.courses_total - curriculum.courses_finished} to go`}
+          {`Unlocks on ${new Date(curriculum.knowledge_check.unlocks_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
         </span>
       )}
-      {!earned && slot !== 'retained' && (
-        <span className="lp-milestone__sub">
-          {curriculum.courses_total - curriculum.courses_finished} to go
-        </span>
+      {!earned && !isRetained && toGo != null && toGo > 0 && (
+        <span className="lp-milestone__sub">{toGo} to go</span>
       )}
     </div>
   );
 };
 
-// ── Course row ────────────────────────────────────────────
+// ── Course card ───────────────────────────────────────────
 
-interface CourseRowProps {
+interface CourseCardProps {
   courseId: string;
   displayName: string | null;
+  imageUrl: string | null;
   finished: boolean;
-  position: number;
+  isCurrent: boolean;
   onClick: () => void;
 }
 
-const CourseRow = ({
-  courseId, displayName, finished, position, onClick,
-}: CourseRowProps) => (
-  <button type="button" className={`lpv-course-row${finished ? ' lpv-course-row--passed' : ''}`} onClick={onClick}>
-    <div className="lpv-course-row__ring">
-      {finished ? (
-        <img src={iconCircleCheck} alt="" className="lpv-course-row__check" aria-hidden="true" />
+const CourseCard = ({
+  courseId, displayName, imageUrl, finished, isCurrent, onClick,
+}: CourseCardProps) => (
+  <button
+    type="button"
+    className={`lpv-course-card${finished ? ' lpv-course-card--complete' : ''}${isCurrent ? ' lpv-course-card--current' : ''}`}
+    onClick={onClick}
+    aria-label={`Open ${displayName ?? courseId}`}
+  >
+    <div className="lpv-course-card__thumb">
+      {imageUrl ? (
+        <img src={imageUrl} alt="" aria-hidden="true" className="lpv-course-card__img" />
       ) : (
-        <span className="lpv-course-row__num">{position}</span>
+        <div className="lpv-course-card__img-placeholder" aria-hidden="true" />
       )}
     </div>
-    <span className="lpv-course-row__title">{displayName ?? courseId}</span>
-    {finished && <span className="lpv-course-row__status">Complete</span>}
+    <div className="lpv-course-card__body">
+      <span className="lpv-course-card__title">{displayName ?? courseId}</span>
+      {finished && (
+        <span className="lpv-course-card__status lpv-course-card__status--complete">Complete</span>
+      )}
+      {isCurrent && !finished && (
+        <span className="lpv-course-card__status lpv-course-card__status--progress">In progress</span>
+      )}
+    </div>
+    <img src={iconChevronRight} alt="" className="lpv-course-card__chevron" aria-hidden="true" />
   </button>
 );
 
@@ -109,6 +137,7 @@ const CourseRow = ({
 
 export const LearningPathView = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { curriculumId } = useParams<{ curriculumId: string }>();
   const {
     data: curriculums, isLoading, isError, refetch,
@@ -122,11 +151,57 @@ export const LearningPathView = () => {
 
   const nextCourse = sortedCourses.find((c) => !c.finished);
 
-  const handleContinue = () => {
-    if (nextCourse) {
-      navigate(`/course/${nextCourse.course_id}`);
+  const isComplete = curriculum
+    ? curriculum.courses_finished > 0 && curriculum.courses_finished === curriculum.courses_total
+    : false;
+
+  const badgeArt = curriculum?.milestones?.complete?.badge?.image_url ?? iconBadgeCheck;
+
+  // ── Footer CTA logic ───────────────────────────────────
+  type CtaState = 'start' | 'continue' | 'check' | 'home';
+
+  const getCtaState = (): CtaState => {
+    if (!curriculum) { return 'home'; }
+    const {
+      courses_finished: coursesFinished,
+      courses_total: coursesTotal,
+      knowledge_check: knowledgeCheck,
+      milestones,
+    } = curriculum;
+    if (coursesFinished === 0) { return 'start'; }
+    if (coursesFinished < coursesTotal) { return 'continue'; }
+    // All courses done
+    const checkDone = milestones.retained?.reached_at != null;
+    if (checkDone) { return 'home'; }
+    if (knowledgeCheck.exists && knowledgeCheck.is_open) { return 'check'; }
+    return 'home';
+  };
+
+  const ctaState = getCtaState();
+
+  const checkLabel = curriculum?.knowledge_check?.display_name ?? '30-day check';
+
+  const handleCta = () => {
+    if (!curriculum) { navigate('/'); return; }
+    if (ctaState === 'start' || ctaState === 'continue') {
+      navigate(`/course/${nextCourse!.course_id}`);
+    } else if (ctaState === 'check') {
+      navigate(`/course/${curriculum.knowledge_check.course_id}`);
+    } else {
+      navigate('/');
     }
   };
+
+  // Hero ring geometry — 96px, strokeWidth 4
+  const RING = 96;
+  const SW = 4;
+  const cx = RING / 2;
+  const r = cx - SW / 2;
+  const circ = 2 * Math.PI * r;
+  const progress = curriculum && curriculum.courses_total > 0
+    ? Math.min(1, curriculum.courses_finished / curriculum.courses_total)
+    : 0;
+  const offset = circ * (1 - progress);
 
   return (
     <div className="lpv-page">
@@ -136,7 +211,7 @@ export const LearningPathView = () => {
           type="button"
           className="lpv-nav__back"
           aria-label="Go back"
-          onClick={() => navigate(-1)}
+          onClick={() => (location.key === 'default' ? navigate('/') : navigate(-1))}
         >
           <ArrowLeft />
         </button>
@@ -180,31 +255,36 @@ export const LearningPathView = () => {
               </span>
             </div>
             <div className="lpv-hero__ring" aria-hidden="true">
-              <svg viewBox="0 0 88 88" fill="none" className="lpv-hero__svg">
-                <circle cx="44" cy="44" r="38" stroke="var(--u-border-opaque)" strokeWidth="4" />
-                {curriculum.courses_total > 0 && (
+              <svg viewBox={`0 0 ${RING} ${RING}`} fill="none" className="lpv-hero__svg">
+                <circle cx={cx} cy={cx} r={r} stroke="white" strokeWidth={SW} strokeOpacity="0.5" />
+                {progress > 0 && (
                   <circle
-                    cx="44"
-                    cy="44"
-                    r="38"
-                    stroke="var(--u-content-accent)"
-                    strokeWidth="4"
+                    cx={cx}
+                    cy={cx}
+                    r={r}
+                    stroke="var(--u-background-accent)"
+                    strokeWidth={SW}
                     strokeLinecap="round"
-                    strokeDasharray={`${2 * Math.PI * 38}`}
-                    strokeDashoffset={`${2 * Math.PI * 38 * (1 - curriculum.courses_finished / curriculum.courses_total)}`}
-                    transform="rotate(-90 44 44)"
+                    strokeDasharray={circ}
+                    strokeDashoffset={offset}
+                    transform={`rotate(-90 ${cx} ${cx})`}
                   />
                 )}
               </svg>
               <div className="lpv-hero__seal">
-                <img src={iconBadgeCheck} alt="" className="lpv-hero__seal-icon" aria-hidden="true" />
+                <img
+                  src={badgeArt}
+                  alt=""
+                  className={`lpv-hero__seal-icon${isComplete ? '' : ' lpv-hero__seal-icon--locked'}`}
+                  aria-hidden="true"
+                />
               </div>
             </div>
           </div>
 
-          {/* Milestones */}
+          {/* Milestones — complete + retained only */}
           <div className="lpv-milestones">
-            {(['halfway', 'complete', 'retained'] as const).map((slot) => (
+            {(['complete', 'retained'] as const).map((slot) => (
               <MilestoneBadge key={slot} slot={slot} curriculum={curriculum} />
             ))}
           </div>
@@ -213,30 +293,33 @@ export const LearningPathView = () => {
           <div className="lpv-courses-section">
             <h2 className="lpv-section-title">Courses</h2>
             <div className="lpv-courses-list">
-              {sortedCourses.map((course) => (
-                <CourseRow
-                  key={course.course_id}
-                  courseId={course.course_id}
-                  displayName={course.display_name}
-                  finished={course.finished}
-                  position={course.position}
-                  onClick={() => navigate(`/course/${course.course_id}`)}
-                />
-              ))}
+              {sortedCourses.map((course) => {
+                const isCurrentCourse = curriculum.courses_finished > 0
+                  && course.course_id === nextCourse?.course_id;
+                const courseTarget = `/course/${course.course_id}`;
+                return (
+                  <CourseCard
+                    key={course.course_id}
+                    courseId={course.course_id}
+                    displayName={course.display_name}
+                    imageUrl={course.image_url}
+                    finished={course.finished}
+                    isCurrent={isCurrentCourse}
+                    onClick={() => navigate(courseTarget)}
+                  />
+                );
+              })}
             </div>
           </div>
 
           {/* Footer */}
           <footer className="lpv-footer">
-            {nextCourse ? (
-              <button type="button" className="btn-primary" onClick={handleContinue}>
-                Continue course
-              </button>
-            ) : (
-              <button type="button" className="btn-primary" onClick={() => navigate('/')}>
-                Back to home
-              </button>
-            )}
+            <button type="button" className="btn-primary" onClick={handleCta}>
+              {ctaState === 'start' && 'Start course'}
+              {ctaState === 'continue' && 'Continue course'}
+              {ctaState === 'check' && `Start ${checkLabel}`}
+              {ctaState === 'home' && 'Back to learning home'}
+            </button>
           </footer>
         </>
       )}

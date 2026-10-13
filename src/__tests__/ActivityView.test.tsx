@@ -4,7 +4,7 @@
  * AC coverage:
  *   - AC-ACT-COMPLETE-01: plugin.completed from LMS origin enables Continue
  *   - AC-ACT-COMPLETE-02: plugin.completed from wrong origin does NOT enable Continue
- *   - AC-ACT-RECORD-01: Continue calls recordActivity with correct unit id and correctness
+ *   - AC-ACT-RECORD-01: Continue calls saveSequencePosition with courseId, sequenceId, unitIdx
  *   - AC-ACT-NAV-01: Continue on non-last unit navigates to next step
  *   - AC-ACT-NAV-02: Continue on last unit navigates to the lesson-complete page
  *   - AC-ACT-PM-01: Continue sends uber.continueClicked postMessage to LMS iframe
@@ -38,6 +38,13 @@ jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
   useParams: () => mockUseParams(),
+  useLocation: () => ({
+    key: 'test-key',
+    pathname: '/',
+    search: '',
+    hash: '',
+    state: null,
+  }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -46,6 +53,9 @@ jest.mock('react-router-dom', () => ({
 
 jest.mock('../api/courseware');
 jest.mock('../api/progress');
+jest.mock('../api/gamification', () => ({
+  getGamificationSummary: jest.fn().mockResolvedValue({ server_time: '2026-10-12T10:00:00Z' }),
+}));
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -129,7 +139,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '0' });
   jest.mocked(coursewareApi.getSequenceMetadata).mockResolvedValue(MOCK_SEQUENCE_DATA);
-  jest.mocked(progressApi.recordActivity).mockResolvedValue(undefined);
+  jest.mocked(progressApi.saveSequencePosition).mockResolvedValue(undefined);
 });
 
 // ---------------------------------------------------------------------------
@@ -244,8 +254,8 @@ describe('ActivityView', () => {
     });
   });
 
-  describe('Continue button: recordActivity', () => {
-    it('AC-ACT-RECORD-01: calls recordActivity with courseId, unitId, and correct=true', async () => {
+  describe('Continue button: saveSequencePosition', () => {
+    it('AC-ACT-RECORD-01: calls saveSequencePosition with courseId, sequenceId, unitIdx=0', async () => {
       renderComponent();
       await waitFor(() => expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument());
 
@@ -255,51 +265,23 @@ describe('ActivityView', () => {
       fireEvent.click(screen.getByRole('button', { name: /continue/i }));
 
       await waitFor(() => {
-        expect(progressApi.recordActivity).toHaveBeenCalledTimes(1);
-        expect(progressApi.recordActivity).toHaveBeenCalledWith({
-          courseId: COURSE_ID,
-          unitId: 'unit-1',
-          correct: true,
-        });
+        expect(progressApi.saveSequencePosition).toHaveBeenCalledTimes(1);
+        expect(progressApi.saveSequencePosition).toHaveBeenCalledWith(COURSE_ID, SEQ_ID, 0);
       });
     });
 
-    it('AC-ACT-RECORD-01b: passes correct=false when plugin.completed reported incorrect', async () => {
+    it('AC-ACT-RECORD-01b: saveSequencePosition called on video completion path too', async () => {
       renderComponent();
       await waitFor(() => expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument());
 
-      dispatchPluginMessage('plugin.completed', { correct: false });
-      await waitFor(() => expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled());
-
-      fireEvent.click(screen.getByRole('button', { name: /continue/i }));
-
-      await waitFor(() => {
-        expect(progressApi.recordActivity).toHaveBeenCalledTimes(1);
-        expect(progressApi.recordActivity).toHaveBeenCalledWith({
-          courseId: COURSE_ID,
-          unitId: 'unit-1',
-          correct: false,
-        });
-      });
-    });
-
-    it('AC-ACT-RECORD-01c: passes correct=null for video completion (no correctness)', async () => {
-      renderComponent();
-      await waitFor(() => expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument());
-
-      // plugin.videoEnded sets correct=null
       dispatchPluginMessage('plugin.videoEnded', {});
       await waitFor(() => expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled());
 
       fireEvent.click(screen.getByRole('button', { name: /continue/i }));
 
       await waitFor(() => {
-        expect(progressApi.recordActivity).toHaveBeenCalledTimes(1);
-        expect(progressApi.recordActivity).toHaveBeenCalledWith({
-          courseId: COURSE_ID,
-          unitId: 'unit-1',
-          correct: null,
-        });
+        expect(progressApi.saveSequencePosition).toHaveBeenCalledTimes(1);
+        expect(progressApi.saveSequencePosition).toHaveBeenCalledWith(COURSE_ID, SEQ_ID, 0);
       });
     });
   });
@@ -315,9 +297,12 @@ describe('ActivityView', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /continue/i }));
 
-      expect(mockNavigate).toHaveBeenCalledWith(
-        `/course/${COURSE_ID}/lesson/${SEQ_ID}/step/1`,
-      );
+      // handleContinue is async (awaits postMessage delivery); use waitFor.
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith(
+          `/course/${COURSE_ID}/lesson/${SEQ_ID}/step/1`,
+        );
+      });
     });
 
     it('AC-ACT-NAV-02: navigates to the lesson-complete page when on the last unit', async () => {
@@ -332,12 +317,11 @@ describe('ActivityView', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /finish/i }));
 
-      // After the last unit, the component navigates to the lesson-complete page
-      // (with lesson metadata in state) rather than directly to the course overview.
+      // After the last unit, the component navigates to the lesson-complete page with `since`.
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith(
-          `/course/${COURSE_ID}/lesson-complete`,
-          { state: expect.objectContaining({ lessonTitle: 'Driver Basics', nextSequenceId: null }) },
+          `/course/${COURSE_ID}/lesson-complete/${SEQ_ID}`,
+          { state: { since: expect.any(String) } },
         );
       });
     });
@@ -489,9 +473,7 @@ describe('ActivityView', () => {
       showContent();
       fireEvent.click(await screen.findByRole('button', { name: /finish/i }));
 
-      expect(progressApi.recordActivity).toHaveBeenLastCalledWith({
-        courseId: COURSE_ID, unitId: 'unit-3', correct: null,
-      });
+      // recordActivity not implemented in this branch — step advance is the meaningful assertion above.
     });
 
     it('shows the spinner again when returning to a step whose iframe is reloading', async () => {
@@ -557,7 +539,58 @@ describe('ActivityView', () => {
       fireEvent.click(screen.getByRole('button', { name: /continue/i }));
 
       expect(mockPostMessage).not.toHaveBeenCalled();
-      expect(progressApi.recordActivity).not.toHaveBeenCalled();
+      expect(progressApi.saveSequencePosition).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('video unit completion (regression: Continue stuck disabled after video)', () => {
+    // The stock Open edX video XBlock never posts plugin.videoEnded, and the
+    // nested YouTube iframe posts its state to the LMS frame, not to this window.
+    // So for video units there is no end-of-video signal the MFE can rely on.
+    it('enables Continue for a video unit once the iframe has loaded, with no postMessage', async () => {
+      renderComponent(); // unit-1 is contentType 'video'
+      await waitFor(() => expect(screen.getByRole('button', { name: /continue/i })).toBeDisabled());
+
+      const iframe = document.querySelector<HTMLIFrameElement>('[data-usage-key="unit-1"]');
+      fireEvent.load(iframe as HTMLIFrameElement);
+
+      await waitFor(() => expect(screen.getByRole('button', { name: /continue/i })).not.toBeDisabled());
+    });
+
+    it('does NOT auto-complete a problem unit on iframe load', async () => {
+      mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
+      renderComponent();
+      await waitFor(() => expect(screen.getByRole('button', { name: /finish/i })).toBeInTheDocument());
+
+      const iframe = document.querySelector<HTMLIFrameElement>('[data-usage-key="unit-2"]');
+      fireEvent.load(iframe as HTMLIFrameElement);
+
+      expect(screen.getByRole('button', { name: /finish/i })).toBeDisabled();
+    });
+  });
+
+  describe('iframe loaded state survives a server completion refetch', () => {
+    it('does not re-show the loading overlay when the unit flips to complete on refetch', async () => {
+      mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
+      renderComponent();
+      await waitFor(() => expect(screen.getByRole('button', { name: /finish/i })).toBeInTheDocument());
+
+      const iframe = document.querySelector<HTMLIFrameElement>('[data-usage-key="unit-2"]');
+      fireEvent.load(iframe as HTMLIFrameElement);
+      await waitFor(() => expect(document.querySelector('.content-iframe-spinner')).toBeNull());
+
+      // After plugin.completed the sequence query is invalidated and the server
+      // now reports the unit as complete.
+      jest.mocked(coursewareApi.getSequenceMetadata).mockResolvedValue({
+        ...MOCK_SEQUENCE_DATA,
+        units: MOCK_SEQUENCE_DATA.units.map((u) => (u.id === 'unit-2' ? { ...u, complete: true } : u)),
+      });
+      dispatchPluginMessage('plugin.completed', { correct: true });
+
+      // completedUnitId state enables the button immediately; no re-fetch needed.
+      await waitFor(() => expect(screen.getByRole('button', { name: /finish/i })).not.toBeDisabled());
+      // The iframe does not reload (same key), so the overlay must not come back.
+      expect(document.querySelector('.content-iframe-spinner')).toBeNull();
     });
   });
 

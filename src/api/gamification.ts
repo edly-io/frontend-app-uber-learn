@@ -73,6 +73,7 @@ export interface LessonResults {
   course_key: string;
   points_earned: number;
   correct_percent: number | null;
+  first_try_goal_met?: boolean;
   questions: number;
   already_completed_before: boolean;
   steps_count: number | null;
@@ -89,9 +90,10 @@ export async function getGamificationSummary(): Promise<GamificationSummary> {
   return data as GamificationSummary;
 }
 
-export async function getLeaderboard(): Promise<LeaderboardData> {
+export async function getLeaderboard(above: number, below: number): Promise<LeaderboardData> {
   const { data } = await getAuthenticatedHttpClient().get(
     `${getConfig().LMS_BASE_URL}/api/uber/gamification/v1/leaderboard/`,
+    { params: { above, below } },
   );
   return data as LeaderboardData;
 }

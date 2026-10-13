@@ -104,7 +104,7 @@
   position: relative;
   width: 100%;
   height: 180px;
-  background: #002661;
+  background: var(--u-background-course-hero);
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -424,67 +424,11 @@
   margin: 0;
 }
 
-/* ── Steps list ───────────────────────────────────────────────────────────── */
-.ci-steps {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  overflow: hidden;
-}
-
-.ci-step {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--u-border-opaque);
-}
-
-.ci-step:last-child {
-  border-bottom: 1px solid var(--u-border-opaque);
-}
-
-.ci-step__num {
-  font-family: var(--u-font-mono);
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--u-background-accent);
-  line-height: 1.14;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.ci-step__text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.ci-step__title {
-  font-family: var(--u-font-body);
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--u-content-primary);
-  line-height: 1.25;
-  margin: 0;
-}
-
-.ci-step__desc {
-  font-family: var(--u-font-body);
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: var(--u-content-secondary);
-  line-height: 1.43;
-  margin: 0;
-}
-
 /* ── Warning banner ───────────────────────────────────────────────────────── */
 .ci-banner {
   display: flex;
   align-items: flex-start;
-  background: #fdf2dc;
+  background: var(--u-background-warning-light);
   border-radius: 12px;
   overflow: hidden;
   width: 100%;
@@ -522,6 +466,54 @@
   color: var(--u-content-primary);
   line-height: 1.5;
   margin: 0;
+}
+
+/* ── Prerequisite card ────────────────────────────────────────────────────── */
+.ci-prerequisite {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  background: var(--u-background-secondary);
+  border-left: 3px solid var(--u-background-accent);
+  border-radius: 8px;
+  width: 100%;
+}
+
+.ci-prerequisite__label {
+  font-family: var(--u-font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--u-background-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.ci-prerequisite__name {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  line-height: 1.25;
+  margin: 0;
+}
+
+.ci-prerequisite__hint {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+/* ── Course art panel: photo variant ─────────────────────────────────────── */
+.cp-art-panel__art--photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -603,9 +595,12 @@
   position: absolute;
   inset-block: 0;
   left: 0;
+  width: 100%;
   background: var(--u-background-accent);
   border-radius: 2px;
-  min-width: 4px;
+  transform-origin: left center;
+  transform: scaleX(var(--progress, 0));
+  transition: transform var(--u-duration-normal) var(--u-ease-out);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
@@ -1037,67 +1032,3 @@ button.cp-path-step {
   margin: 0;
 }
 
-/* ── Numbered step (intro page) ─────────────────────────────────────────── */
-.cp-numbered-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-}
-
-.cp-numbered-step {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  width: 100%;
-}
-
-.cp-numbered-step__num-wrap {
-  width: 32px;
-  height: 32px;
-  border-radius: 16px;
-  background: var(--u-background-accent-light);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.cp-numbered-step__num {
-  font-family: var(--u-font-mono);
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--u-background-accent);
-  line-height: 1;
-  margin: 0;
-  white-space: nowrap;
-}
-
-.cp-numbered-step__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-top: 4px;
-  word-break: break-word;
-  overflow: hidden;
-}
-
-.cp-numbered-step__title {
-  font-family: var(--u-font-body);
-  font-size: 1.125rem;
-  font-weight: 500;
-  color: var(--u-content-primary);
-  line-height: 1.33;
-  margin: 0;
-}
-
-.cp-numbered-step__desc {
-  font-family: var(--u-font-body);
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: var(--u-content-secondary);
-  line-height: 1.43;
-  margin: 0;
-}

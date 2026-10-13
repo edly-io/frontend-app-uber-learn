@@ -46,6 +46,8 @@ export interface OutlineSequence {
   id: string;
   title: string;
   sectionId: string;
+  /** True when every unit in this sequence is complete. Populated from the API when available. */
+  complete: boolean;
 }
 
 export interface CourseOutline {
@@ -66,59 +68,65 @@ export async function getResumeBlock(courseId: string): Promise<ResumeBlock> {
 }
 
 // ---------------------------------------------------------------------------
-// Learning-sequences course outline
+// Course-home course outline
 // ---------------------------------------------------------------------------
 
 export async function getCourseOutline(courseId: string): Promise<CourseOutline> {
-  const url = `${getConfig().LMS_BASE_URL}/api/learning_sequences/v1/course_outline/${courseId}`;
+  const url = `${getConfig().LMS_BASE_URL}/api/course_home/v1/outline/${courseId}`;
   const { data } = await getAuthenticatedHttpClient().get(url);
 
-  // Normalize the nested outline into a flat structure
-  const sections: Record<string, OutlineSection> = {};
-  const sequences: Record<string, OutlineSequence> = {};
-  const now = new Date();
-
-  type ReleasedBlock = { accessible?: boolean; effective_start?: string | null };
-  type RawSeq = ReleasedBlock & { title: string };
-  type RawSection = ReleasedBlock & {
-    id: string; title: string; sequence_ids: string[];
+  type RawBlock = {
+    id: string;
+    display_name: string;
+    type: string;
+    complete?: boolean;
+    children?: string[];
   };
 
-  function isReleased(block: ReleasedBlock): boolean {
-    return (
-      Boolean(block.accessible)
-      || !block.effective_start
-      || now >= new Date(block.effective_start)
-    );
-  }
+  const blocks: Record<string, RawBlock> = data.course_blocks?.blocks ?? {};
 
-  // Collect released sequences first
-  Object.entries(data.outline.sequences as Record<string, RawSeq>).forEach(
-    ([seqId, seq]) => {
-      if (!isReleased(seq)) { return; }
-      sequences[seqId] = { id: seqId, title: seq.title, sectionId: '' };
-    },
-  );
+  const sections: Record<string, OutlineSection> = {};
+  const sequences: Record<string, OutlineSequence> = {};
 
-  // Collect sections
-  (data.outline.sections as RawSection[]).forEach((section) => {
-    const availableSeqIds = section.sequence_ids.filter((id) => id in sequences);
-    if (!isReleased(section) && availableSeqIds.length === 0) { return; }
+  // Find the root course block to get ordered chapter IDs; fall back to scanning all blocks.
+  const courseBlock = Object.values(blocks).find((b) => b.type === 'course');
+  const sectionIds: string[] = courseBlock?.children
+    ?? Object.keys(blocks).filter((k) => blocks[k].type === 'chapter');
 
-    sections[section.id] = {
-      id: section.id,
-      title: section.title,
-      sequenceIds: availableSeqIds,
+  sectionIds.forEach((sectionId) => {
+    const sectionBlock = blocks[sectionId];
+    if (!sectionBlock || sectionBlock.type !== 'chapter') { return; }
+
+    const seqIds = (sectionBlock.children ?? []).filter((k) => {
+      const b = blocks[k];
+      return b != null && b.type === 'sequential';
+    });
+
+    sections[sectionId] = {
+      id: sectionId,
+      title: sectionBlock.display_name,
+      sequenceIds: seqIds,
     };
-    // Back-fill sectionId on each child sequence
-    availableSeqIds.forEach((seqId) => {
-      sequences[seqId] = { ...sequences[seqId], sectionId: section.id };
+
+    seqIds.forEach((seqId) => {
+      const seqBlock = blocks[seqId];
+      if (!seqBlock) { return; }
+      sequences[seqId] = {
+        id: seqId,
+        title: seqBlock.display_name,
+        sectionId,
+        // The course_home outline exposes a per-sequence complete boolean directly.
+        complete: seqBlock.complete === true,
+      };
     });
   });
 
+  // Title: prefer the course block's display_name, fall back to top-level title.
+  const courseTitle: string = courseBlock?.display_name ?? (data.title as string | undefined) ?? courseId;
+
   return {
-    courseId: data.course_key as string,
-    title: data.title as string,
+    courseId,
+    title: courseTitle,
     sections,
     sequences,
   };

@@ -9,6 +9,8 @@ export interface LessonDescriptor {
   sectionTitle: string;
   lessonTitle: string;
   lessonIndex: number;
+  /** True when all units in this sequence are complete (sourced from the outline API). */
+  complete: boolean;
 }
 
 /**
@@ -33,10 +35,25 @@ export function mapOutlineToLessons(outline: CourseOutline): LessonDescriptor[] 
         sectionTitle: section.title,
         lessonTitle: seq.title,
         lessonIndex,
+        complete: seq.complete,
       });
       lessonIndex += 1;
     });
   });
 
   return lessons;
+}
+
+/**
+ * Counts lesson-level (sequence-level) completion from the course outline.
+ *
+ * Use this instead of `completedUnits`/`totalUnits` from the progress API,
+ * which counts XBlock units (steps) rather than lessons (sequences).
+ */
+export function countLessons(outline: CourseOutline): { total: number; completed: number } {
+  const sequences = Object.values(outline.sequences);
+  return {
+    total: sequences.length,
+    completed: sequences.filter((s) => s.complete).length,
+  };
 }

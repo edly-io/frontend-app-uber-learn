@@ -1,11 +1,18 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { SystemStateView } from '../components/ui/SystemStateView';
 import stateSpotNoRequiredCourses from '../assets/icons/state-spot-no-required-courses.svg';
 
 export const NoRequiredCoursesPage = () => {
   const navigate = useNavigate();
-  const handleBack = () => navigate(-1);
+  const location = useLocation();
+  const handleBack = () => {
+    if (location.key === 'default') {
+      navigate('/');
+    } else {
+      navigate(-1);
+    }
+  };
 
   return (
     <SystemStateView

@@ -1,0 +1,91 @@
+/* ── Loading skeleton ───────────────────────────────── */
+
+@keyframes skel-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.skel-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  overflow: hidden;
+  background: var(--u-background-primary);
+}
+
+/* Card-body variant: no padding, transparent bg, tighter gap */
+.skel-content--card {
+  padding: 0;
+  gap: 6px;
+  background: transparent;
+}
+
+.skel-bone {
+  background: var(--u-background-secondary);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+/* ── Page-level bones ───────────────────────────────── */
+
+/* Art panel — matches .cd-hero { height: 180px } in course-page.scss */
+.skel-art { height: 180px; width: 100%; border-radius: 16px; }
+
+/* Kicker — 0.75rem font × 1.33 line-height ≈ 16px; bone sits inside that */
+.skel-kicker { height: 14px; width: 80px; }
+
+/* H1 — 2rem font × 1.25 line-height = 40px single-line visual height */
+.skel-h1 { height: 40px; width: 210px; border-radius: 8px; max-width: 100%; }
+
+/* Body text lines — 1rem font × 1.5 line-height = 24px; bone at 20px */
+.skel-b1 { height: 20px; width: 100%; border-radius: 7px; max-width: 100%; }
+.skel-b2 { height: 20px; width: 70%; border-radius: 7px; max-width: 100%; }
+
+/* ── Card-body bones (variant="card") ───────────────── */
+
+/* Course card title — 18px font × 1.33 line-height ≈ 24px */
+.skel-card-title { height: 22px; width: 85%; max-width: 100%; border-radius: 6px; }
+
+/* Course card subtitle — 14px font × 1.43 line-height ≈ 20px */
+.skel-card-sub { height: 16px; width: 55%; max-width: 100%; border-radius: 6px; }
+
+/* ── Lesson row bones ───────────────────────────────── */
+
+.skel-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 4px;
+  flex-shrink: 0;
+}
+
+/* Icon/indicator — matches 20px icons used in lesson rows */
+.skel-circle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--u-background-secondary);
+  flex-shrink: 0;
+}
+
+/* Animation only when the user has not requested reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  .skel-bone,
+  .skel-circle {
+    animation: skel-pulse 1.6s ease-in-out infinite;
+  }
+}
+
+.skel-row-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Lesson title — 1rem font × 1.5 ≈ 24px; bone at 18px */
+.skel-line-title { height: 18px; width: 180px; border-radius: 6px; max-width: 100%; }
+
+/* Lesson detail — 0.875rem font × 1.43 ≈ 20px; bone at 14px */
+.skel-line-sub { height: 14px; width: 110px; border-radius: 6px; max-width: 100%; }

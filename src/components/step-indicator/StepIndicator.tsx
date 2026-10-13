@@ -11,6 +11,10 @@ export const StepIndicator = ({ current, total }: StepIndicatorProps) => {
   const pct = total > 0 ? Math.round(((current + 1) / total) * 100) : 0;
   return (
     <div
+      role="progressbar"
+      aria-valuenow={current + 1}
+      aria-valuemin={1}
+      aria-valuemax={total}
       aria-label={`Step ${current + 1} of ${total}`}
       style={{
         padding: '4px 16px',

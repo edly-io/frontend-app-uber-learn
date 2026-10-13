@@ -34,9 +34,13 @@
   --u-content-primary:           #000000;
   --u-content-secondary:         #4b4b4b;
   --u-content-on-color:          #ffffff;
+  --u-content-accent:            #276ef1;   /* SVG strokes, icon fills — matches --u-background-accent */
 
   /* Borders */
   --u-border-opaque:             #e8e8e8;
+
+  /* Course hero */
+  --u-background-course-hero:     #002661;   /* dark navy blue safety hero panel */
 
   /* Extended surfaces */
   --u-background-secondary:      #f3f3f3;

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import './info-sheet.scss';
 
 export interface InfoSheetData {
@@ -12,12 +13,19 @@ interface InfoSheetProps {
 }
 
 export const InfoSheet = ({ data, onClose }: InfoSheetProps) => {
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  // WCAG 2.1 SC 2.4.3 / SC 2.1.2: trap focus and handle Escape when open.
+  // Callers must pass a stable onClose reference (memoised with useCallback).
+  useFocusTrap(sheetRef, data !== null, onClose);
+
   if (!data) { return null; }
 
   return (
     <>
       <div className="bds-backdrop" onClick={onClose} aria-hidden="true" />
       <div
+        ref={sheetRef}
         className="bds-sheet info-sheet"
         role="dialog"
         aria-modal="true"

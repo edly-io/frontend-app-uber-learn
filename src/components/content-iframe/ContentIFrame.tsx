@@ -1,12 +1,8 @@
 import React, { useCallback, useEffect, useRef } from 'react';
-import { getConfig } from '@edx/frontend-platform';
 import { usePostMessage } from '../../hooks/usePostMessage';
+import { getLmsOrigin } from '../../lib/lms';
 import { buildXBlockUrl } from '../../lib/xblock-url';
 import './content-iframe.scss';
-
-function getLmsOrigin(): string {
-  return new URL(getConfig().LMS_BASE_URL).origin;
-}
 
 interface ContentIFrameProps {
   usageKey: string;
@@ -31,8 +27,9 @@ export const ContentIFrame = ({
     if (!onContentReady) { return undefined; }
     let fired = false;
     const handler = (event: MessageEvent): void => {
-      // Only this unit's iframe, from the LMS origin. plugin.resize has no `version`, so
-      // usePostMessage drops it.
+      // Only this unit's iframe, from the LMS origin. plugin.resize is handled here
+      // directly via addEventListener because usePostMessage routes named events
+      // to handleEvent (which ignores plugin.resize); this handler fires first.
       if (fired || event.origin !== getLmsOrigin() || event.source !== frameRef.current?.contentWindow) { return; }
       if ((event.data as { type?: unknown } | null)?.type !== 'plugin.resize') { return; }
       fired = true;

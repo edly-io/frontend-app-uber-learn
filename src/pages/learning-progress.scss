@@ -668,7 +668,7 @@
 }
 
 .lp-streak-day__dot--learned {
-  background: var(--u-background-positive);
+  /* circle-check icon fills it */
 }
 
 .lp-streak-day__dot--today {
@@ -684,9 +684,8 @@
 }
 
 .lp-streak-day__check {
-  width: 16px;
-  height: 16px;
-  filter: brightness(0) invert(1);
+  width: 28px;
+  height: 28px;
 }
 
 .lp-streak-day__label {
@@ -859,11 +858,13 @@
 }
 
 .lp-leaderboard-gap {
-  text-align: center;
-  color: var(--u-content-tertiary);
-  font-size: 18px;
-  letter-spacing: 4px;
-  padding: 6px 0;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  padding-left: 12px;
+  color: var(--u-content-secondary);
+  font-size: 16px;
+  letter-spacing: 3px;
 }
 
 .lp-leaderboard-avatar {
@@ -1024,9 +1025,9 @@
 
 .lp-badge-grid-ring__inner {
   position: absolute;
-  inset: 6px;
+  inset: 5px;
   border-radius: 50%;
-  border: 4px solid var(--u-background-primary);
+  border: 3px solid var(--u-background-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1046,10 +1047,10 @@
 /* 30-day trophy pin */
 .lp-badge-grid-ring__thirty {
   position: absolute;
-  bottom: 2px;
-  right: 2px;
-  width: 26px;
-  height: 26px;
+  bottom: 0;
+  right: 0;
+  width: 30px;
+  height: 30px;
   background: var(--u-background-tertiary);
   border: 3px solid var(--u-background-primary);
   border-radius: 50%;
@@ -1059,7 +1060,4 @@
   color: var(--u-content-secondary);
 }
 
-.lp-badge-grid-ring__thirty--open {
-  background: var(--u-background-accent);
-  color: var(--u-content-on-color);
-}
+/* --open: illustration asset provides the golden color */

@@ -9,6 +9,8 @@ interface ErrorViewProps {
   art?: string;
   buttonLabel?: string;
   onAction?: () => void;
+  secondaryLabel?: string;
+  onSecondaryAction?: () => void;
   navTitle?: string;
   onBack?: () => void;
 }
@@ -20,6 +22,8 @@ export const ErrorView = ({
   art = stateSpotTakingTooLong,
   buttonLabel = 'Try again',
   onAction,
+  secondaryLabel,
+  onSecondaryAction,
   navTitle,
   onBack,
 }: ErrorViewProps) => (
@@ -29,6 +33,8 @@ export const ErrorView = ({
     message={message}
     buttonLabel={onAction || onRetry ? buttonLabel : undefined}
     onAction={onAction ?? onRetry}
+    secondaryLabel={secondaryLabel}
+    onSecondaryAction={onSecondaryAction}
     navTitle={navTitle}
     onBack={onBack}
   />

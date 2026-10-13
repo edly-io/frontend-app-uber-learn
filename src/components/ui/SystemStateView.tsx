@@ -9,6 +9,9 @@ interface SystemStateViewProps {
   message: string;
   buttonLabel?: string;
   onAction?: () => void;
+  /** Optional second footer action, shown under the main one (as in the two-action footers). */
+  secondaryLabel?: string;
+  onSecondaryAction?: () => void;
   navTitle?: string;
   onBack?: () => void;
 }
@@ -20,28 +23,42 @@ export const SystemStateView = ({
   message,
   buttonLabel,
   onAction,
+  secondaryLabel,
+  onSecondaryAction,
   navTitle,
   onBack,
-}: SystemStateViewProps) => (
-  <div className="ss-page">
-    {onBack && <NavHeader title={navTitle ?? ''} onBack={onBack} />}
+}: SystemStateViewProps) => {
+  const hasAction = Boolean(buttonLabel && onAction);
+  const hasSecondaryAction = Boolean(secondaryLabel && onSecondaryAction);
 
-    <main className="ss-content" role={onBack ? undefined : 'alert'} aria-live={onBack ? undefined : 'assertive'}>
-      <div className="ss-tile" aria-hidden="true">
-        <img src={art} alt={artAlt} className="ss-tile__art" />
-      </div>
-      <div className="ss-heading-block">
-        <h1 className="ss-heading">{title}</h1>
-        <p className="ss-body">{message}</p>
-      </div>
-    </main>
+  return (
+    <div className="ss-page">
+      {onBack && <NavHeader title={navTitle ?? ''} onBack={onBack} />}
 
-    {buttonLabel && onAction && (
-      <footer className="ss-footer">
-        <button type="button" className="ss-footer__btn" onClick={onAction}>
-          {buttonLabel}
-        </button>
-      </footer>
-    )}
-  </div>
-);
+      <main className="ss-content" role={onBack ? undefined : 'alert'} aria-live={onBack ? undefined : 'assertive'}>
+        <div className="ss-tile" aria-hidden="true">
+          <img src={art} alt={artAlt} className="ss-tile__art" />
+        </div>
+        <div className="ss-heading-block">
+          <h1 className="ss-heading">{title}</h1>
+          <p className="ss-body">{message}</p>
+        </div>
+      </main>
+
+      {(hasAction || hasSecondaryAction) && (
+        <footer className="ss-footer">
+          {hasAction && (
+            <button type="button" className="ss-footer__btn" onClick={onAction}>
+              {buttonLabel}
+            </button>
+          )}
+          {hasSecondaryAction && (
+            <button type="button" className="ss-footer__secondary" onClick={onSecondaryAction}>
+              {secondaryLabel}
+            </button>
+          )}
+        </footer>
+      )}
+    </div>
+  );
+};

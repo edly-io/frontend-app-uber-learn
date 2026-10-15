@@ -144,7 +144,6 @@ beforeEach(() => {
   mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '0' });
   jest.mocked(coursewareApi.getSequenceMetadata).mockResolvedValue(MOCK_SEQUENCE_DATA);
   jest.mocked(progressApi.saveSequencePosition).mockResolvedValue(undefined);
-  jest.mocked(progressApi.markBlockComplete).mockResolvedValue(undefined);
 });
 
 // ---------------------------------------------------------------------------
@@ -331,33 +330,6 @@ describe('ActivityView', () => {
       });
     });
 
-    it('AC-ACT-NAV-03: waits for the final unit completion write before opening the results page', async () => {
-      // The results page reads points awarded from that completion; navigating first made it
-      // read before the last step's points existed (10 instead of 20).
-      mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
-      let resolveComplete: () => void = () => {};
-      jest.mocked(progressApi.markBlockComplete).mockReturnValue(
-        new Promise<void>((resolve) => { resolveComplete = resolve; }),
-      );
-
-      renderComponent();
-      await waitFor(() => expect(screen.getByRole('button', { name: /finish/i })).toBeInTheDocument());
-      dispatchPluginMessage('plugin.completed', { correct: true });
-      await waitFor(() => expect(screen.getByRole('button', { name: /finish/i })).not.toBeDisabled());
-
-      fireEvent.click(screen.getByRole('button', { name: /finish/i }));
-      await waitFor(() => expect(progressApi.markBlockComplete).toHaveBeenCalled());
-      await act(async () => { await new Promise((r) => { setTimeout(r, 50); }); });
-      expect(mockNavigate).not.toHaveBeenCalled();
-
-      await act(async () => { resolveComplete(); });
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith(
-          `/course/${COURSE_ID}/lesson-complete/${SEQ_ID}`,
-          { state: { since: expect.any(String) } },
-        );
-      });
-    });
   });
 
   describe('course outline freshness after finishing a lesson', () => {
@@ -388,13 +360,11 @@ describe('ActivityView', () => {
       dispatchPluginMessage('plugin.completed', { correct: true });
       await waitFor(() => expect(screen.getByRole('button', { name: /finish/i })).not.toBeDisabled());
       fireEvent.click(screen.getByRole('button', { name: /finish/i }));
-      // Navigation now waits for the completion write, so wait for the write to be issued.
-      await waitFor(() => expect(progressApi.markBlockComplete).toHaveBeenCalled());
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalled());
     }
 
     it('marks the finished lesson complete in the cached outline before navigating', async () => {
       jest.mocked(coursewareApi.getCourseOutline).mockResolvedValue(staleOutline());
-      jest.mocked(progressApi.markBlockComplete).mockReturnValue(new Promise(() => {}));
       const client = makeQueryClient();
 
       await finishLastUnit(client);
@@ -402,25 +372,6 @@ describe('ActivityView', () => {
       const outline = client.getQueryData<ReturnType<typeof staleOutline>>(['outline', COURSE_ID]);
       expect(outline?.sequences[SEQ_ID].complete).toBe(true);
       expect(outline?.sequences[SEQ_2].complete).toBe(false);
-    });
-
-    it('refetches the outline only after the final unit completion is recorded', async () => {
-      jest.mocked(coursewareApi.getCourseOutline).mockResolvedValue(staleOutline());
-      let resolveComplete: () => void = () => {};
-      jest.mocked(progressApi.markBlockComplete).mockReturnValue(
-        new Promise<void>((resolve) => { resolveComplete = resolve; }),
-      );
-      const client = makeQueryClient();
-
-      await finishLastUnit(client);
-      const callsBeforeWrite = jest.mocked(coursewareApi.getCourseOutline).mock.calls.length;
-
-      await act(async () => { resolveComplete(); });
-
-      await waitFor(() => {
-        expect(jest.mocked(coursewareApi.getCourseOutline).mock.calls.length)
-          .toBeGreaterThan(callsBeforeWrite);
-      });
     });
   });
 

@@ -20,22 +20,3 @@ export async function saveSequencePosition(
   );
 }
 
-/**
- * Marks a block as complete via the LMS completion batch API.
- * This updates the BlockCompletion record so the resume-block API
- * returns the correct lesson after the learner advances past a unit.
- * Calling it on an already-complete block is idempotent.
- */
-export async function markBlockComplete(courseId: string, blockKey: string): Promise<void> {
-  const user = getAuthenticatedUser();
-  if (!user) { return; }
-  const { username } = user;
-  await getAuthenticatedHttpClient().post(
-    `${getConfig().LMS_BASE_URL}/api/completion/v1/completion-batch/`,
-    {
-      username,
-      course_key: courseId,
-      blocks: { [blockKey]: 1.0 },
-    },
-  );
-}

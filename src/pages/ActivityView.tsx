@@ -12,7 +12,7 @@ import { mapOutlineToLessons, markSequenceComplete } from '../lib/outline-mapper
 import type { CourseOutline } from '../api/courseware';
 import { getEnrolledCourses } from '../api/catalog';
 import { getLmsOrigin } from '../lib/lms';
-import { saveSequencePosition, markBlockComplete } from '../api/progress';
+import { saveSequencePosition } from '../api/progress';
 import { getGamificationSummary } from '../api/gamification';
 import { qk } from '../api/queries';
 import { ContentIFrame } from '../components/content-iframe/ContentIFrame';
@@ -25,9 +25,6 @@ import { OfflineView } from '../components/offline-view/OfflineView';
 import { SlowLoadView } from '../components/slow-load-view/SlowLoadView';
 import { NotEnrolledPage } from './NotEnrolledPage';
 import { useSlowLoad } from '../hooks/useSlowLoad';
-
-/** Longest the Finish button waits for the final unit's completion write before navigating. */
-const COMPLETION_WRITE_MAX_WAIT_MS = 5000;
 
 export const ActivityView = () => {
   const {
@@ -203,11 +200,6 @@ export const ActivityView = () => {
 
       // Save current position on the LMS (fire-and-forget — enables resume, doesn't block nav)
       saveSequencePosition(courseId, sequenceId, unitIdx).catch(() => {});
-      // Mark the current unit complete so the resume-block API immediately returns
-      // this lesson as the resume point (completion API sorts by modified timestamp).
-      const completionWrite: Promise<void> = currentUnitId
-        ? markBlockComplete(courseId, currentUnitId).catch(() => {})
-        : Promise.resolve();
 
       const nextIdx = unitIdx + 1;
 
@@ -220,29 +212,19 @@ export const ActivityView = () => {
         // sequence is incomplete, and the completion pages count lessons from it. Mark it
         // complete now so the next screen renders the right count on first paint.
         queryClient.setQueryData<CourseOutline>(qk.outline(courseId), (prev) => markSequenceComplete(prev, sequenceId));
-        // Reconcile outline and course progress with the server only once the final unit's
-        // completion write has settled; refetching earlier races the POST and returns stale data.
-        completionWrite.finally(() => {
+        // Delay all background invalidations to give Celery award tasks time to settle
+        // and to ensure the results page reads the optimistic setQueryData on first mount.
+        // Leaf-block completions are recorded by platform XBlock handlers before
+        // plugin.completed fires, so outline/progress data is already correct on the server.
+        setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: qk.outline(courseId) });
           queryClient.invalidateQueries({ queryKey: qk.courseProgress(courseId) });
-        });
-        // Delay-invalidate leaderboard, curriculums, and badges to give Celery award tasks
-        // time to write before the client re-fetches.
-        setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: qk.leaderboardAll() });
           queryClient.invalidateQueries({ queryKey: qk.curriculums() });
           // refetchType:'all' bypasses the 60s staleTime so the new badge award
           // awarded by Celery is visible on the completion screen straight away.
           queryClient.invalidateQueries({ queryKey: qk.badges(), refetchType: 'all' });
         }, 3000);
-
-        // The results pages read the points this completion awards. Navigating before the write
-        // lands made them read without the last step's points (e.g. 10 instead of 20), so wait
-        // for it — bounded, so a hung request on a bad network cannot trap the learner here.
-        await Promise.race([
-          completionWrite,
-          new Promise<void>((resolve) => { setTimeout(resolve, COMPLETION_WRITE_MAX_WAIT_MS); }),
-        ]);
 
         if (isRetentionCourse && !nextLesson) {
           // Last lesson of a retention check course: go to the result page.

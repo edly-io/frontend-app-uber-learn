@@ -2,6 +2,8 @@ import React from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getResumeBlock } from '../api/courseware';
+import { getEnrolledCourses } from '../api/catalog';
+import { getCourseMaxPoints } from '../api/gamification';
 import { qk } from '../api/queries';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { useSequence } from '../hooks/useSequence';
@@ -234,6 +236,13 @@ export const CourseOverview = () => {
   const { data: curriculums } = useCurriculums();
   const { data: progressSummary } = useCourseProgressSummary(courseId);
   const { data: badgesData } = useBadges();
+  const { data: maxPointsData } = useQuery({
+    queryKey: qk.courseMaxPoints(courseId),
+    queryFn: () => getCourseMaxPoints(courseId),
+    enabled: Boolean(courseId),
+    staleTime: 30 * 60_000,
+  });
+
   const courseBadgeEntry = badgesData?.course_badges.find(
     (b) => b.source.type === 'course' && b.source.course_id === courseId,
   );
@@ -345,6 +354,7 @@ export const CourseOverview = () => {
   const fraction = progressSummary?.fraction ?? 0;
   const courseComplete = fraction >= 1;
   const pointsEarned = gamification?.courses?.find((c) => c.course_key === courseId)?.points ?? 0;
+  const maxPoints = maxPointsData?.max_points ?? 0;
 
   const resumeSequenceId = apiResumeSequenceId;
 
@@ -430,9 +440,11 @@ export const CourseOverview = () => {
                     />
                   )}
                 </div>
-                {pointsEarned > 0 && (
+                {maxPoints > 0 && (
                   <p className="cd-progress-points">
-                    {`${pointsEarned} points earned`}
+                    {(fraction > 0 || completedLessons > 0)
+                      ? `${pointsEarned} of ${maxPoints} points earned`
+                      : `Earn up to ${maxPoints} points`}
                   </p>
                 )}
               </div>

@@ -90,6 +90,11 @@ export const ContentIFrame = ({
         className="content-iframe-frame"
         src={buildXBlockUrl(usageKey)}
         title="Course activity"
+        // Restore all permissions needed by XBlock content (downloads, modals, presentation,
+        // popups-to-escape-sandbox for OAuth flows) while explicitly omitting
+        // allow-top-navigation — without it a bad XBlock cannot navigate the Uber WebView
+        // away from the app, which has no URL bar or back button to recover from.
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals allow-presentation"
         allow={IFRAME_FEATURE_POLICY}
         referrerPolicy="origin"
         data-usage-key={usageKey}

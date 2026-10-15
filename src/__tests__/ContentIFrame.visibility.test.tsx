@@ -36,11 +36,20 @@ afterEach(() => {
 });
 
 describe('ContentIFrame iframe attributes', () => {
-  it('uses the security-reviewed feature policy and no sandbox so nested video iframes can use EME', () => {
+  it('uses the security-reviewed feature policy and a sandbox without allow-top-navigation', () => {
     const { container } = render(<ContentIFrame usageKey={USAGE_KEY} />);
     const frame = container.querySelector('iframe') as HTMLIFrameElement;
     expect(frame.getAttribute('allow')).toBe(IFRAME_FEATURE_POLICY);
-    expect(frame.hasAttribute('sandbox')).toBe(false);
+    const sandbox = frame.getAttribute('sandbox') ?? '';
+    // Must have the permissions XBlocks need
+    expect(sandbox).toContain('allow-scripts');
+    expect(sandbox).toContain('allow-same-origin');
+    expect(sandbox).toContain('allow-forms');
+    expect(sandbox).toContain('allow-popups');
+    expect(sandbox).toContain('allow-downloads');
+    expect(sandbox).toContain('allow-modals');
+    // Must NOT allow top-level navigation — WebView has no URL bar or back button
+    expect(sandbox).not.toContain('allow-top-navigation');
   });
 });
 

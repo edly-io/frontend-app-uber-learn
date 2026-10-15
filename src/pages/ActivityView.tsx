@@ -3,6 +3,7 @@ import React, {
 } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useBlockCompletion } from '../hooks/useBlockCompletion';
 import { getConfig } from '@edx/frontend-platform';
 import { useOffline } from '../hooks/useOffline';
 import { useSequence } from '../hooks/useSequence';
@@ -46,14 +47,8 @@ export const ActivityView = () => {
   });
   const isEnrolled = enrolledLoading || (enrolledCourses?.some((c) => c.courseId === courseId) ?? true);
 
-  // Completion and visibility are tied to the step rather than kept as booleans reset in an
-  // effect: the effect only runs after the first render of a new step, so for that render the
-  // previous step's "completed"/"loaded" state would leak through (enabled Continue, no spinner).
-  // completedUnitId: the unit whose iframe sent plugin.completed. shownVisit: the visit (below)
-  // whose iframe content is on screen.
-  const [completedUnitId, setCompletedUnitId] = useState<string | null>(null);
+  // shownVisit: visit number of the step whose iframe content is currently on screen.
   const [shownVisit, setShownVisit] = useState<number | null>(null);
-  const lastCorrectRef = useRef<boolean | null>(null);
 
   // Capture server_time once when the lesson mounts (not on every window focus) so the
   // `since` value for the lesson results endpoint stays stable for the duration of the lesson.
@@ -112,12 +107,13 @@ export const ActivityView = () => {
 
   // Gate Continue on plugin.completed for units that require interaction:
   // standard CAPA (contentType === 'problem') and graded custom XBlocks like
-  // sortable/DnD-v2 (graded === true). Plain HTML/text units auto-enable once shown.
-  const isProblemUnit = currentUnit?.contentType === 'problem' || currentUnit?.graded === true;
+  // Poll get_completion every 3 s for all unit types.
+  // plugin.completed postMessage is no longer sent by the platform; only the backend XBlock
+  // records completion (problem submit, video view, etc.). The poll picks it up within 3 s.
+  const isBlockComplete = useBlockCompletion(courseId, sequenceId, currentUnitId, currentUnitId !== null);
 
-  // Reset content error + correctness whenever the unit changes.
+  // Reset content error whenever the unit changes.
   useEffect(() => {
-    lastCorrectRef.current = null;
     setIsContentError(false);
   }, [sequenceId, unitIdx]);
 
@@ -139,34 +135,9 @@ export const ActivityView = () => {
   const currentVisit = visitRef.current.visit;
   const isIframeLoaded = currentUnitId !== null && shownVisit === currentVisit;
 
-  // A step is complete when its iframe sent plugin.completed, or when it is a problem unit the
-  // learner already completed on an earlier visit, or when it is any other unit and its content
-  // is on screen.
-  const isCompleted = currentUnitId !== null && (
-    completedUnitId === currentUnitId
-    || (isProblemUnit ? Boolean(currentUnit?.complete) : isIframeLoaded)
-  );
-
-  const handleCompleted = useCallback((correct: boolean | null) => {
-    lastCorrectRef.current = correct;
-    setCompletedUnitId(currentUnitId);
-    // Invalidate so the unit's complete flag is fresh on any future revisit.
-    queryClient.invalidateQueries({ queryKey: qk.sequence(sequenceId) });
-  }, [currentUnitId, queryClient, sequenceId]);
-
-  // For problem units: if the iframe is visible but the cached unit still shows
-  // complete:false, trigger one background refetch so a submission from a previous
-  // session is reflected without requiring a full page reload.
-  // Use a ref to capture latest values so the effect doesn't go stale while firing
-  // on isIframeLoaded alone.
-  const shouldInvalidateRef = useRef(false);
-  shouldInvalidateRef.current = isProblemUnit
-    && Boolean(currentUnit) && !currentUnit?.complete && completedUnitId !== currentUnitId;
-  useEffect(() => {
-    if (isIframeLoaded && shouldInvalidateRef.current) {
-      queryClient.invalidateQueries({ queryKey: qk.sequence(sequenceId) });
-    }
-  }, [isIframeLoaded, sequenceId, queryClient]);
+  // Continue is enabled when the backend has recorded the unit as complete.
+  // currentUnit?.complete covers units already complete from a previous session.
+  const isCompleted = currentUnitId !== null && (isBlockComplete || Boolean(currentUnit?.complete));
 
   // Called when the unit's content is on screen: its iframe's load event or, in lightweight mode,
   // the iframe's first plugin.resize if that comes first.
@@ -262,7 +233,6 @@ export const ActivityView = () => {
     units.length,
     courseId,
     sequenceId,
-    currentUnitId,
     navigate,
     nextLesson,
     isRetentionCourse,
@@ -409,7 +379,6 @@ export const ActivityView = () => {
         <ContentIFrame
           key={`${currentUnit.id}-${retryKey}`}
           usageKey={currentUnit.id}
-          onCompleted={handleCompleted}
           onContentReady={isLightweightMode ? handleContentShown : undefined}
           onLoad={handleContentShown}
           onError={handleContentError}

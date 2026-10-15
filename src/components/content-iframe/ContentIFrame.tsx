@@ -6,7 +6,7 @@ import './content-iframe.scss';
 
 interface ContentIFrameProps {
   usageKey: string;
-  onCompleted: (correct: boolean | null) => void;
+  onCompleted?: (correct: boolean | null) => void;
   onLoad?: () => void;
   /**
    * Called once, when the unit's content has been rendered inside the iframe.
@@ -21,7 +21,7 @@ interface ContentIFrameProps {
 }
 
 export const ContentIFrame = ({
-  usageKey, onCompleted, onLoad, onContentReady, onError,
+  usageKey, onCompleted = () => {}, onLoad, onContentReady, onError,
 }: ContentIFrameProps) => {
   const frameRef = useRef<HTMLIFrameElement>(null);
 

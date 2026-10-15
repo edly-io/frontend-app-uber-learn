@@ -1,5 +1,5 @@
 import { getConfig } from '@edx/frontend-platform';
-import { getAuthenticatedHttpClient, getAuthenticatedUser } from '@edx/frontend-platform/auth';
+import { getAuthenticatedHttpClient } from '@edx/frontend-platform/auth';
 
 function getXBlockHandlerUrl(courseId: string, sequenceId: string): string {
   return `${getConfig().LMS_BASE_URL}/courses/${courseId}/xblock/${sequenceId}/handler`;
@@ -18,5 +18,22 @@ export async function saveSequencePosition(
     `${getXBlockHandlerUrl(courseId, sequenceId)}/goto_position`,
     { position: unitIndex + 1 },
   );
+}
+
+/**
+ * Reads whether a unit block is complete. Mirrors frontend-app-learning's getBlockCompletion.
+ * POST to the sequence's get_completion XBlock handler — the platform derives unit completion
+ * from leaf-block completions recorded by each XBlock's own handler.
+ */
+export async function getBlockCompletion(
+  courseId: string,
+  sequenceId: string,
+  unitId: string,
+): Promise<boolean> {
+  const { data } = await getAuthenticatedHttpClient().post(
+    `${getXBlockHandlerUrl(courseId, sequenceId)}/get_completion`,
+    { usage_key: unitId },
+  );
+  return data.complete === true;
 }
 

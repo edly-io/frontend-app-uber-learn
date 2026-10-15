@@ -731,26 +731,24 @@ export const CourseCatalog = () => {
     return 'zero';
   })();
 
-  // Fetch progress fraction for the first unfinished course of every unfinished curriculum so we
-  // can prefer curricula the learner has actually started over ones that are merely newer.
+  // Fetch progress fractions for ALL unfinished courses across all unfinished curricula so we can
+  // prefer in-progress courses (fraction > 0) over completely new ones at every selection step.
   const unfinishedCurricula = (curriculums ?? []).filter(
     (c) => c.courses_total > 0 && c.courses_finished < c.courses_total,
   );
-  const unfinishedFirstCourseIds = unfinishedCurricula.map((c) => {
-    const sorted = c.courses.slice().sort((a, b) => a.position - b.position);
-    return sorted.find((course) => !course.finished)?.course_id ?? null;
-  });
-  const curriculumProgressQueries = useQueries({
-    queries: unfinishedFirstCourseIds.map((courseId) => ({
-      queryKey: qk.courseProgress(courseId ?? ''),
-      queryFn: () => getCourseProgressSummary(courseId!),
-      enabled: Boolean(courseId),
+  const allUnfinishedCourseIds = Array.from(new Set(
+    unfinishedCurricula.flatMap((c) => c.courses.filter((cc) => !cc.finished).map((cc) => cc.course_id)),
+  ));
+  const courseProgressQueries = useQueries({
+    queries: allUnfinishedCourseIds.map((courseId) => ({
+      queryKey: qk.courseProgress(courseId),
+      queryFn: () => getCourseProgressSummary(courseId),
       staleTime: 5 * 60_000,
     })),
   });
-  const curriculumFraction: Record<string, number> = {};
-  unfinishedCurricula.forEach((c, i) => {
-    curriculumFraction[c.uuid] = curriculumProgressQueries[i]?.data?.fraction ?? 0;
+  const courseFractions: Record<string, number> = {};
+  allUnfinishedCourseIds.forEach((courseId, i) => {
+    courseFractions[courseId] = courseProgressQueries[i]?.data?.fraction ?? 0;
   });
 
   // Pick the course for the continue card: last activity first, then path priority.
@@ -760,7 +758,7 @@ export const CourseCatalog = () => {
     enrolledCourses: nonKcCourses,
     curriculums: curriculums ?? [],
     lastActivityCourseId: lastActivity?.course?.course_id ?? null,
-    curriculumFraction,
+    courseFractions,
     excludeCourseIds: kcCourseIds,
   });
   const firstCourseId = continueCourse?.courseId;
@@ -817,7 +815,8 @@ export const CourseCatalog = () => {
   // but KC still open is surfaced via the ChecksOpenBanner, not here.
   const activePathsForHome = (curriculums ?? []).filter((c) => {
     const allCoursesDone = c.courses_finished === c.courses_total && c.courses_total > 0;
-    const hasActivity = c.courses_finished > 0 || (curriculumFraction[c.uuid] ?? 0) > 0;
+    const hasActivity = c.courses_finished > 0
+      || c.courses.some((cc) => !cc.finished && (courseFractions[cc.course_id] ?? 0) > 0);
     return !allCoursesDone && hasActivity;
   });
 

@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
+import { useQuery, useQueryClient, useQueries } from '@tanstack/react-query';
+import { getEnrolledCourses, getCourseProgressSummary, type EnrolledCourse } from '../api/catalog';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
 import { useSequence } from '../hooks/useSequence';
+import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
 import { qk } from '../api/queries';
+import { getLastActivity } from '../api/curriculum';
+import { selectContinueCourse } from '../lib/selectContinueCourse';
 import { useGamification } from '../hooks/useGamification';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { useBadges } from '../hooks/useBadges';
@@ -23,17 +26,19 @@ import iconCircleCheck from '../assets/icons/icon-circle-check.svg';
 import courseArtBlue from '../assets/icons/course-art-blue.svg';
 import courseArtLime from '../assets/icons/course-art-steering.svg';
 import courseArtPurple from '../assets/icons/course-art-toolbox.svg';
-import sceneSafetyCar from '../assets/scenes/safety-car.png';
-import sceneEducation from '../assets/scenes/scene-safety-education.png';
+import scenePhoto from '../assets/images/scene-safety-education.png';
 import iconChevronRight from '../assets/icons/chevron-right.svg';
 import iconDismiss from '../assets/icons/icon-dismiss.svg';
+import badgeArtTrophyEarned from '../assets/icons/badge-art-trophy-earned.svg';
 
 import './course-catalog.scss';
 
 // ── Helpers ─────────────────────────────────────────────
 
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
 const SearchIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+  <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
     <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.5" />
     <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
@@ -134,6 +139,7 @@ interface ContinueCardProps {
   onContinue: () => void;
   variant?: ContinueVariant;
   finalCheckMeta?: string | null;
+  imageUrl?: string | null;
 }
 
 const ContinueCard = ({
@@ -146,6 +152,7 @@ const ContinueCard = ({
   onContinue,
   variant = 'lesson',
   finalCheckMeta = null,
+  imageUrl = null,
 }: ContinueCardProps) => {
   const isFinalCheck = variant === 'finalCheck';
   const is30DayCheck = variant === 'thirtyDayCheck';
@@ -167,7 +174,13 @@ const ContinueCard = ({
   return (
     <div className="continue-card">
       <div className="continue-card__band">
-        <img src={sceneSafetyCar} alt="" className="continue-card__scene" aria-hidden="true" />
+        <img
+          src={imageUrl ?? scenePhoto}
+          alt=""
+          className="continue-card__scene"
+          aria-hidden="true"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).src = scenePhoto; }}
+        />
       </div>
       <div className="continue-card__body">
         <div className="continue-card__info">
@@ -193,26 +206,21 @@ const ContinueCard = ({
 
 // ── Required course tile ─────────────────────────────────
 
-// ── Connected continue card (picks first in-progress course) ─
+// ── Connected continue card (renders the course chosen by selectContinueCourse) ─
 
 interface ConnectedContinueCardProps {
-  courses: EnrolledCourse[];
-  onContinue: (courseId: string) => void;
+  /** The course to feature. Selection lives in the page (see lib/selectContinueCourse). */
+  course: EnrolledCourse | null;
+  onContinue: (courseId: string, sequenceId: string | null, stepIdx: number) => void;
   variant?: ContinueVariant;
   finalCheckMeta?: string | null;
-  /** Set of course IDs known to be fully finished (from curriculum data). Used to skip
-   *  completed courses and present the first unfinished one in the continue card. */
-  finishedCourseIds?: Set<string>;
+  /** Course card image URL from the curriculum API (CurriculumCourse.image_url). */
+  imageUrl?: string | null;
 }
 
 const ConnectedContinueCard = ({
-  courses, onContinue, variant = 'lesson', finalCheckMeta = null, finishedCourseIds,
+  course: firstCourse, onContinue, variant = 'lesson', finalCheckMeta = null, imageUrl = null,
 }: ConnectedContinueCardProps) => {
-  // Pick first unfinished course; fall back to last course if all are finished.
-  const firstUnfinished = finishedCourseIds
-    ? (courses.find((c) => !finishedCourseIds.has(c.courseId)) ?? courses[courses.length - 1])
-    : courses[0];
-  const firstCourse = firstUnfinished ?? courses[0];
   const courseId = firstCourse?.courseId ?? '';
 
   const outlineQuery = useCourseOutline(courseId);
@@ -224,12 +232,15 @@ const ConnectedContinueCard = ({
   // resume block API call that sent learners back to the last *completed* lesson
   // (off-by-one) and caused a deep-link loop when history was empty.
   const completedLessons = allLessons.filter((l) => l.complete).length;
-  const hasStarted = completedLessons > 0;
+  const progressQuery = useCourseProgressSummary(courseId);
+  const hasStarted = completedLessons > 0 || (progressQuery.data?.fraction ?? 0) > 0;
   const nextLesson = allLessons.find((l) => !l.complete) ?? allLessons[0];
 
-  // Fetch unit count for the next lesson to show "N steps" in the subtitle.
+  // Fetch units for the next lesson: used for step count in subtitle and to
+  // find the first incomplete unit so Continue resumes at the right step.
   const { units: nextUnits } = useSequence(nextLesson?.sequenceId ?? '');
   const stepCount = nextUnits.length;
+  const resumeStepIdx = Math.max(0, nextUnits.findIndex((u) => !u.complete));
 
   const nextLessonIdx = nextLesson ? allLessons.indexOf(nextLesson) : 0;
   const lessonTitle = nextLesson?.lessonTitle ?? firstCourse?.title ?? 'Start learning';
@@ -250,9 +261,10 @@ const ConnectedContinueCard = ({
       completedLessons={completedLessons}
       totalLessons={totalLessons}
       hasStarted={hasStarted}
-      onContinue={() => onContinue(firstCourse.courseId)}
+      onContinue={() => onContinue(firstCourse.courseId, nextLesson?.sequenceId ?? null, resumeStepIdx)}
       variant={variant}
       finalCheckMeta={finalCheckMeta}
+      imageUrl={imageUrl}
     />
   );
 };
@@ -447,9 +459,12 @@ const LearningPathCard = ({ curriculum, onClick }: LearningPathCardProps) => {
           <img
             src={badgeArt}
             alt=""
-            className={`path-card__seal-art${isEarned ? '' : ' path-card__seal-art--locked'}`}
+            className="path-card__seal-art"
             aria-hidden="true"
           />
+          {/* Desaturates the entire seal (tint + art) when path is not yet earned.
+              Uses mix-blend-mode: saturation so colour itself signals completion. */}
+          {!isEarned && <div className="path-card__seal-greyscale" aria-hidden="true" />}
         </div>
       </div>
       <div className="path-card__body">
@@ -458,11 +473,26 @@ const LearningPathCard = ({ curriculum, onClick }: LearningPathCardProps) => {
           <span className="path-card__progress">
             {curriculum.courses_finished} of {curriculum.courses_total} courses done
           </span>
-          {completionLabel && (
-            <span className="path-card__next">{completionLabel}</span>
+          {/* 30-day check status takes priority over completion label / next course */}
+          {curriculum.milestones.retained?.reached_at != null && (
+            <span className="path-card__next">30-day check passed</span>
           )}
-          {!completionLabel && nextCourse && (
-            <span className="path-card__next">Next: {nextCourse.display_name ?? nextCourse.course_id}</span>
+          {curriculum.milestones.retained?.reached_at == null
+            && curriculum.knowledge_check.exists
+            && curriculum.knowledge_check.is_open
+            && (
+              <span className="path-card__next path-card__next--check-open">30-day check open</span>
+            )}
+          {curriculum.milestones.retained?.reached_at == null
+            && !(curriculum.knowledge_check.exists && curriculum.knowledge_check.is_open)
+            && completionLabel && (
+              <span className="path-card__next">{completionLabel}</span>
+          )}
+          {curriculum.milestones.retained?.reached_at == null
+            && !(curriculum.knowledge_check.exists && curriculum.knowledge_check.is_open)
+            && !completionLabel
+            && nextCourse && (
+              <span className="path-card__next">Next: {nextCourse.display_name ?? nextCourse.course_id}</span>
           )}
         </div>
       </div>
@@ -482,11 +512,12 @@ const EveryPathDoneCard = ({ curriculums, onClick }: EveryPathDoneCardProps) => 
   const earnedBadges = curriculums
     .map((c) => c.milestones.complete)
     .filter((m): m is NonNullable<typeof m> => m != null);
+  const bandImage = curriculums[0]?.image_url ?? scenePhoto;
 
   return (
     <button type="button" className="notice-card notice-card--caught-up notice-card--full-tap" onClick={onClick} aria-label="Every path done – explore courses">
       <div className="notice-card__band">
-        <img src={sceneSafetyCar} alt="" className="notice-card__scene" aria-hidden="true" />
+        <img src={bandImage} alt="" className="notice-card__scene" aria-hidden="true" />
       </div>
       <div className="notice-card__body">
         <h2 className="notice-card__title">Every path done</h2>
@@ -526,13 +557,19 @@ const NewPathBanner = ({ curriculum, onDismiss, onClick }: NewPathBannerProps) =
       aria-label={`View new learning path: ${curriculum.title}`}
     >
       <div className="notice-card__band">
-        <img src={sceneEducation} alt="" className="notice-card__scene notice-card__scene--education" aria-hidden="true" />
+        <img
+          src={curriculum.image_url ?? scenePhoto}
+          alt=""
+          className="notice-card__scene notice-card__scene--education"
+          aria-hidden="true"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).src = scenePhoto; }}
+        />
       </div>
       <div className="notice-card__body notice-card__body--new-path">
         <h2 className="notice-card__title">New learning path</h2>
-        {curriculum.description && (
-          <p className="notice-card__desc">{curriculum.description}</p>
-        )}
+        <p className="notice-card__desc">
+          {curriculum.description || `${curriculum.title} is now one of your learning paths. Your points, streak and badges stay.`}
+        </p>
       </div>
     </button>
     <button
@@ -545,6 +582,49 @@ const NewPathBanner = ({ curriculum, onDismiss, onClick }: NewPathBannerProps) =
     </button>
   </div>
 );
+
+// ── 30-day checks open banner ─────────────────────────────
+
+interface ChecksOpenBannerProps {
+  openChecks: import('../api/curriculum').LearnerCurriculum[];
+  onClick: () => void;
+}
+
+const NUMBER_WORDS: Record<number, string> = {
+  2: 'Two', 3: 'Three', 4: 'Four', 5: 'Five',
+};
+
+const ChecksOpenBanner = ({ openChecks, onClick }: ChecksOpenBannerProps) => {
+  const count = openChecks.length;
+  const title = count === 1
+    ? '30-day check open'
+    : `${NUMBER_WORDS[count] ?? count} 30-day checks open`;
+
+  let subtitle: string;
+  if (count === 1) {
+    subtitle = openChecks[0].title;
+  } else if (count === 2) {
+    subtitle = `${openChecks[0].title} and ${openChecks[1].title}`;
+  } else {
+    subtitle = `${openChecks[0].title} and ${count - 1} more`;
+  }
+
+  return (
+    <button
+      type="button"
+      className="check-open-banner"
+      onClick={onClick}
+      aria-label={title}
+    >
+      <img src={badgeArtTrophyEarned} alt="" className="check-open-banner__icon" aria-hidden="true" />
+      <div className="check-open-banner__body">
+        <span className="check-open-banner__title">{title}</span>
+        <span className="check-open-banner__sub">{subtitle}</span>
+      </div>
+      <img src={iconChevronRight} alt="" className="check-open-banner__chevron" aria-hidden="true" />
+    </button>
+  );
+};
 
 // ── All courses card ─────────────────────────────────────
 
@@ -606,6 +686,11 @@ export const CourseCatalog = () => {
   const greeting = `${getGreeting()}.`;
   const enrolledCourses = courses ?? [];
 
+  const kcCourseIds = new Set(
+    (curriculums ?? []).map((c) => c.knowledge_check?.course_id).filter(Boolean) as string[],
+  );
+  const visibleCourseCount = enrolledCourses.filter((c) => !kcCourseIds.has(c.courseId)).length;
+
   // When there are no enrolled courses (and no API error), redirect to the
   // no-required-courses page — the driver has nothing assigned in their city.
   useEffect(() => {
@@ -616,15 +701,14 @@ export const CourseCatalog = () => {
 
   // 30-day knowledge check: show only when the curriculum API confirms it is open.
 
-  // Build a set of finished course IDs from curriculum data so the continue card can
-  // skip completed courses and surface the first unfinished one.
-  const finishedCourseIds = React.useMemo(() => {
-    const ids = new Set<string>();
-    curriculums?.forEach((c) => c.courses.forEach((course) => {
-      if (course.finished) { ids.add(course.course_id); }
-    }));
-    return ids;
-  }, [curriculums]);
+  // The course the learner last made progress in — the primary signal for the continue card.
+  const { data: lastActivity, isPending: isLastActivityPending } = useQuery({
+    queryKey: qk.lastActivity(),
+    queryFn: getLastActivity,
+    staleTime: 0,
+    // On failure, fall back quickly to path-based selection instead of hiding the card through retries.
+    retry: 1,
+  });
 
   // Stat chip values from gamification API (fall back to 0 while loading)
   const pointsValue = String(gamification?.lifetime_points ?? 0);
@@ -647,13 +731,39 @@ export const CourseCatalog = () => {
     return 'zero';
   })();
 
-  // Use first unfinished course (same logic as ConnectedContinueCard) for curriculum lookup.
-  const firstUnfinishedCourse = enrolledCourses.find((c) => !finishedCourseIds.has(c.courseId))
-    ?? enrolledCourses[enrolledCourses.length - 1];
-  const firstCourseId = firstUnfinishedCourse?.courseId ?? enrolledCourses[0]?.courseId;
-  const firstCourseCurriculum = curriculums?.find(
-    (c) => c.courses.some((course) => course.course_id === firstCourseId),
+  // Fetch progress fraction for the first unfinished course of every unfinished curriculum so we
+  // can prefer curricula the learner has actually started over ones that are merely newer.
+  const unfinishedCurricula = (curriculums ?? []).filter(
+    (c) => c.courses_total > 0 && c.courses_finished < c.courses_total,
   );
+  const unfinishedFirstCourseIds = unfinishedCurricula.map((c) => {
+    const sorted = c.courses.slice().sort((a, b) => a.position - b.position);
+    return sorted.find((course) => !course.finished)?.course_id ?? null;
+  });
+  const curriculumProgressQueries = useQueries({
+    queries: unfinishedFirstCourseIds.map((courseId) => ({
+      queryKey: qk.courseProgress(courseId ?? ''),
+      queryFn: () => getCourseProgressSummary(courseId!),
+      enabled: Boolean(courseId),
+      staleTime: 5 * 60_000,
+    })),
+  });
+  const curriculumFraction: Record<string, number> = {};
+  unfinishedCurricula.forEach((c, i) => {
+    curriculumFraction[c.uuid] = curriculumProgressQueries[i]?.data?.fraction ?? 0;
+  });
+
+  // Pick the course for the continue card: last activity first, then path priority.
+  // KC courses are filtered out before selection so they can never appear via any code path.
+  const nonKcCourses = enrolledCourses.filter((c) => !kcCourseIds.has(c.courseId));
+  const { course: continueCourse, curriculum: firstCourseCurriculum } = selectContinueCourse({
+    enrolledCourses: nonKcCourses,
+    curriculums: curriculums ?? [],
+    lastActivityCourseId: lastActivity?.course?.course_id ?? null,
+    curriculumFraction,
+    excludeCourseIds: kcCourseIds,
+  });
+  const firstCourseId = continueCourse?.courseId;
   const finalCheckMeta = firstCourseCurriculum?.knowledge_check?.display_name ?? null;
 
   // Show the 30-day check variant in the continue card only when the curriculum
@@ -675,33 +785,41 @@ export const CourseCatalog = () => {
     }),
   );
 
-  const [dismissedPathIds, setDismissedPathIds] = useState<Set<string>>(() => {
-    try {
-      const stored = localStorage.getItem('uber-learn:dismissed-new-paths');
-      return stored ? new Set(JSON.parse(stored) as string[]) : new Set<string>();
-    } catch { return new Set<string>(); }
-  });
+  // Session-only dismiss: no localStorage — refreshing the page will show the banner again
+  // within the 24-hour window.
+  const [dismissedPathIds, setDismissedPathIds] = useState<Set<string>>(() => new Set<string>());
 
   const dismissNewPath = (uuid: string) => {
-    setDismissedPathIds((prev) => {
-      const next = new Set(prev);
-      next.add(uuid);
-      try { localStorage.setItem('uber-learn:dismissed-new-paths', JSON.stringify([...next])); } catch { /* ignore */ }
-      return next;
-    });
+    setDismissedPathIds((prev) => { const next = new Set(prev); next.add(uuid); return next; });
   };
 
-  const undismissedNewPaths = curriculums?.filter(
-    (c) => c.courses_total > 0 && c.courses_finished === 0 && !dismissedPathIds.has(c.uuid),
-  ) ?? [];
-  const featuredNewPath = !allPathsDone ? (undismissedNewPaths[0] ?? null) : null;
+  // Show the "New learning path" banner only for curricula assigned within the last 24 hours.
+  // Among eligible ones, pick the most recently assigned (highest assigned_at).
+  const recentlyAssignedPaths = (curriculums ?? [])
+    .filter((c) => {
+      if (!c.assigned_at || dismissedPathIds.has(c.uuid)) { return false; }
+      const age = Date.now() - new Date(c.assigned_at).getTime();
+      return age >= 0 && age < TWENTY_FOUR_HOURS_MS;
+    })
+    .sort((a, b) => new Date(b.assigned_at).getTime() - new Date(a.assigned_at).getTime());
 
-  const firstNewPathEnrolledCourse = featuredNewPath
-    ? enrolledCourses.find((ec) => {
-      const sorted = featuredNewPath.courses.slice().sort((a, b) => a.position - b.position);
-      return ec.courseId === sorted[0]?.course_id;
-    }) ?? null
-    : null;
+  const featuredNewPath = !allPathsDone ? (recentlyAssignedPaths[0] ?? null) : null;
+
+  // Curricula with an open 30-day check the learner hasn't passed yet
+  const openKnowledgeChecks = (curriculums ?? []).filter(
+    (c) => c.knowledge_check.exists
+      && c.knowledge_check.is_open
+      && c.milestones.retained?.reached_at == null,
+  );
+
+  // Home page: show curricula where (1) not all courses done AND (2) has activity.
+  // KC milestone is intentionally excluded from "complete" — a path with all courses done
+  // but KC still open is surfaced via the ChecksOpenBanner, not here.
+  const activePathsForHome = (curriculums ?? []).filter((c) => {
+    const allCoursesDone = c.courses_finished === c.courses_total && c.courses_total > 0;
+    const hasActivity = c.courses_finished > 0 || (curriculumFraction[c.uuid] ?? 0) > 0;
+    return !allCoursesDone && hasActivity;
+  });
 
   return (
     <div className="home-page">
@@ -760,39 +878,74 @@ export const CourseCatalog = () => {
             {allPathsDone && curriculums && (
               <EveryPathDoneCard
                 curriculums={curriculums}
-                onClick={() => navigate('/library')}
+                onClick={() => navigate('/courses')}
               />
             )}
+            {/* When a new path is present: new-path banner → check banner → continue */}
             {!allPathsDone && featuredNewPath && (
               <>
                 <NewPathBanner
                   curriculum={featuredNewPath}
                   onDismiss={() => dismissNewPath(featuredNewPath.uuid)}
-                  onClick={() => navigate(`/learning-path/${featuredNewPath.uuid}`)}
+                  onClick={() => navigate(`/learning-path/${featuredNewPath.uuid}`, { state: { origin: '/' } })}
                 />
-                {firstNewPathEnrolledCourse && (
+                {openKnowledgeChecks.length > 0 && (
+                  <ChecksOpenBanner
+                    openChecks={openKnowledgeChecks}
+                    onClick={() => navigate('/30-day-checks')}
+                  />
+                )}
+                {!isLastActivityPending && (
                   <ConnectedContinueCard
-                    courses={[firstNewPathEnrolledCourse]}
-                    onContinue={(courseId) => navigate(`/course/${courseId}`)}
-                    variant="lesson"
-                    finalCheckMeta={null}
+                    course={continueCourse}
+                    onContinue={(courseId, sequenceId, stepIdx) => {
+                      if (showKnowledgeCheck && firstCourseCurriculum?.knowledge_check.course_id) {
+                        navigate(`/course/${firstCourseCurriculum.knowledge_check.course_id}`, { state: { origin: '/' } });
+                      } else if (sequenceId) {
+                        navigate(`/course/${courseId}/lesson/${sequenceId}/step/${stepIdx}`, { state: { origin: '/' } });
+                      } else {
+                        navigate(`/course/${courseId}`, { state: { origin: '/' } });
+                      }
+                    }}
+                    variant={continueVariant}
+                    finalCheckMeta={finalCheckMeta}
+                    imageUrl={null}
                   />
                 )}
               </>
             )}
+            {/* No new path: check banner (if any) → continue card */}
             {!allPathsDone && !featuredNewPath && (
-              <ConnectedContinueCard
-                courses={enrolledCourses}
-                onContinue={(courseId) => {
-                  const targetId = showKnowledgeCheck && firstCourseCurriculum?.knowledge_check.course_id
-                    ? firstCourseCurriculum.knowledge_check.course_id
-                    : courseId;
-                  navigate(`/course/${targetId}`);
-                }}
-                variant={continueVariant}
-                finalCheckMeta={finalCheckMeta}
-                finishedCourseIds={finishedCourseIds}
-              />
+              <>
+                {openKnowledgeChecks.length > 0 && (
+                  <ChecksOpenBanner
+                    openChecks={openKnowledgeChecks}
+                    onClick={() => navigate('/30-day-checks')}
+                  />
+                )}
+                {/* Wait for last activity so the card does not flash a different course first. */}
+                {!isLastActivityPending && (
+                  <ConnectedContinueCard
+                    course={continueCourse}
+                    onContinue={(courseId, sequenceId, stepIdx) => {
+                      if (showKnowledgeCheck && firstCourseCurriculum?.knowledge_check.course_id) {
+                        navigate(`/course/${firstCourseCurriculum.knowledge_check.course_id}`, { state: { origin: '/' } });
+                      } else if (sequenceId) {
+                        navigate(`/course/${courseId}/lesson/${sequenceId}/step/${stepIdx}`, { state: { origin: '/' } });
+                      } else {
+                        navigate(`/course/${courseId}`, { state: { origin: '/' } });
+                      }
+                    }}
+                    variant={continueVariant}
+                    finalCheckMeta={finalCheckMeta}
+                    imageUrl={
+                      firstCourseCurriculum?.courses.find(
+                        (c) => c.course_id === firstCourseId,
+                      )?.image_url ?? firstCourseCurriculum?.image_url ?? null
+                    }
+                  />
+                )}
+              </>
             )}
           </>
         )}
@@ -834,8 +987,8 @@ export const CourseCatalog = () => {
           />
         )}
 
-        {/* Your learning paths */}
-        {curriculums && curriculums.length > 0 && (
+        {/* Your learning paths — only active (started, not yet done) paths */}
+        {activePathsForHome.length > 0 && (
           <>
             <div className="home-section-header home-section-header--padded">
               <h2 className="home-section-header__title">Your learning paths</h2>
@@ -848,11 +1001,11 @@ export const CourseCatalog = () => {
               </button>
             </div>
             <div className="path-list">
-              {curriculums.slice(0, 3).map((c) => (
+              {activePathsForHome.slice(0, 3).map((c) => (
                 <LearningPathCard
                   key={c.uuid}
                   curriculum={c}
-                  onClick={() => navigate(`/learning-path/${c.uuid}`)}
+                  onClick={() => navigate(`/learning-path/${c.uuid}`, { state: { origin: '/' } })}
                 />
               ))}
             </div>
@@ -862,8 +1015,8 @@ export const CourseCatalog = () => {
         {/* All courses card — only shown when there are enrolled courses */}
         {enrolledCourses.length > 0 && (
           <AllCoursesCard
-            onClick={() => navigate('/library')}
-            count={enrolledCourses.length}
+            onClick={() => navigate('/courses')}
+            count={visibleCourseCount}
             isEmpty={false}
           />
         )}

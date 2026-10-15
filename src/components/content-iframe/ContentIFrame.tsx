@@ -1,12 +1,21 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { usePostMessage } from '../../hooks/usePostMessage';
+import { useIframeVisibilityReporter } from '../../hooks/useIframeVisibilityReporter';
 import { getLmsOrigin } from '../../lib/lms';
 import { buildXBlockUrl } from '../../lib/xblock-url';
 import './content-iframe.scss';
 
+/**
+ * Feature policy for the XBlock iframe. Mirrors frontend-app-learning's IFRAME_FEATURE_POLICY,
+ * reviewed and approved by the edX Security Working Group (security@edx.org).
+ * Wildcards are required because XBlock content (e.g. LTI consumer) may embed external iframes.
+ * encrypted-media is required so nested video iframes (YouTube, Vimeo) can use the EME API.
+ */
+export const IFRAME_FEATURE_POLICY = 'microphone *; camera *; midi *; geolocation *; encrypted-media *; clipboard-write *; autoplay *; fullscreen *';
+
 interface ContentIFrameProps {
   usageKey: string;
-  onCompleted: (correct: boolean | null) => void;
+  onCompleted?: (correct: boolean | null) => void;
   onLoad?: () => void;
   /**
    * Called once, when the unit's content has been rendered inside the iframe.
@@ -16,10 +25,12 @@ interface ContentIFrameProps {
    * for subresources such as a video's first frame.
    */
   onContentReady?: () => void;
+  /** Called when the iframe fails to load (network error or server error response). */
+  onError?: () => void;
 }
 
 export const ContentIFrame = ({
-  usageKey, onCompleted, onLoad, onContentReady,
+  usageKey, onCompleted = () => {}, onLoad, onContentReady, onError,
 }: ContentIFrameProps) => {
   const frameRef = useRef<HTMLIFrameElement>(null);
 
@@ -63,7 +74,14 @@ export const ContentIFrame = ({
     [onCompleted],
   );
 
-  usePostMessage(handleEvent);
+  usePostMessage(handleEvent, frameRef);
+
+  // Drives LMS complete-on-view for HTML blocks; without it get_completion never turns true.
+  const reportVisibility = useIframeVisibilityReporter(frameRef);
+  const handleLoad = useCallback(() => {
+    reportVisibility();
+    onLoad?.();
+  }, [reportVisibility, onLoad]);
 
   return (
     <div className="content-iframe-wrapper">
@@ -72,10 +90,16 @@ export const ContentIFrame = ({
         className="content-iframe-frame"
         src={buildXBlockUrl(usageKey)}
         title="Course activity"
-        allow="autoplay; fullscreen"
+        // Restore all permissions needed by XBlock content (downloads, modals, presentation,
+        // popups-to-escape-sandbox for OAuth flows) while explicitly omitting
+        // allow-top-navigation — without it a bad XBlock cannot navigate the Uber WebView
+        // away from the app, which has no URL bar or back button to recover from.
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals allow-presentation"
+        allow={IFRAME_FEATURE_POLICY}
+        referrerPolicy="origin"
         data-usage-key={usageKey}
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-        onLoad={onLoad}
+        onLoad={handleLoad}
+        onError={onError}
       />
     </div>
   );

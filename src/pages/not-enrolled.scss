@@ -1,0 +1,125 @@
+.ne-page {
+  background: var(--u-background-primary);
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.ne-nav {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  height: 44px;
+  padding: 0 var(--u-space-2, 8px);
+}
+
+.ne-nav__back {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: 999px;
+  color: var(--u-content-primary);
+  cursor: pointer;
+  display: flex;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+
+.ne-nav__back:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
+
+.ne-nav__back-icon {
+  display: block;
+  height: 20px;
+  width: 20px;
+}
+
+.ne-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--u-space-4, 16px);
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--u-space-4, 16px);
+}
+
+.ne-spot {
+  align-items: center;
+  background: var(--u-background-secondary);
+  border-radius: 16px;
+  display: flex;
+  flex-shrink: 0;
+  height: 140px;
+  justify-content: center;
+  overflow: hidden;
+  width: 100%;
+}
+
+.ne-spot__art {
+  display: block;
+  height: 80px;
+  object-fit: contain;
+  width: 80px;
+}
+
+.ne-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u-space-2, 8px);
+}
+
+.ne-heading__title {
+  color: var(--u-content-primary);
+  font-family: var(--u-font-display);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.ne-heading__body {
+  color: var(--u-content-secondary);
+  font-family: var(--u-font-body);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.ne-footer {
+  background: var(--u-background-primary);
+  flex-shrink: 0;
+  padding: var(--u-space-3, 12px) var(--u-space-4, 16px);
+  padding-bottom: calc(var(--u-space-4, 16px) + env(safe-area-inset-bottom, 0px));
+}
+
+.ne-footer__close {
+  background: var(--u-background-always-dark);
+  border: none;
+  border-radius: 8px;
+  color: var(--u-content-on-color);
+  cursor: pointer;
+  font-family: var(--u-font-body);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.33;
+  min-height: 56px;
+  padding: var(--u-space-4, 16px) 20px;
+  text-align: center;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+  width: 100%;
+}
+
+.ne-footer__close:active {
+  opacity: 0.85;
+}
+
+.ne-footer__close:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}

@@ -2,7 +2,8 @@
 .cl-page {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--u-background-primary);
 }
 
@@ -97,31 +98,35 @@
 .cl-filter-chip {
   display: flex;
   align-items: center;
-  gap: 4px;
-  height: 32px;
+  gap: 6px;
+  height: 36px;
   padding: 0 12px;
-  border-radius: 8px;
-  background: var(--u-background-secondary);
-  border: 1px solid var(--u-border-opaque);
+  border-radius: 9999px;
+  background: var(--u-background-tertiary);
+  border: none;
   font-family: var(--u-font-body);
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1;
   color: var(--u-content-primary);
   white-space: nowrap;
   cursor: pointer;
   flex-shrink: 0;
-  transition: border-color var(--u-duration-fast) var(--u-ease-out),
-              font-weight var(--u-duration-fast) var(--u-ease-out);
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.cl-filter-chip:active {
+  opacity: 0.7;
 }
 
 .cl-filter-chip--has-icon {
   padding: 0 8px 0 12px;
 }
 
-.cl-filter-chip--active {
-  border: 2px solid var(--u-content-secondary);
-  font-weight: 500;
+/* Active/selected filter pill — black bg, white text, X icon */
+.cl-filter-chip--selected {
+  background: var(--u-background-always-dark);
+  color: var(--u-content-on-color);
 }
 
 .cl-filter-chip:focus-visible {
@@ -133,12 +138,12 @@
   width: 16px;
   height: 16px;
   flex-shrink: 0;
-  color: var(--u-content-primary);
 }
 
 /* ── Main scrollable content ──────────────────────────── */
 .cl-content {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -284,7 +289,7 @@
 .cl-card__body {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   flex: 1;
   min-width: 0;
 }
@@ -292,11 +297,10 @@
 .cl-card__category {
   font-family: var(--u-font-body);
   font-size: 12px;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.33;
   color: var(--u-content-secondary);
   display: block;
-  margin-bottom: 1px;
 }
 
 .cl-card__title {
@@ -496,12 +500,15 @@
   height: 4px;
   background: var(--u-background-tertiary);
   border-radius: 2px;
-  margin: 12px auto 0;
+  margin: 8px auto 0;
   flex-shrink: 0;
 }
 
 .cl-sheet__header {
-  padding: 16px 20px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
   flex-shrink: 0;
 }
 
@@ -509,86 +516,85 @@
   font-family: var(--u-font-display);
   font-size: 20px;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.4;
+  letter-spacing: 0.25px;
   color: var(--u-content-primary);
+  text-align: center;
+}
+
+.cl-sheet__divider {
+  height: 1px;
+  background: var(--u-border-opaque);
+  flex-shrink: 0;
 }
 
 .cl-sheet__body {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 0 20px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
 }
 
 .cl-sheet-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
 .cl-sheet-section__heading {
-  font-family: var(--u-font-body);
-  font-size: 12px;
-  font-weight: 500;
+  font-family: var(--u-font-display);
+  font-size: 24px;
+  font-weight: 700;
   line-height: 1.33;
-  color: var(--u-content-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin: 0 0 8px;
+  color: var(--u-content-primary);
+  margin: 0;
+  padding: 16px 16px 4px;
 }
 
-/* Checkbox row */
-.cl-sheet-checkbox {
+/* List item row */
+.cl-sheet-list-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 0;
+  width: 100%;
+  padding-left: 16px;
+  background: var(--u-background-primary);
+  border: none;
   cursor: pointer;
-  border-bottom: 1px solid var(--u-border-opaque);
-  gap: 12px;
+  text-align: left;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
-.cl-sheet-checkbox:last-child {
-  border-bottom: none;
+.cl-sheet-list-item:active {
+  opacity: 0.7;
 }
 
-.cl-sheet-checkbox__input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
+.cl-sheet-list-item:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: -2px;
 }
 
-.cl-sheet-checkbox__label {
+.cl-sheet-list-item__label {
+  flex: 1;
+  min-width: 0;
+  padding: 16px 0;
   font-family: var(--u-font-body);
   font-size: 16px;
-  font-weight: 400;
-  line-height: 1.5;
+  font-weight: 500;
+  line-height: 1.25;
   color: var(--u-content-primary);
-  flex: 1;
 }
 
-.cl-sheet-checkbox__box {
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  border: 2px solid var(--u-border-opaque);
-  flex-shrink: 0;
+.cl-sheet-list-item--divider .cl-sheet-list-item__label {
+  border-bottom: 1px solid var(--u-border-opaque);
+}
+
+.cl-sheet-list-item__control {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--u-duration-fast) var(--u-ease-out),
-              border-color var(--u-duration-fast) var(--u-ease-out);
-}
-
-.cl-sheet-checkbox__box--checked {
-  background: var(--u-background-always-dark);
-  border-color: var(--u-background-always-dark);
+  width: 64px;
+  height: 100%;
+  flex-shrink: 0;
 }
 
 /* Topic chips in sheet */
@@ -626,13 +632,63 @@
 
 /* Sheet footer */
 .cl-sheet__footer {
-  padding: 16px 20px 20px;
+  padding: 16px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 8px;
+  align-items: stretch;
   flex-shrink: 0;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+.cl-sheet__reset {
+  flex-shrink: 0;
+  min-width: 80px;
+  padding: 16px 20px;
+  background: var(--u-background-tertiary);
+  color: var(--u-content-primary);
+  border: none;
+  border-radius: 8px;
+  font-family: var(--u-font-body);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.33;
+  text-align: center;
+  cursor: pointer;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.cl-sheet__reset:active {
+  opacity: 0.7;
+}
+
+.cl-sheet__reset:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
 }
 
 .cl-sheet__apply {
+  flex: 1;
+  padding: 16px 20px;
+  background: var(--u-background-always-dark);
+  color: var(--u-content-on-color);
+  border: none;
+  border-radius: 8px;
+  font-family: var(--u-font-body);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.33;
+  text-align: center;
+  cursor: pointer;
   min-height: 56px;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.cl-sheet__apply:active {
+  opacity: 0.85;
+}
+
+.cl-sheet__apply:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
 }

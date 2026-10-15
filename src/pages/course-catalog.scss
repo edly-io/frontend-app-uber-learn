@@ -39,11 +39,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: none;
-  border-radius: 9999px;
+  border-radius: 16px;
   background: var(--u-background-secondary);
   color: var(--u-content-primary);
   cursor: pointer;
@@ -723,7 +723,7 @@
 
 /* ── Notice card — caught-up variant ─────────────────── */
 .notice-card--caught-up {
-  background: var(--u-background-positive-light);
+  background: var(--u-background-accent-light);
 }
 
 .notice-card__badges {
@@ -753,9 +753,9 @@
   width: 28px;
   height: 28px;
   border-radius: 14px;
-  background: var(--u-background-primary);
+  background: var(--u-background-tertiary);
   border: 2px solid var(--u-background-primary);
-  object-fit: contain;
+  object-fit: cover;
   flex-shrink: 0;
   margin-left: -6px;
   position: relative;
@@ -859,26 +859,32 @@
 .path-card__seal-inner {
   position: absolute;
   inset: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--u-learning-course-tint-blue);
   border-radius: 999px;
   border: 2px solid var(--u-background-primary);
   overflow: hidden;
+  background: transparent;
+  isolation: isolate; /* scopes mix-blend-mode to this stacking context */
 }
 
 .path-card__seal-art {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-  position: relative;
-  z-index: 1;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.path-card__seal-art--locked {
-  filter: grayscale(1);
-  opacity: 0.7;
+/* Figma "not yet · greyscale" overlay — mix-blend-mode: saturation on a
+   white fill removes all chroma from everything beneath it inside the seal,
+   desaturating both the tinted background and the badge art without altering
+   the layout or requiring a filter on the image itself. */
+.path-card__seal-greyscale {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: white;
+  mix-blend-mode: saturation;
+  pointer-events: none;
 }
 
 .path-card__body {
@@ -930,6 +936,77 @@
 }
 
 .path-card__chevron {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.path-card__next--check-open {
+  color: var(--u-background-accent);
+}
+
+/* ── 30-day checks open banner ───────────────────────────── */
+
+.check-open-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--u-space-3, 12px);
+  /* width/margin come from .home-content padding+gap — no overrides needed */
+  flex-shrink: 0;
+  width: 100%;
+  min-height: 72px;
+  box-sizing: border-box;
+  padding: var(--u-space-3, 12px);
+  background: var(--u-background-accent-light);
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  text-align: left;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.check-open-banner:active {
+  opacity: 0.85;
+}
+
+.check-open-banner__icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.check-open-banner__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.check-open-banner__title {
+  font-family: var(--u-font-body);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--u-content-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.check-open-banner__sub {
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--u-content-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.check-open-banner__chevron {
   flex-shrink: 0;
   width: 24px;
   height: 24px;

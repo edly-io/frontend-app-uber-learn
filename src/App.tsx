@@ -12,23 +12,19 @@ import { CourseLibrary } from './pages/CourseLibrary';
 import { LearningProgress } from './pages/LearningProgress';
 import { CourseOverview } from './pages/CourseOverview';
 import { ActivityView } from './pages/ActivityView';
-import { RewardsView } from './pages/RewardsView';
 import {
   LessonCompletePage,
   CourseCompletePage,
   RetentionInvitePage,
   RetentionCheckResultPage,
 } from './pages/CompletionPage';
-import {
-  CourseIntroductionPage,
-  SaveAndResumePage,
-} from './pages/CourseIntroductionPage';
-import { BadgeEarned } from './pages/BadgeEarned';
+import { SaveAndResumePage } from './pages/CourseIntroductionPage';
 import { LearningPathView } from './pages/LearningPathView';
 import { AllLearningPathsPage } from './pages/AllLearningPathsPage';
 import { SearchPage } from './pages/SearchPage';
 import { NoRequiredCoursesPage } from './pages/NoRequiredCoursesPage';
 import { VideoCouldntLoadPage } from './pages/VideoCouldntLoadPage';
+import { ThirtyDayChecksPage } from './pages/ThirtyDayChecksPage';
 
 import './styles/tokens.scss';
 import './styles/typography.scss';
@@ -169,23 +165,22 @@ export const App = () => (
       <AuthInterceptor />
       <Routes>
         <Route path="/" element={<CourseCatalog />} />
-        <Route path="/library" element={<CourseLibrary />} />
+        <Route path="/courses" element={<CourseLibrary />} />
         <Route path="/progress" element={<LearningProgress />} />
         <Route path="/course/:courseId" element={<CourseOverview />} />
         <Route
           path="/course/:courseId/lesson/:sequenceId/step/:unitIdx"
           element={<ActivityViewRoute />}
         />
-        <Route path="/course/:courseId/rewards" element={<RewardsView />} />
         <Route path="/course/:courseId/lesson-complete/:sequenceId" element={<LessonCompletePage />} />
         <Route path="/course/:courseId/complete" element={<CourseCompletePage />} />
         <Route path="/course/:courseId/retention" element={<RetentionInvitePage />} />
         <Route path="/course/:courseId/retention-result/:sequenceId" element={<RetentionCheckResultPage />} />
-        <Route path="/course/:courseId/intro" element={<CourseIntroductionPage />} />
         <Route path="/course/:courseId/resume" element={<SaveAndResumePage />} />
-        <Route path="/badge/:type" element={<BadgeEarned />} />
+
         <Route path="/learning-paths" element={<AllLearningPathsPage />} />
         <Route path="/learning-path/:curriculumId" element={<LearningPathView />} />
+        <Route path="/30-day-checks" element={<ThirtyDayChecksPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/no-courses" element={<NoRequiredCoursesPage />} />
         <Route path="/course/:courseId/lesson/:sequenceId/video-error" element={<VideoCouldntLoadPage />} />

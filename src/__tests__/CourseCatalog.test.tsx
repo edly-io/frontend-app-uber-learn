@@ -50,6 +50,12 @@ jest.mock('../api/courseware', () => ({
   getResumeBlock: jest.fn().mockResolvedValue(null),
 }));
 
+// Curriculum API — getLastActivity drives which course the continue card features
+const mockGetLastActivity = jest.fn();
+jest.mock('../api/curriculum', () => ({
+  getLastActivity: (...args: unknown[]) => mockGetLastActivity(...args),
+}));
+
 // Mock the three hook-based data sources used in the page header/body
 const mockUseGamification = jest.fn();
 const mockUseCurriculums = jest.fn();
@@ -133,6 +139,26 @@ function setDefaultMocks() {
   mockUseBadges.mockReturnValue({ data: undefined });
   mockUseCourseOutline.mockReturnValue({ data: null });
   mockUseSequence.mockReturnValue({ units: [] });
+  mockGetLastActivity.mockResolvedValue({ course: null });
+}
+
+const makeCourse = (courseId: string, title: string): EnrolledCourse => ({
+  courseId, title, imageUrl: null, courseStart: null, courseEnd: null, isActive: true,
+});
+
+const makeCurriculumCourse = (courseId: string, position: number, finished: boolean) => ({
+  course_id: courseId,
+  display_name: null,
+  exists: true,
+  position,
+  finished,
+  description: null,
+  image_url: null,
+});
+
+async function clickContinueCard() {
+  const btn = await screen.findByRole('button', { name: /^(Continue|Start)$/ });
+  fireEvent.click(btn);
 }
 
 // ---------------------------------------------------------------------------
@@ -197,6 +223,62 @@ describe('CourseCatalog', () => {
         const btn = screen.queryByText('Continue') ?? screen.queryByText('Start');
         expect(btn).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('CC-CONTINUE-PICK: which course the continue card features', () => {
+    const DEMO = makeCourse('course-v1:OpenedX+DemoX+DemoCourse', 'Open edX Demo Course');
+    const CON101 = makeCourse('course-v1:uber+CON101+2026', 'Code of Business Conduct');
+    const CON102 = makeCourse('course-v1:uber+CON102+2026', 'Business Ethics');
+    const SAF101 = makeCourse('course-v1:uber+SAF101+2026', 'Workplace Safety 101');
+
+    const conductPath = (con101Finished: boolean): LearnerCurriculum => ({
+      ...CURRICULUM,
+      uuid: 'conduct',
+      title: 'Business Conduct & Ethics',
+      assigned_at: '2026-09-23T05:49:19Z',
+      courses: [
+        makeCurriculumCourse(CON101.courseId, 1, con101Finished),
+        makeCurriculumCourse(CON102.courseId, 2, false),
+      ],
+      courses_finished: con101Finished ? 1 : 0,
+      courses_total: 2,
+    });
+    // Assigned more recently than the conduct path but never touched.
+    const safetyPath: LearnerCurriculum = {
+      ...CURRICULUM,
+      uuid: 'safety',
+      title: 'Workplace Safety',
+      assigned_at: '2026-09-30T05:49:19Z',
+      courses: [makeCurriculumCourse(SAF101.courseId, 1, false)],
+      courses_finished: 0,
+      courses_total: 1,
+    };
+
+    it('does not feature a course outside every learning path just because the API lists it first', async () => {
+      getCatalogMock().getEnrolledCourses.mockResolvedValue([DEMO, CON101, CON102]);
+      mockUseCurriculums.mockReturnValue({ data: [conductPath(true)] });
+      renderComponent();
+      await clickContinueCard();
+      expect(mockNavigate).not.toHaveBeenCalledWith(`/course/${DEMO.courseId}`, expect.anything());
+      expect(mockNavigate).toHaveBeenCalledWith(`/course/${CON102.courseId}`, { state: { origin: '/' } });
+    });
+
+    it('features the last-activity course when it is not finished, over a newer untouched path', async () => {
+      getCatalogMock().getEnrolledCourses.mockResolvedValue([DEMO, CON101, CON102, SAF101]);
+      mockUseCurriculums.mockReturnValue({ data: [conductPath(false), safetyPath] });
+      mockGetLastActivity.mockResolvedValue({
+        course: {
+          course_id: CON101.courseId,
+          display_name: CON101.title,
+          last_activity_at: '2026-10-14T06:59:24Z',
+          curriculum_ids: ['conduct'],
+        },
+      });
+      renderComponent();
+      await waitFor(() => expect(mockGetLastActivity).toHaveBeenCalled());
+      await clickContinueCard();
+      expect(mockNavigate).toHaveBeenCalledWith(`/course/${CON101.courseId}`, { state: { origin: '/' } });
     });
   });
 

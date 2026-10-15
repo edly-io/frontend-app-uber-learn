@@ -60,12 +60,16 @@ export interface PointsTabProps {
 export const PointsTab = ({
   courses, totalPoints, monthPoints, coursePointsByKey, isLoading = false,
 }: PointsTabProps) => {
+  const sortedCourses = courses.slice().sort(
+    (a, b) => (coursePointsByKey?.[b.courseId] ?? 0) - (coursePointsByKey?.[a.courseId] ?? 0),
+  );
+
   // Batch all outline and progress queries in parallel at the tab level.
   // This avoids per-row hooks which, while parallel, add up to 2×N requests.
   // TanStack Query deduplicates keys already in cache so these are no-ops
   // when CourseLibrary has already fetched them.
   const outlineQueries = useQueries({
-    queries: courses.map((course) => ({
+    queries: sortedCourses.map((course) => ({
       queryKey: qk.outline(course.courseId),
       queryFn: () => getCourseOutline(course.courseId),
       staleTime: 5 * 60_000,
@@ -94,7 +98,7 @@ export const PointsTab = ({
         <>
           <h2 className="lp-section-heading">By course</h2>
           <div className="lp-course-list">
-            {courses.map((course, i) => {
+            {sortedCourses.map((course, i) => {
               const outline = outlineQueries[i]?.data;
               // Use outline-based lesson counts (sequences) rather than progress API unit counts.
               const { total: totalLessons, completed: completedLessons } = outline

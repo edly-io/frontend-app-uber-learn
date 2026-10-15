@@ -810,7 +810,7 @@ export const CourseCatalog = () => {
       && c.milestones.retained?.reached_at == null,
   );
 
-  // Home page: show curricula where (1) not all courses done AND (2) has activity.
+  // Home page: show up to 3 curricula — in-progress first, then completed to fill.
   // KC milestone is intentionally excluded from "complete" — a path with all courses done
   // but KC still open is surfaced via the ChecksOpenBanner, not here.
   const activePathsForHome = (curriculums ?? []).filter((c) => {
@@ -819,6 +819,14 @@ export const CourseCatalog = () => {
       || c.courses.some((cc) => !cc.finished && (courseFractions[cc.course_id] ?? 0) > 0);
     return !allCoursesDone && hasActivity;
   });
+  const completedPathsForHome = (curriculums ?? []).filter(
+    (c) => c.courses_finished === c.courses_total && c.courses_total > 0,
+  );
+  const HOME_PATHS_LIMIT = 3;
+  const homePathsSlice = [
+    ...activePathsForHome,
+    ...completedPathsForHome,
+  ].slice(0, HOME_PATHS_LIMIT);
 
   return (
     <div className="home-page">
@@ -986,8 +994,8 @@ export const CourseCatalog = () => {
           />
         )}
 
-        {/* Your learning paths — only active (started, not yet done) paths */}
-        {activePathsForHome.length > 0 && (
+        {/* Your learning paths — in-progress first, completed to fill, max 3 */}
+        {homePathsSlice.length > 0 && (
           <>
             <div className="home-section-header home-section-header--padded">
               <h2 className="home-section-header__title">Your learning paths</h2>
@@ -1000,7 +1008,7 @@ export const CourseCatalog = () => {
               </button>
             </div>
             <div className="path-list">
-              {activePathsForHome.slice(0, 3).map((c) => (
+              {homePathsSlice.map((c) => (
                 <LearningPathCard
                   key={c.uuid}
                   curriculum={c}

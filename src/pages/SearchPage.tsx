@@ -8,6 +8,10 @@ import {
 } from '../api/curriculum';
 import { qk } from '../api/queries';
 
+import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
+import iconSearch from '../assets/icons/icon-search.svg';
+import iconClock from '../assets/icons/icon-clock-outlined.svg';
+import iconX from '../assets/icons/icon-x.svg';
 import iconBadgeCheck from '../assets/icons/icon-badge-check.svg';
 import searchNoResults from '../assets/icons/search-no-results.svg';
 import scenePhoto from '../assets/images/scene-safety-education.png';
@@ -172,10 +176,10 @@ export const SearchPage = () => {
       {/* Search bar */}
       <div className="sp-bar">
         <button type="button" className="sp-bar__back" aria-label="Go back" onClick={() => (location.key === 'default' ? navigate('/') : navigate(-1))}>
-          <span className="sp-bar__back-icon" aria-hidden="true" />
+          <img src={iconArrowLeft} alt="" aria-hidden="true" className="sp-bar__back-icon" />
         </button>
         <div className="sp-bar__field">
-          <span className="sp-bar__search-icon" aria-hidden="true" />
+          <img src={iconSearch} alt="" aria-hidden="true" className="sp-bar__search-icon" />
           <input
             ref={inputRef}
             type="search"
@@ -188,7 +192,7 @@ export const SearchPage = () => {
           />
           {query.length > 0 && (
             <button type="button" className="sp-bar__clear" aria-label="Clear" onClick={handleClear}>
-              <span className="sp-bar__clear-icon" aria-hidden="true" />
+              <img src={iconX} alt="" className="sp-bar__clear-icon" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -282,7 +286,7 @@ export const SearchPage = () => {
                         className="sp-recent-row__main"
                         onClick={() => handleRecentClick(s)}
                       >
-                        <span className="sp-recent-row__clock" aria-hidden="true" />
+                        <img src={iconClock} alt="" className="sp-recent-row__clock" aria-hidden="true" />
                         <span className="sp-recent-row__text">{s}</span>
                       </button>
                       <button
@@ -291,7 +295,7 @@ export const SearchPage = () => {
                         aria-label={`Remove ${s}`}
                         onClick={() => handleRemoveRecent(s)}
                       >
-                        <span className="sp-recent-row__remove-icon" aria-hidden="true" />
+                        <img src={iconX} alt="" aria-hidden="true" />
                       </button>
                     </div>
                   ))}

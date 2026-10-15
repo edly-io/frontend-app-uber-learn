@@ -33,34 +33,14 @@
 }
 
 .sp-bar__back-icon {
-  display: inline-block;
   width: 24px;
   height: 24px;
-  background-color: currentColor;
-  -webkit-mask-image: url('../assets/icons/icon-arrow-left.svg');
-  mask-image: url('../assets/icons/icon-arrow-left.svg');
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
 }
 
 .sp-bar__search-icon {
-  display: inline-block;
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  background-color: currentColor;
-  -webkit-mask-image: url('../assets/icons/icon-search.svg');
-  mask-image: url('../assets/icons/icon-search.svg');
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
 }
 
 .sp-bar__field {
@@ -117,19 +97,9 @@
 }
 
 .sp-bar__clear-icon {
-  display: inline-block;
   width: 20px;
   height: 20px;
   opacity: 0.5;
-  background-color: currentColor;
-  -webkit-mask-image: url('../assets/icons/icon-x.svg');
-  mask-image: url('../assets/icons/icon-x.svg');
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
 }
 
 /* ── Body ────────────────────────────────────────────── */
@@ -168,20 +138,10 @@
 }
 
 .sp-recent-row__clock {
-  display: inline-block;
   width: 20px;
   height: 20px;
   flex-shrink: 0;
   opacity: 0.5;
-  background-color: currentColor;
-  -webkit-mask-image: url('../assets/icons/icon-clock-outlined.svg');
-  mask-image: url('../assets/icons/icon-clock-outlined.svg');
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
 }
 
 .sp-recent-row__text {
@@ -205,19 +165,9 @@
   opacity: 0.5;
 }
 
-.sp-recent-row__remove-icon {
-  display: inline-block;
+.sp-recent-row__remove img {
   width: 20px;
   height: 20px;
-  background-color: currentColor;
-  -webkit-mask-image: url('../assets/icons/icon-x.svg');
-  mask-image: url('../assets/icons/icon-x.svg');
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
 }
 
 /* ── Results ─────────────────────────────────────────── */

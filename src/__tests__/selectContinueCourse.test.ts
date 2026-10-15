@@ -142,7 +142,7 @@ describe('selectContinueCourse', () => {
     // security has SEC103 in-progress — should win even though conduct is newer.
     const { course: picked, curriculum } = selectContinueCourse({
       enrolledCourses: ALL,
-      curriculums: [conduct(true), security],  // conduct: CON101 done, CON102 new; security: SEC103 in-progress
+      curriculums: [conduct(true), security], // conduct: CON101 done, CON102 new; security: SEC103 in-progress
       lastActivityCourseId: null,
       courseFractions: { [SEC103.courseId]: 0.4 },
     });

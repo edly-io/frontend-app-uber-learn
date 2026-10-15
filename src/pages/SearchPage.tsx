@@ -70,28 +70,42 @@ const ChevronRight = () => (
 // ── Search result components ──────────────────────────────
 
 const CourseResult = ({ course, onClick }: { course: SearchCourseResult; onClick: () => void }) => (
-  <button type="button" className="sp-result-row" onClick={onClick}>
-    <div className="sp-result-row__art">
-      <img src={courseArtBlue} alt="" className="sp-result-row__art-img" aria-hidden="true" />
+  <button type="button" className="sp-course-card" onClick={onClick}>
+    <div className="sp-course-card__art">
+      {course.image_url
+        ? <img src={course.image_url} alt="" className="sp-course-card__art-img" aria-hidden="true" />
+        : <img src={courseArtBlue} alt="" className="sp-course-card__art-fallback" aria-hidden="true" />}
     </div>
-    <div className="sp-result-row__body">
-      <span className="sp-result-row__title">{course.display_name}</span>
+    <div className="sp-course-card__body">
+      {course.org && <span className="sp-course-card__kicker">{course.org}</span>}
+      <span className="sp-course-card__title">{course.display_name}</span>
     </div>
     <ChevronRight />
   </button>
 );
 
-const CurriculumResult = ({ curriculum, onClick }: { curriculum: LearnerCurriculum; onClick: () => void }) => (
-  <button type="button" className="sp-result-row" onClick={onClick}>
-    <div className="sp-result-row__art sp-result-row__art--path">
-      <img src={courseArtTeal} alt="" className="sp-result-row__art-img" aria-hidden="true" />
-    </div>
-    <div className="sp-result-row__body">
-      <span className="sp-result-row__title">{curriculum.title}</span>
-    </div>
-    <ChevronRight />
-  </button>
-);
+const CurriculumResult = ({ curriculum, onClick }: { curriculum: LearnerCurriculum; onClick: () => void }) => {
+  const nextCourse = curriculum.courses.find((c) => !c.finished);
+  return (
+    <button type="button" className="sp-path-card" onClick={onClick}>
+      <div className="sp-path-card__seal">
+        <div className="sp-path-card__seal-inner">
+          <img src={courseArtTeal} alt="" className="sp-path-card__seal-art" aria-hidden="true" />
+        </div>
+      </div>
+      <div className="sp-path-card__body">
+        <span className="sp-path-card__title">{curriculum.title}</span>
+        <div className="sp-path-card__meta">
+          <span className="sp-path-card__progress">{curriculum.courses_finished} of {curriculum.courses_total} courses done</span>
+          {nextCourse?.display_name && (
+            <span className="sp-path-card__next">Next: {nextCourse.display_name}</span>
+          )}
+        </div>
+      </div>
+      <ChevronRight />
+    </button>
+  );
+};
 
 // ── Main component ────────────────────────────────────────
 

@@ -731,18 +731,18 @@ export const CourseCatalog = () => {
     return 'zero';
   })();
 
-  // Progress in the first unfinished course of every unfinished curriculum, so we can prefer
-  // curricula the learner has actually started over ones that are merely newer. It comes from the
-  // courses list, which already carries every enrolled course's progress.
+  // Progress for every unfinished course across all unfinished curricula, drawn from the
+  // batched courses list (which already carries each enrolled course's progress fraction).
+  // No extra requests — the fan-out concern from the earlier useQueries approach is gone.
   const progressByCourseId = new Map(enrolledCourses.map((c) => [c.courseId, c.progress]));
   const unfinishedCurricula = (curriculums ?? []).filter(
     (c) => c.courses_total > 0 && c.courses_finished < c.courses_total,
   );
-  const curriculumFraction: Record<string, number> = {};
+  const courseFractions: Record<string, number> = {};
   unfinishedCurricula.forEach((c) => {
-    const sorted = c.courses.slice().sort((a, b) => a.position - b.position);
-    const firstUnfinishedId = sorted.find((course) => !course.finished)?.course_id ?? null;
-    curriculumFraction[c.uuid] = (firstUnfinishedId && progressByCourseId.get(firstUnfinishedId)) || 0;
+    c.courses.filter((cc) => !cc.finished).forEach((cc) => {
+      courseFractions[cc.course_id] = progressByCourseId.get(cc.course_id) ?? 0;
+    });
   });
 
   // Pick the course for the continue card: last activity first, then path priority.
@@ -752,7 +752,7 @@ export const CourseCatalog = () => {
     enrolledCourses: nonKcCourses,
     curriculums: curriculums ?? [],
     lastActivityCourseId: lastActivity?.course?.course_id ?? null,
-    curriculumFraction,
+    courseFractions,
     excludeCourseIds: kcCourseIds,
   });
   const firstCourseId = continueCourse?.courseId;
@@ -809,7 +809,8 @@ export const CourseCatalog = () => {
   // but KC still open is surfaced via the ChecksOpenBanner, not here.
   const activePathsForHome = (curriculums ?? []).filter((c) => {
     const allCoursesDone = c.courses_finished === c.courses_total && c.courses_total > 0;
-    const hasActivity = c.courses_finished > 0 || (curriculumFraction[c.uuid] ?? 0) > 0;
+    const hasActivity = c.courses_finished > 0
+      || c.courses.some((cc) => !cc.finished && (courseFractions[cc.course_id] ?? 0) > 0);
     return !allCoursesDone && hasActivity;
   });
 

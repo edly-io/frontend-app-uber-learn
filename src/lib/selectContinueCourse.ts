@@ -1,8 +1,8 @@
-import type { EnrolledCourse } from '../api/catalog';
+import type { LearnCourse } from '../api/learn';
 import type { LearnerCurriculum } from '../api/curriculum';
 
 export interface ContinueSelectionInput {
-  enrolledCourses: EnrolledCourse[];
+  enrolledCourses: LearnCourse[];
   curriculums: LearnerCurriculum[];
   /** Course the learner last completed a block in (from the last-activity API), if any. */
   lastActivityCourseId: string | null;
@@ -13,7 +13,7 @@ export interface ContinueSelectionInput {
 }
 
 export interface ContinueSelection {
-  course: EnrolledCourse | null;
+  course: LearnCourse | null;
   /** The learning path the featured course belongs to, used for knowledge-check variant and art. */
   curriculum: LearnerCurriculum | null;
 }

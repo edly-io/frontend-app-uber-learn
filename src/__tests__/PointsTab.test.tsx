@@ -12,23 +12,23 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PointsTab } from '../pages/learning-progress/PointsTab';
-import type { EnrolledCourse } from '../api/catalog';
+import type { LearnCourse } from '../api/learn';
 
-// Outline queries fire inside PointsTab — stub the API so they resolve immediately.
-jest.mock('../api/courseware', () => ({
-  getCourseOutline: jest.fn().mockResolvedValue({
-    courseId: 'x', title: 'x', sections: {}, sequences: {},
-  }),
-}));
-
-function makeCourse(id: string, title: string): EnrolledCourse {
+function makeCourse(id: string, title: string): LearnCourse {
   return {
     courseId: id,
     title,
     imageUrl: null,
     courseStart: null,
     courseEnd: null,
-    isActive: true,
+    lessonCount: 0,
+    completedLessons: 0,
+    progress: 0,
+    nextLesson: null,
+    status: 'not_started',
+    curriculum: null,
+    lastActivity: null,
+    points: 0,
   };
 }
 

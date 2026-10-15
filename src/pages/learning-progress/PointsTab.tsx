@@ -1,9 +1,5 @@
 import React from 'react';
-import { useQueries } from '@tanstack/react-query';
-import { type EnrolledCourse } from '../../api/catalog';
-import { getCourseOutline } from '../../api/courseware';
-import { qk } from '../../api/queries';
-import { countLessons } from '../../lib/outline-mapper';
+import { type LearnCourse } from '../../api/learn';
 import courseArtBlue from '../../assets/icons/course-art-blue2.svg';
 import courseArtTeal from '../../assets/icons/course-art-teal2.svg';
 import iconLightningLarge from '../../assets/icons/icon-lightning-large.svg';
@@ -11,7 +7,7 @@ import iconLightningLarge from '../../assets/icons/icon-lightning-large.svg';
 // ── Points tab ───────────────────────────────────────────
 
 interface CourseRowProps {
-  course: EnrolledCourse;
+  course: LearnCourse;
   artSrc: string;
   tintClass: string;
   gamificationPoints?: number;
@@ -50,7 +46,7 @@ export const COURSE_ART = [
 ];
 
 export interface PointsTabProps {
-  courses: EnrolledCourse[];
+  courses: LearnCourse[];
   totalPoints: number;
   monthPoints?: number;
   coursePointsByKey?: Record<string, number>;
@@ -63,19 +59,6 @@ export const PointsTab = ({
   const sortedCourses = courses.slice().sort(
     (a, b) => (coursePointsByKey?.[b.courseId] ?? 0) - (coursePointsByKey?.[a.courseId] ?? 0),
   );
-
-  // Batch all outline and progress queries in parallel at the tab level.
-  // This avoids per-row hooks which, while parallel, add up to 2×N requests.
-  // TanStack Query deduplicates keys already in cache so these are no-ops
-  // when CourseLibrary has already fetched them.
-  const outlineQueries = useQueries({
-    queries: sortedCourses.map((course) => ({
-      queryKey: qk.outline(course.courseId),
-      queryFn: () => getCourseOutline(course.courseId),
-      staleTime: 5 * 60_000,
-      enabled: Boolean(course.courseId),
-    })),
-  });
 
   return (
     <div className="lp-tab-content">
@@ -98,24 +81,17 @@ export const PointsTab = ({
         <>
           <h2 className="lp-section-heading">By course</h2>
           <div className="lp-course-list">
-            {sortedCourses.map((course, i) => {
-              const outline = outlineQueries[i]?.data;
-              // Use outline-based lesson counts (sequences) rather than progress API unit counts.
-              const { total: totalLessons, completed: completedLessons } = outline
-                ? countLessons(outline)
-                : { total: 0, completed: 0 };
-              return (
-                <PointsCourseRow
-                  key={course.courseId}
-                  course={course}
-                  artSrc={COURSE_ART[i % COURSE_ART.length].artSrc}
-                  tintClass={COURSE_ART[i % COURSE_ART.length].tintClass}
-                  gamificationPoints={coursePointsByKey?.[course.courseId]}
-                  totalLessons={totalLessons}
-                  completedLessons={completedLessons}
-                />
-              );
-            })}
+            {sortedCourses.map((course, i) => (
+              <PointsCourseRow
+                key={course.courseId}
+                course={course}
+                artSrc={COURSE_ART[i % COURSE_ART.length].artSrc}
+                tintClass={COURSE_ART[i % COURSE_ART.length].tintClass}
+                gamificationPoints={coursePointsByKey?.[course.courseId]}
+                totalLessons={course.lessonCount}
+                completedLessons={course.completedLessons}
+              />
+            ))}
           </div>
         </>
       )}

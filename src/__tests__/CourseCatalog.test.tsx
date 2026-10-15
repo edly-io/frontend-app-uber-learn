@@ -6,8 +6,8 @@
  * real HTTP calls.
  *
  * AC coverage:
- *   - CC-LOADING:       loading skeleton shown while enrolled-courses query is in-flight
- *   - CC-ERROR:         ErrorView shown when enrolled-courses query fails
+ *   - CC-LOADING:       loading skeleton shown while courses query is in-flight
+ *   - CC-ERROR:         ErrorView shown when courses query fails
  *   - CC-EMPTY:         navigates to /no-courses when no courses enrolled (HOME-010)
  *   - CC-ENROLLED:      Continue card shown when courses are enrolled
  *   - CC-STAT-POINTS:   points stat chip renders with lifetime_points value from gamification
@@ -27,7 +27,7 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CourseCatalog } from '../pages/CourseCatalog';
 import type { LearnerCurriculum } from '../api/curriculum';
-import type { EnrolledCourse } from '../api/catalog';
+import type { LearnCourse } from '../api/learn';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -40,9 +40,9 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
-// Catalog API — getEnrolledCourses is the queryFn used directly in the component
-jest.mock('../api/catalog', () => ({
-  getEnrolledCourses: jest.fn(),
+// Learn API — getLearnCourses returns every enrolled course with its progress in one call
+jest.mock('../api/learn', () => ({
+  getLearnCourses: jest.fn(),
 }));
 
 // Courseware API — getResumeBlock is called inside ConnectedContinueCard
@@ -83,13 +83,20 @@ jest.mock('../hooks/useSequence', () => ({
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const COURSE: EnrolledCourse = {
+const COURSE: LearnCourse = {
   courseId: 'course-v1:Uber+Safety+2026',
   title: 'Road safety fundamentals',
   imageUrl: null,
   courseStart: null,
   courseEnd: null,
-  isActive: true,
+  lessonCount: 0,
+  completedLessons: 0,
+  progress: 0,
+  nextLesson: null,
+  status: 'not_started',
+  curriculum: null,
+  lastActivity: null,
+  points: 0,
 };
 
 const CURRICULUM: LearnerCurriculum = {
@@ -127,13 +134,13 @@ function renderComponent(qc = makeQueryClient()) {
   );
 }
 
-function getCatalogMock() {
+function getLearnMock() {
   // eslint-disable-next-line global-require
-  return jest.requireMock('../api/catalog') as { getEnrolledCourses: jest.Mock };
+  return jest.requireMock('../api/learn') as { getLearnCourses: jest.Mock };
 }
 
 function setDefaultMocks() {
-  getCatalogMock().getEnrolledCourses.mockResolvedValue([]);
+  getLearnMock().getLearnCourses.mockResolvedValue([]);
   mockUseGamification.mockReturnValue({ data: undefined });
   mockUseCurriculums.mockReturnValue({ data: [] });
   mockUseBadges.mockReturnValue({ data: undefined });
@@ -142,8 +149,8 @@ function setDefaultMocks() {
   mockGetLastActivity.mockResolvedValue({ course: null });
 }
 
-const makeCourse = (courseId: string, title: string): EnrolledCourse => ({
-  courseId, title, imageUrl: null, courseStart: null, courseEnd: null, isActive: true,
+const makeCourse = (courseId: string, title: string): LearnCourse => ({
+  ...COURSE, courseId, title,
 });
 
 const makeCurriculumCourse = (courseId: string, position: number, finished: boolean) => ({
@@ -173,17 +180,17 @@ beforeEach(() => {
 
 describe('CourseCatalog', () => {
   describe('CC-LOADING: loading state', () => {
-    it('shows loading skeleton while enrolled-courses query is in-flight', () => {
+    it('shows loading skeleton while courses query is in-flight', () => {
       // Never-resolving promise keeps the query in "loading" state
-      getCatalogMock().getEnrolledCourses.mockReturnValue(new Promise(() => {}));
+      getLearnMock().getLearnCourses.mockReturnValue(new Promise(() => {}));
       renderComponent();
       expect(screen.getByLabelText('Loading…')).toBeInTheDocument();
     });
   });
 
   describe('CC-ERROR: error state', () => {
-    it('shows ErrorView when enrolled-courses query rejects', async () => {
-      getCatalogMock().getEnrolledCourses.mockRejectedValue(new Error('Network failure'));
+    it('shows ErrorView when courses query rejects', async () => {
+      getLearnMock().getLearnCourses.mockRejectedValue(new Error('Network failure'));
       renderComponent();
       await waitFor(() => {
         expect(screen.getByText(/We could not retrieve your enrolled courses/i)).toBeInTheDocument();
@@ -195,7 +202,7 @@ describe('CourseCatalog', () => {
 
   describe('CC-EMPTY: empty state (no enrolled courses) — HOME-010', () => {
     it('navigates to /no-courses when enrolled courses list is empty after loading', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([]);
+      getLearnMock().getLearnCourses.mockResolvedValue([]);
       renderComponent();
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith('/no-courses', { replace: true });
@@ -203,7 +210,7 @@ describe('CourseCatalog', () => {
     });
 
     it('does not show the Continue card when no courses are enrolled', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([]);
+      getLearnMock().getLearnCourses.mockResolvedValue([]);
       renderComponent();
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith('/no-courses', { replace: true });
@@ -216,7 +223,7 @@ describe('CourseCatalog', () => {
 
   describe('CC-ENROLLED: enrolled courses', () => {
     it('shows a Continue/Start button when at least one course is enrolled', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([COURSE]);
+      getLearnMock().getLearnCourses.mockResolvedValue([COURSE]);
       renderComponent();
       await waitFor(() => {
         // ConnectedContinueCard renders either "Continue" or "Start"
@@ -256,7 +263,7 @@ describe('CourseCatalog', () => {
     };
 
     it('does not feature a course outside every learning path just because the API lists it first', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([DEMO, CON101, CON102]);
+      getLearnMock().getLearnCourses.mockResolvedValue([DEMO, CON101, CON102]);
       mockUseCurriculums.mockReturnValue({ data: [conductPath(true)] });
       renderComponent();
       await clickContinueCard();
@@ -265,7 +272,7 @@ describe('CourseCatalog', () => {
     });
 
     it('features the last-activity course when it is not finished, over a newer untouched path', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([DEMO, CON101, CON102, SAF101]);
+      getLearnMock().getLearnCourses.mockResolvedValue([DEMO, CON101, CON102, SAF101]);
       mockUseCurriculums.mockReturnValue({ data: [conductPath(false), safetyPath] });
       mockGetLastActivity.mockResolvedValue({
         course: {
@@ -292,7 +299,7 @@ describe('CourseCatalog', () => {
           courses: [],
         },
       });
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([]);
+      getLearnMock().getLearnCourses.mockResolvedValue([]);
       renderComponent();
       await waitFor(() => {
         expect(screen.getByLabelText(/42 points/i)).toBeInTheDocument();
@@ -308,7 +315,7 @@ describe('CourseCatalog', () => {
           courses: [],
         },
       });
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([]);
+      getLearnMock().getLearnCourses.mockResolvedValue([]);
       renderComponent();
       await waitFor(() => {
         expect(screen.getByLabelText(/3-week streak/i)).toBeInTheDocument();
@@ -317,7 +324,7 @@ describe('CourseCatalog', () => {
 
     it('CC-STAT-BADGES: shows "0" when no badge data is present', async () => {
       mockUseBadges.mockReturnValue({ data: undefined });
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([]);
+      getLearnMock().getLearnCourses.mockResolvedValue([]);
       renderComponent();
       await waitFor(() => {
         expect(screen.getByLabelText(/0 badges earned/i)).toBeInTheDocument();
@@ -327,7 +334,7 @@ describe('CourseCatalog', () => {
 
   describe('CC-NAV: stat chip navigation', () => {
     it('CC-NAV-POINTS: clicking points chip navigates to /progress with { tab: "Points" }', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([]);
+      getLearnMock().getLearnCourses.mockResolvedValue([]);
       renderComponent();
       await waitFor(() => screen.getByLabelText(/points — view points/i));
       fireEvent.click(screen.getByLabelText(/points — view points/i));
@@ -335,7 +342,7 @@ describe('CourseCatalog', () => {
     });
 
     it('CC-NAV-STREAK: clicking streak chip navigates to /progress with { tab: "Streak" }', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([]);
+      getLearnMock().getLearnCourses.mockResolvedValue([]);
       renderComponent();
       await waitFor(() => screen.getByLabelText(/streak — view streak/i));
       fireEvent.click(screen.getByLabelText(/streak — view streak/i));
@@ -343,7 +350,7 @@ describe('CourseCatalog', () => {
     });
 
     it('CC-NAV-BADGES: clicking badges chip navigates to /progress with { tab: "Badges" }', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([]);
+      getLearnMock().getLearnCourses.mockResolvedValue([]);
       renderComponent();
       await waitFor(() => screen.getByLabelText(/badges earned — view badges/i));
       fireEvent.click(screen.getByLabelText(/badges earned — view badges/i));
@@ -355,7 +362,7 @@ describe('CourseCatalog', () => {
     it('CC-PATHS-SHOWN: "Your learning paths" section is visible when curriculums is non-empty', async () => {
       mockUseCurriculums.mockReturnValue({ data: [CURRICULUM] });
       // Use an enrolled course so the page does not redirect to /no-courses
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([COURSE]);
+      getLearnMock().getLearnCourses.mockResolvedValue([COURSE]);
       renderComponent();
       await waitFor(() => {
         expect(screen.getByText('Your learning paths')).toBeInTheDocument();
@@ -366,7 +373,7 @@ describe('CourseCatalog', () => {
     it('CC-PATHS-HIDDEN: "Your learning paths" section absent when curriculums is empty', async () => {
       mockUseCurriculums.mockReturnValue({ data: [] });
       // Use an enrolled course so the page does not redirect to /no-courses
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([COURSE]);
+      getLearnMock().getLearnCourses.mockResolvedValue([COURSE]);
       renderComponent();
       await waitFor(() => {
         // The Continue card is present once the enrolled course is loaded
@@ -380,7 +387,7 @@ describe('CourseCatalog', () => {
   describe('CC-THIS-WEEK: This week section', () => {
     it('CC-THIS-WEEK: "This week" section is always visible (even with no API data)', async () => {
       // Use an enrolled course so the page does not redirect to /no-courses
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([COURSE]);
+      getLearnMock().getLearnCourses.mockResolvedValue([COURSE]);
       renderComponent();
       await waitFor(() => {
         const btn = screen.queryByText('Continue') ?? screen.queryByText('Start');

@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
-import { qk } from '../api/queries';
+import { useLearnCourses, type LearnCourse } from '../hooks/useLearnCourses';
 
 import iconClockFilled from '../assets/icons/icon-clock-filled.svg';
 import iconDismiss from '../assets/icons/icon-dismiss.svg';
@@ -63,7 +61,7 @@ const ChevronRight = () => (
 
 // ── Search logic ──────────────────────────────────────────
 
-function searchCourses(courses: EnrolledCourse[], query: string) {
+function searchCourses(courses: LearnCourse[], query: string) {
   const q = query.toLowerCase().trim();
   if (!q) { return []; }
   return courses.filter(
@@ -73,7 +71,7 @@ function searchCourses(courses: EnrolledCourse[], query: string) {
 
 // ── Search result components ──────────────────────────────
 
-const CourseResult = ({ course, onClick }: { course: EnrolledCourse; onClick: () => void }) => (
+const CourseResult = ({ course, onClick }: { course: LearnCourse; onClick: () => void }) => (
   <button type="button" className="sp-result-row" onClick={onClick}>
     <div className="sp-result-row__art">
       <img src={courseArtBlue} alt="" className="sp-result-row__art-img" aria-hidden="true" />
@@ -97,11 +95,7 @@ export const SearchPage = () => {
 
   const {
     data: courses = [], isLoading: isCoursesLoading, isError: isCoursesError, refetch: refetchCourses,
-  } = useQuery({
-    queryKey: qk.enrolledCourses(),
-    queryFn: getEnrolledCourses,
-    staleTime: 5 * 60_000,
-  });
+  } = useLearnCourses();
 
   useEffect(() => {
     inputRef.current?.focus();

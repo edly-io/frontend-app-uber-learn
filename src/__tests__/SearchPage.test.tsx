@@ -3,13 +3,13 @@
  *
  * AC coverage:
  *   - SP-FOCUS: input auto-focuses on mount
- *   - SP-PRE-TOPICS: topic chips NOT shown (commented out pending backend endpoint)
+ *   - SP-PRE-TOPICS: topic chips NOT shown
  *   - SP-PRE-NO-RECENTS: "Recent" section absent when localStorage empty
- *   - SP-RECENT-SHOWN: recent search shown after a submit
+ *   - SP-RECENT-SHOWN: recent search saved to localStorage after submit
  *   - SP-RECENT-REMOVE: clicking remove dismisses a recent search
- *   - SP-RESULTS: submitting shows matching courses
- *   - SP-RESULT-NAV: clicking a result navigates to course
- *   - SP-LP-RESULTS: submitting shows matching learning paths
+ *   - SP-RESULTS: submitting shows matching courses from backend
+ *   - SP-RESULT-NAV: clicking a course result navigates to /course/:id
+ *   - SP-LP-RESULTS: submitting shows matching learning paths from backend
  *   - SP-LP-RESULT-NAV: clicking a learning path result navigates to /learning-path/:uuid
  *   - SP-LP-SECTION: "Learning paths" section shown before "Courses"
  *   - SP-NO-RESULTS: zero-match search shows no-results message
@@ -24,7 +24,6 @@ import {
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SearchPage } from '../pages/SearchPage';
-import * as catalogApi from '../api/catalog';
 import * as curriculumApi from '../api/curriculum';
 
 // ── Mocks ──────────────────────────────────────────────────
@@ -43,37 +42,9 @@ jest.mock('react-router-dom', () => ({
   }),
 }));
 
-jest.mock('../api/catalog');
 jest.mock('../api/curriculum');
 
 // ── Test data ──────────────────────────────────────────────
-
-const COURSES: catalogApi.EnrolledCourse[] = [
-  {
-    courseId: 'course-v1:Uber+Safety',
-    title: 'Road safety fundamentals',
-    imageUrl: null,
-    courseStart: null,
-    courseEnd: null,
-    isActive: true,
-  },
-  {
-    courseId: 'course-v1:Uber+Teen',
-    title: 'Teen rides',
-    imageUrl: null,
-    courseStart: null,
-    courseEnd: null,
-    isActive: true,
-  },
-  {
-    courseId: 'course-v1:Uber+Driving',
-    title: 'Regional safety training',
-    imageUrl: null,
-    courseStart: null,
-    courseEnd: null,
-    isActive: true,
-  },
-];
 
 const CURRICULUM_MILESTONES = {
   complete: { reached_at: null, badge: null },
@@ -88,32 +59,45 @@ const CURRICULUM_KC = {
   is_open: false,
 } as const;
 
-const CURRICULUMS: curriculumApi.LearnerCurriculum[] = [
-  {
-    uuid: 'path-1',
-    title: 'Driver safety program',
-    description: 'Complete safety curriculum for drivers',
-    image_url: null,
-    assigned_at: '2024-01-01T00:00:00Z',
-    courses_total: 3,
-    courses_finished: 1,
-    courses: [],
-    milestones: CURRICULUM_MILESTONES,
-    knowledge_check: CURRICULUM_KC,
-  },
-  {
-    uuid: 'path-2',
-    title: 'Vehicle operations',
-    description: 'Vehicle handling and maintenance',
-    image_url: null,
-    assigned_at: '2024-01-02T00:00:00Z',
-    courses_total: 2,
-    courses_finished: 0,
-    courses: [],
-    milestones: CURRICULUM_MILESTONES,
-    knowledge_check: CURRICULUM_KC,
-  },
-];
+const CURRICULUM_SAFETY: curriculumApi.LearnerCurriculum = {
+  uuid: 'path-1',
+  title: 'Driver safety program',
+  description: 'Complete safety curriculum',
+  image_url: null,
+  assigned_at: '2024-01-01T00:00:00Z',
+  courses_total: 3,
+  courses_finished: 1,
+  courses: [],
+  milestones: CURRICULUM_MILESTONES,
+  knowledge_check: CURRICULUM_KC,
+};
+
+const COURSE_SAFETY: curriculumApi.SearchCourseResult = {
+  course_id: 'course-v1:Uber+Safety',
+  display_name: 'Road safety fundamentals',
+  org: 'Uber',
+  image_url: null,
+};
+
+const COURSE_REGIONAL: curriculumApi.SearchCourseResult = {
+  course_id: 'course-v1:Uber+Driving',
+  display_name: 'Regional safety training',
+  org: 'Uber',
+  image_url: null,
+};
+
+const COURSE_TEEN: curriculumApi.SearchCourseResult = {
+  course_id: 'course-v1:Uber+Teen',
+  display_name: 'Teen rides',
+  org: 'Uber',
+  image_url: null,
+};
+
+const EMPTY_RESPONSE: curriculumApi.SearchResponse = {
+  query: 'zzznomatch',
+  curriculums: [],
+  courses: [],
+};
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -133,8 +117,11 @@ describe('SearchPage', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
     localStorage.clear();
-    (catalogApi.getEnrolledCourses as jest.Mock).mockResolvedValue(COURSES);
-    (curriculumApi.getLearnerCurriculums as jest.Mock).mockResolvedValue(CURRICULUMS);
+    (curriculumApi.searchLearnerContent as jest.Mock).mockResolvedValue({
+      query: '',
+      curriculums: [],
+      courses: [],
+    });
   });
 
   it('auto-focuses the search input on mount (SP-FOCUS)', async () => {
@@ -151,8 +138,7 @@ describe('SearchPage', () => {
     expect(input).toHaveAttribute('aria-label', 'Search paths and courses');
   });
 
-  // SP-PRE-TOPICS: topic chips are commented out pending a backend endpoint — verify they are absent
-  it('does NOT show topic chips before any search (SP-PRE-TOPICS)', async () => {
+  it('does NOT show topic chips before any search (SP-PRE-TOPICS)', () => {
     renderPage();
     expect(screen.queryByRole('button', { name: 'Safety' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Driving' })).not.toBeInTheDocument();
@@ -163,13 +149,11 @@ describe('SearchPage', () => {
     expect(screen.queryByText('Recent')).not.toBeInTheDocument();
   });
 
-  it('shows recent searches section after submitting (SP-RECENT-SHOWN)', async () => {
+  it('saves recent search to localStorage after submitting (SP-RECENT-SHOWN)', async () => {
     renderPage();
     const input = screen.getByRole('searchbox');
     fireEvent.change(input, { target: { value: 'safety' } });
     fireEvent.keyDown(input, { key: 'Enter' });
-    // Clear query and go back to pre-search state by navigating, but instead
-    // just verify the term was saved in localStorage
     await waitFor(() => {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as string[];
       expect(saved).toContain('safety');
@@ -186,9 +170,13 @@ describe('SearchPage', () => {
     expect(saved).not.toContain('teen rides');
   });
 
-  it('shows matching courses after submitting (SP-RESULTS)', async () => {
+  it('shows matching courses returned by the backend (SP-RESULTS)', async () => {
+    (curriculumApi.searchLearnerContent as jest.Mock).mockResolvedValue({
+      query: 'safety',
+      curriculums: [],
+      courses: [COURSE_SAFETY, COURSE_REGIONAL],
+    });
     renderPage();
-    await waitFor(() => screen.getByRole('searchbox')); // courses loaded
     const input = screen.getByRole('searchbox');
     fireEvent.change(input, { target: { value: 'safety' } });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -199,9 +187,13 @@ describe('SearchPage', () => {
     expect(screen.queryByText('Teen rides')).not.toBeInTheDocument();
   });
 
-  it('navigates to course page when a result is clicked (SP-RESULT-NAV)', async () => {
+  it('navigates to course page when a course result is clicked (SP-RESULT-NAV)', async () => {
+    (curriculumApi.searchLearnerContent as jest.Mock).mockResolvedValue({
+      query: 'safety',
+      curriculums: [],
+      courses: [COURSE_SAFETY],
+    });
     renderPage();
-    await waitFor(() => screen.getByRole('searchbox'));
     const input = screen.getByRole('searchbox');
     fireEvent.change(input, { target: { value: 'safety' } });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -210,56 +202,13 @@ describe('SearchPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/course/course-v1:Uber+Safety');
   });
 
-  it('shows no-results message when query matches nothing (SP-NO-RESULTS)', async () => {
-    renderPage();
-    await waitFor(() => screen.getByRole('searchbox'));
-    const input = screen.getByRole('searchbox');
-    fireEvent.change(input, { target: { value: 'zzznomatch' } });
-    fireEvent.keyDown(input, { key: 'Enter' });
-    await waitFor(() => {
-      expect(screen.getByText(/no results for/i)).toBeInTheDocument();
-    });
-  });
-
-  it('clears query and results on clear button click (SP-CLEAR)', async () => {
-    renderPage();
-    await waitFor(() => screen.getByRole('searchbox'));
-    const input = screen.getByRole('searchbox');
-    fireEvent.change(input, { target: { value: 'safety' } });
-    fireEvent.keyDown(input, { key: 'Enter' });
-    await waitFor(() => screen.getByText('Road safety fundamentals'));
-    fireEvent.click(screen.getByRole('button', { name: /clear/i }));
-    expect(screen.queryByText('Road safety fundamentals')).not.toBeInTheDocument();
-    expect((input as HTMLInputElement).value).toBe('');
-  });
-
-  // SP-TOPIC-CLICK: topic chips are commented out pending backend endpoint — chip is not rendered
-  it('does NOT render topic chip buttons (SP-TOPIC-CLICK)', async () => {
-    renderPage();
-    await waitFor(() => screen.getByRole('searchbox'));
-    expect(screen.queryByRole('button', { name: 'Safety' })).not.toBeInTheDocument();
-  });
-
-  it('submits on Enter key press (SP-ENTER)', async () => {
-    renderPage();
-    await waitFor(() => screen.getByRole('searchbox'));
-    const input = screen.getByRole('searchbox');
-    fireEvent.change(input, { target: { value: 'teen' } });
-    fireEvent.keyDown(input, { key: 'Enter' });
-    await waitFor(() => {
-      expect(screen.getByText('Teen rides')).toBeInTheDocument();
-    });
-  });
-
-  it('back button calls navigate(-1) (SP-BACK)', () => {
-    renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /go back/i }));
-    expect(mockNavigate).toHaveBeenCalledWith(-1);
-  });
-
   it('shows matching learning paths in "Learning paths" section (SP-LP-RESULTS)', async () => {
+    (curriculumApi.searchLearnerContent as jest.Mock).mockResolvedValue({
+      query: 'safety',
+      curriculums: [CURRICULUM_SAFETY],
+      courses: [],
+    });
     renderPage();
-    await waitFor(() => screen.getByRole('searchbox'));
     const input = screen.getByRole('searchbox');
     fireEvent.change(input, { target: { value: 'safety' } });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -267,12 +216,15 @@ describe('SearchPage', () => {
       expect(screen.getByText('Driver safety program')).toBeInTheDocument();
       expect(screen.getByText('Learning paths')).toBeInTheDocument();
     });
-    expect(screen.queryByText('Vehicle operations')).not.toBeInTheDocument();
   });
 
   it('navigates to learning path page when a curriculum result is clicked (SP-LP-RESULT-NAV)', async () => {
+    (curriculumApi.searchLearnerContent as jest.Mock).mockResolvedValue({
+      query: 'safety',
+      curriculums: [CURRICULUM_SAFETY],
+      courses: [],
+    });
     renderPage();
-    await waitFor(() => screen.getByRole('searchbox'));
     const input = screen.getByRole('searchbox');
     fireEvent.change(input, { target: { value: 'safety' } });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -281,9 +233,13 @@ describe('SearchPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/learning-path/path-1');
   });
 
-  it('"Learning paths" section appears before "Courses" section in results (SP-LP-SECTION)', async () => {
+  it('"Learning paths" section appears before "Courses" section (SP-LP-SECTION)', async () => {
+    (curriculumApi.searchLearnerContent as jest.Mock).mockResolvedValue({
+      query: 'safety',
+      curriculums: [CURRICULUM_SAFETY],
+      courses: [COURSE_SAFETY],
+    });
     renderPage();
-    await waitFor(() => screen.getByRole('searchbox'));
     const input = screen.getByRole('searchbox');
     fireEvent.change(input, { target: { value: 'safety' } });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -299,16 +255,56 @@ describe('SearchPage', () => {
     expect(sectionHeadings[1]).toHaveTextContent('Courses');
   });
 
-  it('shows no-results message when neither courses nor learning paths match (SP-NO-RESULTS-COMBINED)', async () => {
+  it('shows no-results message when backend returns empty (SP-NO-RESULTS)', async () => {
+    (curriculumApi.searchLearnerContent as jest.Mock).mockResolvedValue(EMPTY_RESPONSE);
     renderPage();
-    await waitFor(() => screen.getByRole('searchbox'));
     const input = screen.getByRole('searchbox');
     fireEvent.change(input, { target: { value: 'zzznomatch' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => {
       expect(screen.getByText(/no results for/i)).toBeInTheDocument();
     });
-    expect(screen.queryByText('Learning paths')).not.toBeInTheDocument();
-    expect(screen.queryByText('Courses')).not.toBeInTheDocument();
+  });
+
+  it('clears query and results on clear button click (SP-CLEAR)', async () => {
+    (curriculumApi.searchLearnerContent as jest.Mock).mockResolvedValue({
+      query: 'safety',
+      curriculums: [],
+      courses: [COURSE_SAFETY],
+    });
+    renderPage();
+    const input = screen.getByRole('searchbox');
+    fireEvent.change(input, { target: { value: 'safety' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => screen.getByText('Road safety fundamentals'));
+    fireEvent.click(screen.getByRole('button', { name: /clear/i }));
+    expect(screen.queryByText('Road safety fundamentals')).not.toBeInTheDocument();
+    expect((input as HTMLInputElement).value).toBe('');
+  });
+
+  it('does NOT render topic chip buttons (SP-TOPIC-CLICK)', () => {
+    renderPage();
+    expect(screen.queryByRole('button', { name: 'Safety' })).not.toBeInTheDocument();
+  });
+
+  it('submits on Enter key press (SP-ENTER)', async () => {
+    (curriculumApi.searchLearnerContent as jest.Mock).mockResolvedValue({
+      query: 'teen',
+      curriculums: [],
+      courses: [COURSE_TEEN],
+    });
+    renderPage();
+    const input = screen.getByRole('searchbox');
+    fireEvent.change(input, { target: { value: 'teen' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => {
+      expect(screen.getByText('Teen rides')).toBeInTheDocument();
+    });
+  });
+
+  it('back button calls navigate(-1) (SP-BACK)', () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /go back/i }));
+    expect(mockNavigate).toHaveBeenCalledWith(-1);
   });
 });

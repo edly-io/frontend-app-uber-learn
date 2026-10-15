@@ -17,4 +17,5 @@ export const qk = {
   courseProgress: (courseId: string) => ['course-progress', courseId] as const,
   enrolledCourses: () => ['enrolled-courses'] as const,
   lastActivity: () => ['curriculum', 'last-activity'] as const,
+  search: (q: string) => ['learner', 'search', q] as const,
 } as const;

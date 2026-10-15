@@ -1,8 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
-import { getLearnerCurriculums, type LearnerCurriculum } from '../api/curriculum';
+import {
+  searchLearnerContent,
+  type LearnerCurriculum,
+  type SearchCourseResult,
+} from '../api/curriculum';
 import { qk } from '../api/queries';
 
 import iconClockFilled from '../assets/icons/icon-clock-filled.svg';
@@ -42,11 +45,6 @@ function removeRecentSearch(query: string) {
   } catch { /* ignore */ }
 }
 
-// ── Topics ────────────────────────────────────────────────
-
-// TODO: derive topics from course tags/categories via API (no backend endpoint exists yet — needs uber-features work)
-// const TOPICS = ['Safety', 'Driving', 'Riders', 'Vehicle', 'Basics'];
-
 // ── Icons ─────────────────────────────────────────────────
 
 const SearchIcon = () => (
@@ -68,29 +66,15 @@ const ChevronRight = () => (
   </svg>
 );
 
-// ── Search logic ──────────────────────────────────────────
-
-function searchCourses(courses: EnrolledCourse[], query: string) {
-  const q = query.toLowerCase().trim();
-  if (!q) { return []; }
-  return courses.filter((c) => c.title.toLowerCase().includes(q));
-}
-
-function searchCurriculums(curriculums: LearnerCurriculum[], query: string) {
-  const q = query.toLowerCase().trim();
-  if (!q) { return []; }
-  return curriculums.filter((c) => c.title.toLowerCase().includes(q));
-}
-
 // ── Search result components ──────────────────────────────
 
-const CourseResult = ({ course, onClick }: { course: EnrolledCourse; onClick: () => void }) => (
+const CourseResult = ({ course, onClick }: { course: SearchCourseResult; onClick: () => void }) => (
   <button type="button" className="sp-result-row" onClick={onClick}>
     <div className="sp-result-row__art">
       <img src={courseArtBlue} alt="" className="sp-result-row__art-img" aria-hidden="true" />
     </div>
     <div className="sp-result-row__body">
-      <span className="sp-result-row__title">{course.title}</span>
+      <span className="sp-result-row__title">{course.display_name}</span>
     </div>
     <ChevronRight />
   </button>
@@ -119,31 +103,21 @@ export const SearchPage = () => {
   const [recents, setRecents] = useState<string[]>(() => getRecentSearches());
 
   const {
-    data: courses = [], isLoading: isCoursesLoading, isError: isCoursesError, refetch: refetchCourses,
+    data, isFetching, isError, refetch,
   } = useQuery({
-    queryKey: qk.enrolledCourses(),
-    queryFn: getEnrolledCourses,
-    staleTime: 5 * 60_000,
-  });
-
-  const {
-    data: curriculums = [], isLoading: isCurriculumsLoading, isError: isCurriculumsError, refetch: refetchCurriculums,
-  } = useQuery({
-    queryKey: qk.curriculums(),
-    queryFn: getLearnerCurriculums,
+    queryKey: qk.search(submitted),
+    queryFn: () => searchLearnerContent(submitted),
+    enabled: Boolean(submitted),
     staleTime: 60_000,
-    retry: 1,
   });
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  const isLoading = isCoursesLoading || isCurriculumsLoading;
-  const isError = (isCoursesError || isCurriculumsError) && !isLoading;
-  const courseResults = submitted ? searchCourses(courses, submitted) : [];
-  const curriculumResults = submitted ? searchCurriculums(curriculums, submitted) : [];
-  const totalResults = courseResults.length + curriculumResults.length;
+  const curriculumResults = data?.curriculums ?? [];
+  const courseResults = data?.courses ?? [];
+  const totalResults = curriculumResults.length + courseResults.length;
 
   const handleSubmit = (q: string) => {
     const trimmed = q.trim();
@@ -170,12 +144,8 @@ export const SearchPage = () => {
     handleSubmit(s);
   };
 
-  // const handleTopicClick = (topic: string) => {
-  //   setQuery(topic);
-  //   handleSubmit(topic);
-  // };
-
   const isSearching = submitted.length > 0;
+  const isLoading = isFetching;
 
   return (
     <div className="sp-page">
@@ -206,7 +176,7 @@ export const SearchPage = () => {
 
       <div className="sp-body">
         {isSearching ? (
-          /* ── Results (with loading / error guards) ── */
+          /* ── Results ── */
           <>
             {isLoading && (
               <div className="sp-loading" aria-label="Loading…" aria-busy="true">
@@ -215,14 +185,10 @@ export const SearchPage = () => {
                 <div className="sp-loading__row" aria-hidden="true" />
               </div>
             )}
-            {isError && (
+            {isError && !isLoading && (
               <div className="sp-error">
                 <p className="sp-error__message">Could not load results</p>
-                <button
-                  type="button"
-                  className="sp-error__retry"
-                  onClick={() => { refetchCourses(); refetchCurriculums(); }}
-                >
+                <button type="button" className="sp-error__retry" onClick={() => refetch()}>
                   Try again
                 </button>
               </div>
@@ -254,9 +220,9 @@ export const SearchPage = () => {
                         <div className="sp-results-list">
                           {courseResults.map((course) => (
                             <CourseResult
-                              key={course.courseId}
+                              key={course.course_id}
                               course={course}
-                              onClick={() => navigate(`/course/${course.courseId}`)}
+                              onClick={() => navigate(`/course/${course.course_id}`)}
                             />
                           ))}
                         </div>
@@ -264,7 +230,6 @@ export const SearchPage = () => {
                     )}
                   </>
                 ) : (
-                  /* ── No results ── */
                   <div className="sp-empty">
                     <p className="sp-empty__title">No results for &ldquo;{submitted}&rdquo;</p>
                     <p className="sp-empty__sub">Try a different keyword.</p>
@@ -274,7 +239,7 @@ export const SearchPage = () => {
             )}
           </>
         ) : (
-          /* ── Pre-search (shown regardless of courses loading state) ── */
+          /* ── Pre-search ── */
           <>
             {recents.length > 0 && (
               <section className="sp-section">
@@ -303,18 +268,6 @@ export const SearchPage = () => {
                 </div>
               </section>
             )}
-
-            {/* TODO: re-enable Topics section once backend endpoint exists */}
-            {/* <section className="sp-section">
-              <h2 className="sp-section-title">Topics</h2>
-              <div className="sp-topics">
-                {TOPICS.map((t) => (
-                  <button key={t} type="button" className="sp-topic-chip" onClick={() => handleTopicClick(t)}>
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </section> */}
           </>
         )}
       </div>

@@ -31,7 +31,7 @@ const EMPTY_INFO: CourseCardInfo = {
 };
 
 function extractCardInfo(outline: CourseOutline | undefined): CourseCardInfo {
-  if (!outline) return EMPTY_INFO;
+  if (!outline) { return EMPTY_INFO; }
 
   // Walk sections in insertion order (matches course structure order from API)
   const orderedSeqs = Object.values(outline.sections).flatMap(
@@ -184,6 +184,7 @@ const CourseCard = ({
             <div
               className="lpv-course-card__bar-wrap"
               role="progressbar"
+              aria-label="Course progress"
               aria-valuenow={pct}
               aria-valuemin={0}
               aria-valuemax={100}
@@ -303,9 +304,13 @@ export const LearningPathView = () => {
           aria-label="Go back"
           onClick={() => {
             const origin = (location.state as { origin?: string } | null)?.origin;
-            if (origin) { navigate(origin); }
-            else if (location.key === 'default') { navigate('/'); }
-            else { navigate(-1); }
+            if (origin) {
+              navigate(origin);
+            } else if (location.key === 'default') {
+              navigate('/');
+            } else {
+              navigate(-1);
+            }
           }}
         >
           <img src={iconArrowLeft} alt="" aria-hidden="true" className="lpv-nav__back-icon" />

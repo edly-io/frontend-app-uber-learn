@@ -85,7 +85,11 @@ async function fetchBatch(lmsBase: string, username: string, batch: string[]): P
     // eslint-disable-next-line no-await-in-loop
     const { data } = await getAuthenticatedHttpClient().get<RawCourseListResponse>(
       `${lmsBase}/api/courses/v1/courses/`,
-      { params: { username, course_keys: batch.join(','), page_size: COURSE_LIST_PAGE_SIZE, page } },
+      {
+        params: {
+          username, course_keys: batch.join(','), page_size: COURSE_LIST_PAGE_SIZE, page,
+        },
+      },
     );
     items.push(...(data?.results ?? []));
     hasNext = Boolean(data?.pagination?.next);

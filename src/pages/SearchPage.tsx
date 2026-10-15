@@ -212,36 +212,33 @@ export const SearchPage = () => {
           </>
         ) : (
           /* ── Pre-search (shown regardless of courses loading state) ── */
-          <>
-            {recents.length > 0 && (
-              <section className="sp-section">
-                <h2 className="sp-section-title">Recent</h2>
-                <div className="sp-recent-list">
-                  {recents.map((s) => (
-                    <div key={s} className="sp-recent-row">
-                      <button
-                        type="button"
-                        className="sp-recent-row__main"
-                        onClick={() => handleRecentClick(s)}
-                      >
-                        <img src={iconClockFilled} alt="" className="sp-recent-row__clock" aria-hidden="true" />
-                        <span className="sp-recent-row__text">{s}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="sp-recent-row__remove"
-                        aria-label={`Remove ${s}`}
-                        onClick={() => handleRemoveRecent(s)}
-                      >
-                        <img src={iconDismiss} alt="" aria-hidden="true" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-          </>
+          recents.length > 0 && (
+            <section className="sp-section">
+              <h2 className="sp-section-title">Recent</h2>
+              <div className="sp-recent-list">
+                {recents.map((s) => (
+                  <div key={s} className="sp-recent-row">
+                    <button
+                      type="button"
+                      className="sp-recent-row__main"
+                      onClick={() => handleRecentClick(s)}
+                    >
+                      <img src={iconClockFilled} alt="" className="sp-recent-row__clock" aria-hidden="true" />
+                      <span className="sp-recent-row__text">{s}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="sp-recent-row__remove"
+                      aria-label={`Remove ${s}`}
+                      onClick={() => handleRemoveRecent(s)}
+                    >
+                      <img src={iconDismiss} alt="" aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )
         )}
       </div>
     </div>

@@ -8,7 +8,6 @@ import { useCurriculums } from '../hooks/useCurriculums';
 import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
 import { mapOutlineToLessons, countLessons } from '../lib/outline-mapper';
 import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
-import courseArtBook from '../assets/icons/course-art-book.svg';
 import scenePhoto from '../assets/images/scene-safety-education.png';
 import './course-page.scss';
 

@@ -585,21 +585,18 @@ const LeaderboardTab = ({
             <LeaderboardRowSkeleton />
             <LeaderboardRowSkeleton />
           </>
-        ) : (
-          displayRows.map((row) => (
-              <React.Fragment key={row.rank}>
-                <div className={`lp-leaderboard-row--hifi${row.is_me ? ' lp-leaderboard-row--you' : ''}`}>
-                  <span className="lp-leaderboard-row__rank--hifi">{row.rank}</span>
-                  <div className={`lp-leaderboard-avatar${row.is_me ? ' lp-leaderboard-avatar--me' : ''}`}>
-                    <span className="lp-leaderboard-avatar__icon"><PersonIcon /></span>
-                  </div>
-                  <span className="lp-leaderboard-row__name--hifi">{row.is_me ? 'You' : (row.display_name ?? '')}</span>
-                  <span className="lp-leaderboard-row__points--hifi">{row.points}</span>
-                </div>
-              </React.Fragment>
-            ))
-          )
-        }
+        ) : displayRows.map((row) => (
+          <React.Fragment key={row.rank}>
+            <div className={`lp-leaderboard-row--hifi${row.is_me ? ' lp-leaderboard-row--you' : ''}`}>
+              <span className="lp-leaderboard-row__rank--hifi">{row.rank}</span>
+              <div className={`lp-leaderboard-avatar${row.is_me ? ' lp-leaderboard-avatar--me' : ''}`}>
+                <span className="lp-leaderboard-avatar__icon"><PersonIcon /></span>
+              </div>
+              <span className="lp-leaderboard-row__name--hifi">{row.is_me ? 'You' : (row.display_name ?? '')}</span>
+              <span className="lp-leaderboard-row__points--hifi">{row.points}</span>
+            </div>
+          </React.Fragment>
+        ))}
       </div>
 
     </div>

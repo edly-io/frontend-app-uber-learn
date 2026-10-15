@@ -412,12 +412,22 @@ describe('CourseCompletePage', () => {
     const curriculum = makeCurriculum({
       courses: [
         {
-          course_id: COURSE_ID, display_name: 'Road Safety', exists: true,
-          position: 0, finished: true, description: null, image_url: null,
+          course_id: COURSE_ID,
+          display_name: 'Road Safety',
+          exists: true,
+          position: 0,
+          finished: true,
+          description: null,
+          image_url: null,
         },
         {
-          course_id: 'course-v1:Uber+Other+2026', display_name: 'Driving Basics', exists: true,
-          position: 1, finished: false, description: null, image_url: null,
+          course_id: 'course-v1:Uber+Other+2026',
+          display_name: 'Driving Basics',
+          exists: true,
+          position: 1,
+          finished: false,
+          description: null,
+          image_url: null,
         },
       ],
     });
@@ -430,7 +440,12 @@ describe('CourseCompletePage', () => {
           id: 'award-1',
           awarded_at: '2026-10-01T00:00:00Z',
           seen: false,
-          badge: { uuid: 'b-1', title: 'Safety Badge', description: '', image_url: 'https://example.com/safety.png' },
+          badge: {
+            uuid: 'b-1',
+            title: 'Safety Badge',
+            description: '',
+            image_url: 'https://example.com/safety.png',
+          },
           source: { type: 'course', course_id: COURSE_ID, display_name: 'Road Safety' },
         }],
       },

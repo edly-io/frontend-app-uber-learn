@@ -26,9 +26,9 @@ export const NotEnrolledPage = ({ onClose }: NotEnrolledPageProps) => {
         </div>
 
         <div className="ne-heading">
-          <h1 className="ne-heading__title">We can't open this</h1>
+          <h1 className="ne-heading__title">We can&apos;t open this</h1>
           <p className="ne-heading__body">
-            This link doesn't work with your account. Go back to the app and open learning from there.
+            This link doesn&apos;t work with your account. Go back to the app and open learning from there.
           </p>
         </div>
       </main>

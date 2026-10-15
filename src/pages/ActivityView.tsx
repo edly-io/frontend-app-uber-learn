@@ -1,10 +1,10 @@
 import React, {
-  useState, useCallback, useEffect, useRef,
+  useState, useCallback, useEffect, useRef, useMemo,
 } from 'react';
-import { useOffline } from '../hooks/useOffline';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { getConfig } from '@edx/frontend-platform';
+import { useOffline } from '../hooks/useOffline';
 import { useSequence } from '../hooks/useSequence';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { useCurriculums } from '../hooks/useCurriculums';
@@ -86,13 +86,16 @@ export const ActivityView = () => {
   const isOffline = useOffline();
 
   const {
-    sequence, units, isLoading, isError, error,
+    sequence, units, isLoading, isError,
   } = useSequence(sequenceId);
   const isSlowLoad = useSlowLoad(isLoading);
 
   // Course outline — needed to find the next sequence after this one
   const outlineQuery = useCourseOutline(courseId);
-  const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
+  const allLessons = useMemo(
+    () => (outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : []),
+    [outlineQuery.data],
+  );
   const currentLessonIdx = allLessons.findIndex((l) => l.sequenceId === sequenceId);
   const nextLesson = currentLessonIdx >= 0 ? allLessons[currentLessonIdx + 1] : null;
 
@@ -160,7 +163,8 @@ export const ActivityView = () => {
   // Use a ref to capture latest values so the effect doesn't go stale while firing
   // on isIframeLoaded alone.
   const shouldInvalidateRef = useRef(false);
-  shouldInvalidateRef.current = isProblemUnit && Boolean(currentUnit) && !currentUnit?.complete && completedUnitId !== currentUnitId;
+  shouldInvalidateRef.current = isProblemUnit
+    && Boolean(currentUnit) && !currentUnit?.complete && completedUnitId !== currentUnitId;
   useEffect(() => {
     if (isIframeLoaded && shouldInvalidateRef.current) {
       queryClient.invalidateQueries({ queryKey: qk.sequence(sequenceId) });

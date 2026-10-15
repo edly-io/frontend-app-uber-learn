@@ -135,6 +135,12 @@ interface CheckCardProps {
   onClick: () => void;
 }
 
+const CHECK_STATE_LABEL: Record<CheckState, string> = {
+  open: 'open now',
+  passed: 'passed',
+  'coming-up': 'coming up',
+};
+
 const CheckCard = ({ curriculum, state, onClick }: CheckCardProps) => {
   const [line1, line2] = getSubtitles(curriculum, state);
 
@@ -143,7 +149,7 @@ const CheckCard = ({ curriculum, state, onClick }: CheckCardProps) => {
       type="button"
       className="tdc-card"
       onClick={onClick}
-      aria-label={`${curriculum.title} — ${state === 'open' ? 'open now' : state === 'passed' ? 'passed' : 'coming up'}`}
+      aria-label={`${curriculum.title} — ${CHECK_STATE_LABEL[state]}`}
     >
       <CheckRing curriculum={curriculum} state={state} />
       <div className="tdc-card__body">
@@ -186,7 +192,12 @@ const CheckSection = ({ heading, count, children }: CheckSectionProps) => (
 
 export const ThirtyDayChecksPage = () => {
   const navigate = useNavigate();
-  const { data: curriculums, isLoading, isError, refetch } = useCurriculums();
+  const {
+    data: curriculums,
+    isLoading,
+    isError,
+    refetch,
+  } = useCurriculums();
 
   const checks = (curriculums ?? []).filter((c) => c.knowledge_check.exists);
   const openChecks = checks.filter((c) => getCheckState(c) === 'open');

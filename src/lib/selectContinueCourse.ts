@@ -76,8 +76,6 @@ export function selectContinueCourse({
   const finished = finishedCourseIdsOf(curriculums);
   const unfinishedPaths = curriculums.filter(isUnfinished).sort(byAssignedDesc);
 
-  const isExcluded = (courseId: string) => excludeCourseIds.has(courseId) || finished.has(courseId);
-
   const pathFor = (courseId: string) => unfinishedPaths.find((c) => containsCourse(c, courseId))
     ?? curriculums.slice().sort(byAssignedDesc).find((c) => containsCourse(c, courseId))
     ?? null;

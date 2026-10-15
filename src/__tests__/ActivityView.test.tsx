@@ -111,10 +111,6 @@ function renderComponent() {
   );
 }
 
-function getFrame(): HTMLIFrameElement {
-  return document.querySelector<HTMLIFrameElement>('.content-iframe-frame')!;
-}
-
 /**
  * Simulate a postMessage from the XBlock iframe.
  * Passes the iframe's contentWindow as `source` so the updated usePostMessage

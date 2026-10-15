@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
 import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
@@ -340,7 +340,6 @@ const NoResults = ({ onClear }: { onClear: () => void }) => (
 
 export const CourseLibrary = () => {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set());
   const [pendingFilters, setPendingFilters] = useState<Set<FilterKey>>(new Set());

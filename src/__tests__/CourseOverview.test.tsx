@@ -359,8 +359,22 @@ describe('CourseOverview', () => {
       mockUseCurriculums.mockReturnValue({
         data: [{
           ...RETENTION_CURRICULUM,
-          courses: [{ course_id: COURSE_ID, display_name: 'Driver Safety 101', exists: true, position: 1, finished: false, description: null, image_url: null }],
-          knowledge_check: { course_id: 'kc-other', display_name: null, exists: false, unlocks_at: null, is_open: false },
+          courses: [{
+            course_id: COURSE_ID,
+            display_name: 'Driver Safety 101',
+            exists: true,
+            position: 1,
+            finished: false,
+            description: null,
+            image_url: null,
+          }],
+          knowledge_check: {
+            course_id: 'kc-other',
+            display_name: null,
+            exists: false,
+            unlocks_at: null,
+            is_open: false,
+          },
         }],
       });
       mockUseBadges.mockReturnValue({
@@ -371,7 +385,12 @@ describe('CourseOverview', () => {
             id: null,
             awarded_at: null,
             seen: null,
-            badge: { uuid: 'b1', title: 'Safety Badge', description: '', image_url: 'http://cdn/badge.png' },
+            badge: {
+              uuid: 'b1',
+              title: 'Safety Badge',
+              description: '',
+              image_url: 'http://cdn/badge.png',
+            },
             source: { type: 'course', course_id: COURSE_ID, display_name: null },
           }],
         },
@@ -394,8 +413,22 @@ describe('CourseOverview', () => {
       mockUseCurriculums.mockReturnValue({
         data: [{
           ...RETENTION_CURRICULUM,
-          courses: [{ course_id: COURSE_ID, display_name: 'Driver Safety 101', exists: true, position: 1, finished: true, description: null, image_url: null }],
-          knowledge_check: { course_id: 'kc-other', display_name: null, exists: false, unlocks_at: null, is_open: false },
+          courses: [{
+            course_id: COURSE_ID,
+            display_name: 'Driver Safety 101',
+            exists: true,
+            position: 1,
+            finished: true,
+            description: null,
+            image_url: null,
+          }],
+          knowledge_check: {
+            course_id: 'kc-other',
+            display_name: null,
+            exists: false,
+            unlocks_at: null,
+            is_open: false,
+          },
         }],
       });
       mockUseBadges.mockReturnValue({
@@ -406,7 +439,12 @@ describe('CourseOverview', () => {
             id: 'award-1',
             awarded_at: '2026-10-01T00:00:00Z',
             seen: true,
-            badge: { uuid: 'b1', title: 'Safety Badge', description: '', image_url: 'http://cdn/badge.png' },
+            badge: {
+              uuid: 'b1',
+              title: 'Safety Badge',
+              description: '',
+              image_url: 'http://cdn/badge.png',
+            },
             source: { type: 'course', course_id: COURSE_ID, display_name: null },
           }],
         },
@@ -429,8 +467,22 @@ describe('CourseOverview', () => {
       mockUseCurriculums.mockReturnValue({
         data: [{
           ...RETENTION_CURRICULUM,
-          courses: [{ course_id: COURSE_ID, display_name: 'Driver Safety 101', exists: true, position: 1, finished: true, description: null, image_url: null }],
-          knowledge_check: { course_id: 'kc-other', display_name: null, exists: false, unlocks_at: null, is_open: false },
+          courses: [{
+            course_id: COURSE_ID,
+            display_name: 'Driver Safety 101',
+            exists: true,
+            position: 1,
+            finished: true,
+            description: null,
+            image_url: null,
+          }],
+          knowledge_check: {
+            course_id: 'kc-other',
+            display_name: null,
+            exists: false,
+            unlocks_at: null,
+            is_open: false,
+          },
         }],
       });
       mockUseBadges.mockReturnValue({
@@ -441,7 +493,9 @@ describe('CourseOverview', () => {
             id: 'award-2',
             awarded_at: '2026-10-01T00:00:00Z',
             seen: true,
-            badge: { uuid: 'b2', title: 'Safety Badge', description: '', image_url: null },
+            badge: {
+              uuid: 'b2', title: 'Safety Badge', description: '', image_url: null,
+            },
             source: { type: 'course', course_id: COURSE_ID, display_name: null },
           }],
         },

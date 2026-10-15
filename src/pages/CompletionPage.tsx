@@ -5,7 +5,6 @@ import type { BadgeSlot, LearnerCurriculum, BadgesResponse } from '../api/curric
 import { useBadgeCelebration, goToBadgeCelebration } from '../hooks/useBadgeCelebration';
 import { useBadges } from '../hooks/useBadges';
 import { useCourseOutline } from '../hooks/useCourseOutline';
-import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
 import { useGamification } from '../hooks/useGamification';
 import { useSequence } from '../hooks/useSequence';
 import { useCurriculums } from '../hooks/useCurriculums';
@@ -103,7 +102,9 @@ const CourseBadgeRow = ({
           <circle cx={c} cy={c} r={r} stroke="var(--u-border-opaque)" strokeWidth={sw} fill="none" />
           {progress > 0 && (
             <circle
-              cx={c} cy={c} r={r}
+              cx={c}
+              cy={c}
+              r={r}
               stroke="var(--u-background-accent)"
               strokeWidth={sw}
               fill="none"
@@ -226,7 +227,6 @@ export const LessonCompletePage = () => {
   const since = (location.state as { since?: string } | null)?.since as string | undefined;
 
   const outlineQuery = useCourseOutline(courseId);
-  const progressQuery = useCourseProgressSummary(courseId);
   const { data: gamificationData } = useGamification();
 
   const resultsQuery = useLessonResults(sequenceId, since);
@@ -321,7 +321,9 @@ export const LessonCompletePage = () => {
 
   const handleSecondary = () => navigate(`/course/${courseId}`);
 
-  const nextLessonLabel = isLastLesson ? 'Continue' : (isFinalCheck ? 'Start final check' : `Start lesson ${lessonNumber + 1}`);
+  let nextLessonLabel = `Start lesson ${lessonNumber + 1}`;
+  if (isFinalCheck) { nextLessonLabel = 'Start final check'; }
+  if (isLastLesson) { nextLessonLabel = 'Continue'; }
   const primaryLabel = (isLastLesson && parentCurriculum) || !celebration ? nextLessonLabel : 'See your badge';
 
   const headingText = isCourseRefreshed ? 'Course refreshed' : 'Lesson complete';

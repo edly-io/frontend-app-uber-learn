@@ -8,7 +8,6 @@ import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons, findNextLessonIndex } from '../lib/outline-mapper';
 import type { LessonDescriptor } from '../lib/outline-mapper';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
-import { ErrorView } from '../components/ui/ErrorView';
 import { SlowLoadView } from '../components/slow-load-view/SlowLoadView';
 import { useSlowLoad } from '../hooks/useSlowLoad';
 import { useGamification } from '../hooks/useGamification';
@@ -482,7 +481,6 @@ export const CourseOverview = () => {
             </div>
           )}
 
-
           {/* Lessons section heading for optional */}
           {config.optional && lessons.length > 0 && (
             <p className="cp-lessons-heading">Lessons</p>
@@ -508,15 +506,15 @@ export const CourseOverview = () => {
                   />
                 )}
                 {section.lessons.map((lesson, lessonIdx) => {
-                  const lessonState = sectionLessonStates[lessonIdx];
+                  const stepState = sectionLessonStates[lessonIdx];
                   const lineAbove = lessonIdx > 0;
                   const lineBelow = lessonIdx < section.lessons.length - 1;
                   return (
                     <PathStep
                       key={lesson.sequenceId}
                       title={lesson.lessonTitle}
-                      state={lessonState}
-                      detail={lessonState === 'complete' ? 'Complete' : ''}
+                      state={stepState}
+                      detail={stepState === 'complete' ? 'Complete' : ''}
                       lineAbove={lineAbove}
                       lineBelow={lineBelow}
                       onClick={() => handleLessonClick(lesson.sequenceId)}

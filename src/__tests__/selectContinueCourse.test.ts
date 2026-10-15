@@ -137,6 +137,19 @@ describe('selectContinueCourse', () => {
     expect(picked).toBe(CON102);
   });
 
+  it('prefers a curriculum with an in-progress course over a newer curriculum that only has finished courses', () => {
+    // conduct is newer (2026-09-23 vs security 2026-09-14), has courses_finished=1 but next CON102 not started.
+    // security has SEC103 in-progress — should win even though conduct is newer.
+    const { course: picked, curriculum } = selectContinueCourse({
+      enrolledCourses: ALL,
+      curriculums: [conduct(true), security],  // conduct: CON101 done, CON102 new; security: SEC103 in-progress
+      lastActivityCourseId: null,
+      courseFractions: { [SEC103.courseId]: 0.4 },
+    });
+    expect(picked).toBe(SEC103);
+    expect(curriculum?.uuid).toBe('security');
+  });
+
   it('prefers standalone in-progress courses over unstarted curriculum courses when no path has activity', () => {
     // safety is an unfinished curriculum but its first course (SAF101) has no progress.
     // SEC103 is a standalone enrolled course with some progress.

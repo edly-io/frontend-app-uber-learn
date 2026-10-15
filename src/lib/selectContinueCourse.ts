@@ -62,8 +62,8 @@ const mostRelevantUnfinishedCurriculum = (
   const hasAnyProgress = (c: LearnerCurriculum) => (
     c.courses.some((cc) => !cc.finished && (courseFractions[cc.course_id] ?? 0) > 0)
   );
-  return sorted.find((c) => c.courses_finished > 0)
-    ?? sorted.find(hasAnyProgress)
+  return sorted.find(hasAnyProgress)
+    ?? sorted.find((c) => c.courses_finished > 0)
     ?? sorted[0]
     ?? null;
 };

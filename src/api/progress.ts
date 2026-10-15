@@ -37,4 +37,3 @@ export async function getBlockCompletion(
   );
   return data.complete === true;
 }
-

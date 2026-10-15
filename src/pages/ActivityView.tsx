@@ -3,8 +3,8 @@ import React, {
 } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
-import { useBlockCompletion } from '../hooks/useBlockCompletion';
 import { getConfig } from '@edx/frontend-platform';
+import { useBlockCompletion } from '../hooks/useBlockCompletion';
 import { useOffline } from '../hooks/useOffline';
 import { useSequence } from '../hooks/useSequence';
 import { useCourseOutline } from '../hooks/useCourseOutline';

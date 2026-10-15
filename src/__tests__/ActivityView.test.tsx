@@ -342,7 +342,6 @@ describe('ActivityView', () => {
         );
       });
     });
-
   });
 
   describe('course outline freshness after finishing a lesson', () => {

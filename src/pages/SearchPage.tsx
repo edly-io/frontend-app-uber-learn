@@ -2,12 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
+import { getLearnerCurriculums, type LearnerCurriculum } from '../api/curriculum';
 import { qk } from '../api/queries';
 
 import iconClockFilled from '../assets/icons/icon-clock-filled.svg';
 import iconDismiss from '../assets/icons/icon-dismiss.svg';
 import iconCircleX from '../assets/icons/icon-circle-x.svg';
 import courseArtBlue from '../assets/icons/course-art-blue.svg';
+import courseArtTeal from '../assets/icons/course-art-teal.svg';
 
 import './search-page.scss';
 
@@ -71,9 +73,13 @@ const ChevronRight = () => (
 function searchCourses(courses: EnrolledCourse[], query: string) {
   const q = query.toLowerCase().trim();
   if (!q) { return []; }
-  return courses.filter(
-    (c) => c.title.toLowerCase().includes(q),
-  );
+  return courses.filter((c) => c.title.toLowerCase().includes(q));
+}
+
+function searchCurriculums(curriculums: LearnerCurriculum[], query: string) {
+  const q = query.toLowerCase().trim();
+  if (!q) { return []; }
+  return curriculums.filter((c) => c.title.toLowerCase().includes(q));
 }
 
 // ── Search result components ──────────────────────────────
@@ -85,6 +91,18 @@ const CourseResult = ({ course, onClick }: { course: EnrolledCourse; onClick: ()
     </div>
     <div className="sp-result-row__body">
       <span className="sp-result-row__title">{course.title}</span>
+    </div>
+    <ChevronRight />
+  </button>
+);
+
+const CurriculumResult = ({ curriculum, onClick }: { curriculum: LearnerCurriculum; onClick: () => void }) => (
+  <button type="button" className="sp-result-row" onClick={onClick}>
+    <div className="sp-result-row__art sp-result-row__art--path">
+      <img src={courseArtTeal} alt="" className="sp-result-row__art-img" aria-hidden="true" />
+    </div>
+    <div className="sp-result-row__body">
+      <span className="sp-result-row__title">{curriculum.title}</span>
     </div>
     <ChevronRight />
   </button>
@@ -108,11 +126,24 @@ export const SearchPage = () => {
     staleTime: 5 * 60_000,
   });
 
+  const {
+    data: curriculums = [], isLoading: isCurriculumsLoading, isError: isCurriculumsError, refetch: refetchCurriculums,
+  } = useQuery({
+    queryKey: qk.curriculums(),
+    queryFn: getLearnerCurriculums,
+    staleTime: 60_000,
+    retry: 1,
+  });
+
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  const results = submitted ? searchCourses(courses, submitted) : [];
+  const isLoading = isCoursesLoading || isCurriculumsLoading;
+  const isError = (isCoursesError || isCurriculumsError) && !isLoading;
+  const courseResults = submitted ? searchCourses(courses, submitted) : [];
+  const curriculumResults = submitted ? searchCurriculums(curriculums, submitted) : [];
+  const totalResults = courseResults.length + curriculumResults.length;
 
   const handleSubmit = (q: string) => {
     const trimmed = q.trim();
@@ -177,52 +208,66 @@ export const SearchPage = () => {
         {isSearching ? (
           /* ── Results (with loading / error guards) ── */
           <>
-            {isCoursesLoading && (
+            {isLoading && (
               <div className="sp-loading" aria-label="Loading…" aria-busy="true">
                 <div className="sp-loading__row" aria-hidden="true" />
                 <div className="sp-loading__row" aria-hidden="true" />
                 <div className="sp-loading__row" aria-hidden="true" />
               </div>
             )}
-            {isCoursesError && !isCoursesLoading && (
+            {isError && (
               <div className="sp-error">
-                <p className="sp-error__message">Could not load courses</p>
-                <button type="button" className="sp-error__retry" onClick={() => refetchCourses()}>
+                <p className="sp-error__message">Could not load results</p>
+                <button
+                  type="button"
+                  className="sp-error__retry"
+                  onClick={() => { refetchCourses(); refetchCurriculums(); }}
+                >
                   Try again
                 </button>
               </div>
             )}
-            {!isCoursesLoading && !isCoursesError && (
+            {!isLoading && !isError && (
               <>
                 <p className="sp-results-count">
-                  {results.length} {results.length === 1 ? 'result' : 'results'}
+                  {totalResults} {totalResults === 1 ? 'result' : 'results'}
                 </p>
-                {results.length > 0 ? (
+                {totalResults > 0 ? (
                   <>
-                    <h2 className="sp-section-title">Courses</h2>
-                    <div className="sp-results-list">
-                      {results.map((course) => (
-                        <CourseResult
-                          key={course.courseId}
-                          course={course}
-                          onClick={() => navigate(`/course/${course.courseId}`)}
-                        />
-                      ))}
-                    </div>
+                    {curriculumResults.length > 0 && (
+                      <section className="sp-section">
+                        <h2 className="sp-section-title">Learning paths</h2>
+                        <div className="sp-results-list">
+                          {curriculumResults.map((curriculum) => (
+                            <CurriculumResult
+                              key={curriculum.uuid}
+                              curriculum={curriculum}
+                              onClick={() => navigate(`/learning-path/${curriculum.uuid}`)}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                    {courseResults.length > 0 && (
+                      <section className="sp-section">
+                        <h2 className="sp-section-title">Courses</h2>
+                        <div className="sp-results-list">
+                          {courseResults.map((course) => (
+                            <CourseResult
+                              key={course.courseId}
+                              course={course}
+                              onClick={() => navigate(`/course/${course.courseId}`)}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    )}
                   </>
                 ) : (
                   /* ── No results ── */
                   <div className="sp-empty">
                     <p className="sp-empty__title">No results for &ldquo;{submitted}&rdquo;</p>
                     <p className="sp-empty__sub">Try a different keyword.</p>
-                    {/* TODO: re-enable topic chips once backend endpoint exists */}
-                    {/* <div className="sp-topics">
-                      {TOPICS.map((t) => (
-                        <button key={t} type="button" className="sp-topic-chip" onClick={() => handleTopicClick(t)}>
-                          {t}
-                        </button>
-                      ))}
-                    </div> */}
                   </div>
                 )}
               </>

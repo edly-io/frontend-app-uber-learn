@@ -248,6 +248,10 @@
   overflow: hidden;
 }
 
+.sp-result-row__art--path {
+  background: var(--u-learning-course-tint-teal, #e6f7f5);
+}
+
 .sp-result-row__art-img {
   width: 36px;
   height: 36px;
@@ -294,4 +298,55 @@
   line-height: 1.57;
   color: var(--u-content-secondary);
   margin: 0 0 12px;
+}
+
+/* ── Loading skeleton ────────────────────────────────── */
+
+.sp-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.sp-loading__row {
+  height: 68px;
+  border-radius: 12px;
+  background: var(--u-background-secondary);
+  animation: sp-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes sp-shimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── Error state ─────────────────────────────────────── */
+
+.sp-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 0;
+}
+
+.sp-error__message {
+  font-family: var(--u-font-body);
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  margin: 0;
+}
+
+.sp-error__retry {
+  background: none;
+  border: 1px solid var(--u-border-opaque);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  cursor: pointer;
 }

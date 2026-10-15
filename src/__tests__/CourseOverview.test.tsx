@@ -16,6 +16,7 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CourseOverview, resetResumedLocationKeys } from '../pages/CourseOverview';
 import * as coursewareApi from '../api/courseware';
+import * as gamificationApi from '../api/gamification';
 import type { LearnerCurriculum } from '../api/curriculum';
 
 // ---------------------------------------------------------------------------
@@ -26,6 +27,7 @@ const mockNavigate = jest.fn();
 const mockUseCurriculums = jest.fn();
 const mockUseBadges = jest.fn();
 const mockUseCourseProgressSummary = jest.fn();
+const mockUseGamification = jest.fn();
 
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
@@ -53,6 +55,11 @@ jest.mock('../hooks/useCourseProgressSummary', () => ({
 // ---------------------------------------------------------------------------
 
 jest.mock('../api/courseware');
+jest.mock('../api/gamification');
+
+jest.mock('../hooks/useGamification', () => ({
+  useGamification: (...args: unknown[]) => mockUseGamification(...args),
+}));
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -141,8 +148,16 @@ beforeEach(() => {
   mockUseCurriculums.mockReturnValue({ data: [] });
   mockUseBadges.mockReturnValue({ data: { curriculum_badges: [], course_badges: [] } });
   mockUseCourseProgressSummary.mockReturnValue({ data: undefined });
+  mockUseGamification.mockReturnValue({ data: undefined });
   jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue(RESUME_FRESH);
   jest.mocked(coursewareApi.getCourseOutline).mockResolvedValue(OUTLINE);
+  jest.mocked(gamificationApi.getCourseMaxPoints).mockResolvedValue({
+    course_id: COURSE_ID,
+    max_points: 0,
+    completion_points: 0,
+    first_try_points: 0,
+    lessons: [],
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -523,6 +538,56 @@ describe('CourseOverview', () => {
         expect(screen.getByText('Lesson 1: Basics')).toBeInTheDocument();
       });
       expect(mockNavigate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('points display', () => {
+    it('AC-PTS-01: shows "Earn up to N points" when course not started', async () => {
+      jest.mocked(gamificationApi.getCourseMaxPoints).mockResolvedValue({
+        course_id: COURSE_ID, max_points: 80, completion_points: 80, first_try_points: 0, lessons: [],
+      });
+      mockUseGamification.mockReturnValue({ data: { courses: [] } });
+      mockUseCourseProgressSummary.mockReturnValue({ data: { fraction: 0, completedUnits: 0, totalUnits: 4 } });
+
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByText('Earn up to 80 points')).toBeInTheDocument();
+      });
+    });
+
+    it('AC-PTS-02: shows "X of Y points earned" when course is in progress', async () => {
+      jest.mocked(gamificationApi.getCourseMaxPoints).mockResolvedValue({
+        course_id: COURSE_ID, max_points: 80, completion_points: 80, first_try_points: 0, lessons: [],
+      });
+      mockUseGamification.mockReturnValue({
+        data: { courses: [{ course_key: COURSE_ID, points: 40 }] },
+      });
+      mockUseCourseProgressSummary.mockReturnValue({ data: { fraction: 0.5, completedUnits: 2, totalUnits: 4 } });
+
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByText('40 of 80 points earned')).toBeInTheDocument();
+      });
+    });
+
+    it('AC-PTS-03: caps displayed earned points at max when gamification total exceeds max_points', async () => {
+      jest.mocked(gamificationApi.getCourseMaxPoints).mockResolvedValue({
+        course_id: COURSE_ID, max_points: 80, completion_points: 80, first_try_points: 0, lessons: [],
+      });
+      // Gamification summary reports 90 points (e.g. includes first-try bonuses counted differently)
+      mockUseGamification.mockReturnValue({
+        data: { courses: [{ course_key: COURSE_ID, points: 90 }] },
+      });
+      mockUseCourseProgressSummary.mockReturnValue({ data: { fraction: 1.0, completedUnits: 4, totalUnits: 4 } });
+
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByText('80 of 80 points earned')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('90 of 80 points earned')).not.toBeInTheDocument();
     });
   });
 });

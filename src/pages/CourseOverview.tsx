@@ -434,7 +434,7 @@ export const CourseOverview = () => {
                 {maxPoints > 0 && (
                   <p className="cd-progress-points">
                     {(fraction > 0 || completedLessons > 0)
-                      ? `${pointsEarned} of ${maxPoints} points earned`
+                      ? `${Math.min(pointsEarned, maxPoints)} of ${maxPoints} points earned`
                       : `Earn up to ${maxPoints} points`}
                   </p>
                 )}

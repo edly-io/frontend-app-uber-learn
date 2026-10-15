@@ -8,33 +8,31 @@ import { useCurriculums } from '../hooks/useCurriculums';
 import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
 import { mapOutlineToLessons, countLessons } from '../lib/outline-mapper';
 import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
-import courseArtToolbox from '../assets/icons/course-art-toolbox.svg';
 import courseArtBook from '../assets/icons/course-art-book.svg';
+import scenePhoto from '../assets/images/scene-safety-education.png';
 import './course-page.scss';
 
 // ── Shared art panel header ────────────────────────────────────────────────
 
 const ArtPanel = ({
-  art, imageUrl, color, onBack,
+  art, imageUrl, onBack,
 }: {
   art: string;
   imageUrl?: string | null;
-  color: 'blue' | 'green';
   onBack: () => void;
-}) => (
-  <div className={`cp-art-panel cp-art-panel--${color}`}>
-    <div className="cp-art-panel__halo">
-      <div className="cp-art-panel__disc">
-        {imageUrl
-          ? <img src={imageUrl} alt="" className="cp-art-panel__art cp-art-panel__art--photo" />
-          : <img src={art} alt="" className="cp-art-panel__art" />}
-      </div>
+}) => {
+  const [imgFailed, setImgFailed] = React.useState(false);
+  return (
+    <div className="cp-scene-header">
+      {imageUrl && !imgFailed
+        ? <img src={imageUrl} alt="" className="cp-scene-header__photo" onError={() => setImgFailed(true)} />
+        : <img src={art} alt="" className="cp-scene-header__photo" />}
+      <button type="button" className="cp-back-btn" onClick={onBack} aria-label="Back">
+        <img src={iconArrowLeft} alt="" className="cp-back-btn__icon" />
+      </button>
     </div>
-    <button type="button" className="cp-back-btn" onClick={onBack} aria-label="Back">
-      <img src={iconArrowLeft} alt="" className="cp-back-btn__icon" />
-    </button>
-  </div>
-);
+  );
+};
 
 // ── CourseIntroductionPage ─────────────────────────────────────────────────
 
@@ -50,7 +48,7 @@ export const CourseIntroductionPage = () => {
 
   const courseTitle = outlineQuery.data?.title ?? courseInCurriculum?.display_name ?? '';
   const description = courseInCurriculum?.description ?? null;
-  const imageUrl = courseInCurriculum?.image_url ?? null;
+  const imageUrl = courseInCurriculum?.image_url || null;
 
   // Prerequisite: the course at position - 1 in the same curriculum
   const prerequisiteCourse = courseInCurriculum && courseInCurriculum.position > 1
@@ -71,7 +69,7 @@ export const CourseIntroductionPage = () => {
 
   return (
     <div className="course-page">
-      <ArtPanel art={courseArtToolbox} imageUrl={imageUrl} color="blue" onBack={handleBack} />
+      <ArtPanel art={scenePhoto} imageUrl={imageUrl} onBack={handleBack} />
 
       <div className="course-scroll">
         <main className="course-content">
@@ -114,6 +112,12 @@ export const SaveAndResumePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const { data: curriculums } = useCurriculums();
+  const courseInCurriculum = curriculums
+    ?.flatMap((c) => c.courses)
+    .find((course) => course.course_id === courseId);
+  const imageUrl = courseInCurriculum?.image_url || null;
+
   const outlineQuery = useCourseOutline(courseId);
   const resumeQuery = useQuery({
     queryKey: qk.resume(courseId),
@@ -123,8 +127,13 @@ export const SaveAndResumePage = () => {
   });
   const progressQuery = useCourseProgressSummary(courseId);
 
+  // When navigating from ActivityView via the X button, location.state carries the
+  // exact sequence and unit index the learner was on, so Resume returns them there.
+  const stateSeqId = (location.state as { resumeSequenceId?: string } | null)?.resumeSequenceId ?? null;
+  const stateUnitIdx = (location.state as { resumeUnitIdx?: number } | null)?.resumeUnitIdx ?? null;
+
   const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
-  const resumeSequenceId = resumeQuery.data?.sectionId ?? null;
+  const resumeSequenceId = stateSeqId ?? resumeQuery.data?.sectionId ?? null;
   const resumeIdx = resumeSequenceId
     ? allLessons.findIndex((l) => l.sequenceId === resumeSequenceId)
     : -1;
@@ -141,7 +150,10 @@ export const SaveAndResumePage = () => {
       navigate(`/course/${courseId}`);
       return;
     }
-    navigate(`/course/${courseId}/lesson/${resumeSequenceId}/step/0`);
+    // Use the exact step from state when available (set by ActivityView X button).
+    // Fall back to step 0 when navigating directly to /resume via URL.
+    const stepIdx = (stateSeqId === resumeSequenceId && stateUnitIdx !== null) ? stateUnitIdx : 0;
+    navigate(`/course/${courseId}/lesson/${resumeSequenceId}/step/${stepIdx}`);
   };
 
   const handleHome = () => navigate('/');
@@ -149,8 +161,8 @@ export const SaveAndResumePage = () => {
   return (
     <div className="course-page">
       <ArtPanel
-        art={courseArtBook}
-        color="blue"
+        art={scenePhoto}
+        imageUrl={imageUrl}
         onBack={() => (location.key === 'default' ? navigate(`/course/${courseId}`) : navigate(-1))}
       />
 

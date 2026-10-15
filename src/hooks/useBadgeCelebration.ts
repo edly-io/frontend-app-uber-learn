@@ -61,7 +61,5 @@ export const useBadgeCelebration = (slots?: readonly BadgeSlot[]): BadgeCelebrat
 export const goToBadgeCelebration = (navigate: NavigateFunction, celebration: BadgeCelebration): void => {
   celebratedAwardIds.add(celebration.awardId);
   celebration.alsoEarned.forEach((b) => celebratedAwardIds.add(b.id));
-  navigate(`/badge/${celebration.slot}`, {
-    state: { awardId: celebration.awardId, alsoEarned: celebration.alsoEarned },
-  });
+  navigate('/');
 };

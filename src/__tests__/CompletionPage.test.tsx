@@ -21,6 +21,7 @@
  *   CCP-RENDERS:        "Course complete" kicker always present
  *   CCP-BADGE-VISIBLE:  earned date shown when complete milestone reached_at is set
  *   CCP-BADGE-HIDDEN:   badge row absent when no badge image_url
+ *   CCP-BADGE-RING:     earned course badge item gets --earned class (blue ring via CSS)
  *   CCP-POINTS:         course points > 0 → points chip renders
  *   CCP-NAV-PROGRESS:   "See your badges" navigates to /progress with Badges tab
  *
@@ -91,6 +92,11 @@ jest.mock('../hooks/useCurriculums', () => ({
 jest.mock('../hooks/useBadgeCelebration', () => ({
   useBadgeCelebration: () => null,
   goToBadgeCelebration: jest.fn(),
+}));
+
+const mockUseBadges = jest.fn();
+jest.mock('../hooks/useBadges', () => ({
+  useBadges: (...args: unknown[]) => mockUseBadges(...args),
 }));
 
 // ---------------------------------------------------------------------------
@@ -217,6 +223,7 @@ function setDefaultMocks() {
   mockUseCourseProgressSummary.mockReturnValue({ data: null, isLoading: false, isError: false });
   mockUseGamification.mockReturnValue({ data: null, isLoading: false, isError: false });
   mockUseCurriculums.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+  mockUseBadges.mockReturnValue({ data: undefined });
   // Provide a default resolved value so LessonCompletePage clears its loading guard.
   getLessonResultsMock().getLessonResults.mockResolvedValue(DEFAULT_LESSON_RESULTS);
 }
@@ -334,6 +341,28 @@ describe('LessonCompletePage', () => {
     // The results API was never called.
     expect(getLessonResultsMock().getLessonResults).not.toHaveBeenCalled();
   });
+
+  it('LCP-POINTS-SETTLE: re-reads results so points awarded after the first read are shown', async () => {
+    // Points rows are written by a Celery task after the completion commits, so the first read
+    // can miss the final step's row (10 of 20). The page must pick up the settled total.
+    jest.useFakeTimers();
+    try {
+      getLessonResultsMock().getLessonResults
+        .mockResolvedValueOnce({ ...DEFAULT_LESSON_RESULTS, points_earned: 10, steps_count: 2 })
+        .mockResolvedValue({ ...DEFAULT_LESSON_RESULTS, points_earned: 20, steps_count: 2 });
+      mockUseLocation.mockReturnValue({ state: { since: '2026-10-14T12:35:04.847061Z' }, pathname: '/completion' });
+      mockUseCourseOutline.mockReturnValue({ data: OUTLINE_TWO_LESSONS, isLoading: false });
+      wrap(<LessonCompletePage />);
+
+      await act(async () => { await jest.advanceTimersByTimeAsync(0); });
+      expect(screen.getByText('+10')).toBeInTheDocument();
+
+      await act(async () => { await jest.advanceTimersByTimeAsync(10_000); });
+      expect(screen.getByText('+20')).toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -377,6 +406,40 @@ describe('CourseCompletePage', () => {
     mockUseCurriculums.mockReturnValue({ data: [curriculum] });
     wrap(<CourseCompletePage />);
     expect(screen.getByText(/earned/i)).toBeInTheDocument();
+  });
+
+  it('CCP-BADGE-RING: earned course badge gets --earned class; unearned does not', () => {
+    const curriculum = makeCurriculum({
+      courses: [
+        {
+          course_id: COURSE_ID, display_name: 'Road Safety', exists: true,
+          position: 0, finished: true, description: null, image_url: null,
+        },
+        {
+          course_id: 'course-v1:Uber+Other+2026', display_name: 'Driving Basics', exists: true,
+          position: 1, finished: false, description: null, image_url: null,
+        },
+      ],
+    });
+    mockUseCurriculums.mockReturnValue({ data: [curriculum] });
+    mockUseBadges.mockReturnValue({
+      data: {
+        curriculum_badges: [],
+        course_badges: [{
+          awarded: true,
+          id: 'award-1',
+          awarded_at: '2026-10-01T00:00:00Z',
+          seen: false,
+          badge: { uuid: 'b-1', title: 'Safety Badge', description: '', image_url: 'https://example.com/safety.png' },
+          source: { type: 'course', course_id: COURSE_ID, display_name: 'Road Safety' },
+        }],
+      },
+    });
+    const { container } = wrap(<CourseCompletePage />);
+    const items = container.querySelectorAll('.cpc-badge-item');
+    expect(items).toHaveLength(2);
+    expect(items[0].classList.contains('cpc-badge-item--earned')).toBe(true);
+    expect(items[1].classList.contains('cpc-badge-item--earned')).toBe(false);
   });
 
   it('CCP-POINTS: course points > 0 renders the points chip', () => {
@@ -532,13 +595,37 @@ describe('RetentionCheckResultPage', () => {
     expect(screen.getByLabelText('Loading…')).toBeInTheDocument();
   });
 
-  it('RCRP-ERROR: shows ErrorView with "Unable to load results" when query errors', async () => {
+  it('RCRP-ERROR: gamification error does not block result page — shows pending state instead', async () => {
+    // A 404 / network error from the gamification API should not replace the page with an
+    // ErrorView. Pass/fail comes from curriculums, so we degrade gracefully with score "—".
     getGamificationMock().getLessonResults.mockRejectedValue(new Error('Network error'));
     wrap(<RetentionCheckResultPage />);
     await waitFor(() => {
-      expect(screen.getByText('Unable to load results')).toBeInTheDocument();
-    }, { timeout: 5000 });
-    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+      expect(screen.queryByText('Unable to load results')).not.toBeInTheDocument();
+    });
+    // retained.reached_at is null and poll has not expired → pending/loading state shown.
+    expect(screen.getByLabelText('Loading…')).toBeInTheDocument();
+  });
+
+  it('RCRP-SCORE-DASH: score "—" shown in pass state when no lesson results available (no since)', async () => {
+    // When `since` is absent (deep-link or gamification unavailable), useLessonResults is
+    // disabled and data is undefined. Score should degrade to "—" rather than blocking the page.
+    mockUseLocation.mockReturnValue({ state: null, pathname: '/retention/result' });
+    mockUseCurriculums.mockReturnValue({
+      data: [makeCurriculum({
+        milestones: {
+          complete: { reached_at: null, badge: null },
+          retained: { reached_at: '2026-10-10T00:00:00Z', badge: null },
+        },
+      })],
+      isLoading: false,
+    });
+    wrap(<RetentionCheckResultPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/What you learned stayed with you/i)).toBeInTheDocument();
+    });
+    const lead = document.querySelector('.cpl-lead');
+    expect(lead?.textContent).toMatch(/—/);
   });
 
   it('RCRP-PASS: milestones.retained.reached_at set → pass lead text shown', async () => {

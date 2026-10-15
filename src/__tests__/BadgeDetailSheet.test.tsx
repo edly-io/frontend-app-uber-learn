@@ -34,6 +34,7 @@ const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
+  useLocation: () => ({ pathname: '/badges', state: null, key: 'default', search: '', hash: '' }),
 }));
 
 // ── Courseware API mock ───────────────────────────────────
@@ -105,7 +106,6 @@ const COURSE_DATA_UNEARNED: SheetBadgeData = {
   title: 'Road safety fundamentals',
   description: '', // empty — triggers outline-based lesson count or generic fallback
   art: 'art.svg',
-  tintColor: '#dee9fe',
   progress: '',
   earned: false,
 };
@@ -297,7 +297,7 @@ describe('BadgeDetailSheet', () => {
       renderSheet(PATH_DATA_UNEARNED, onClose);
       fireEvent.click(screen.getByRole('button', { name: /see path/i }));
       expect(onClose).toHaveBeenCalledTimes(1);
-      expect(mockNavigate).toHaveBeenCalledWith('/learning-path/path-1');
+      expect(mockNavigate).toHaveBeenCalledWith('/learning-path/path-1', { state: { origin: '/badges' } });
     });
 
     it('shows 30-day check card when path is complete but retained badge not yet earned (BDS-PATH-THIRTY-VISIBLE)', () => {

@@ -10,7 +10,7 @@
  *   CL-ERROR:           ErrorView shown when enrolled-courses query fails
  *   CL-EMPTY:           Empty-state message shown when no enrolled courses
  *   CL-HEADING:         "All courses" heading always rendered
- *   CL-COURSE-TITLE:    course title rendered when outline data resolves
+ *   CL-COURSE-TITLE:    course title rendered, path courses merged into "More courses"
  *   CL-FILTER-BAR:      filter bar rendered when courses exist
  *   CL-FILTER-SHEET:    clicking Filters button opens the filter sheet dialog
  *   CL-FILTER-CHIP:     clicking "In progress" chip toggles active filter
@@ -242,14 +242,16 @@ describe('CourseLibrary', () => {
   });
 
   describe('CL-FILTER-CHIP: quick-chip filter toggle', () => {
-    it('toggles "Completed" chip as aria-pressed when clicked', async () => {
+    it('toggles "Completed" into a selected pill when clicked', async () => {
       getCatalogMock().getEnrolledCourses.mockResolvedValue([COURSE_A]);
       renderComponent();
       await waitFor(() => screen.getByRole('group', { name: /filter courses/i }));
       const chip = screen.getByRole('button', { name: /^completed$/i });
       expect(chip).toHaveAttribute('aria-pressed', 'false');
       fireEvent.click(chip);
-      expect(chip).toHaveAttribute('aria-pressed', 'true');
+      // After click, the quick chip disappears and a selected pill (Remove Completed filter) appears
+      expect(screen.queryByRole('button', { name: /^completed$/i })).toBeNull();
+      expect(screen.getByRole('button', { name: /remove completed filter/i })).toBeInTheDocument();
     });
 
     it('shows "Filters · 1" on the filter button when a chip is active', async () => {
@@ -268,19 +270,19 @@ describe('CourseLibrary', () => {
       await waitFor(() => screen.getByText('You have no courses yet'));
       const backBtn = screen.getByLabelText('Back to learning home');
       fireEvent.click(backBtn);
-      expect(mockNavigate).toHaveBeenCalledWith(-1);
+      expect(mockNavigate).toHaveBeenCalledWith('/');
     });
   });
 
   describe('CL-COURSE-TITLE: course list with path separation', () => {
-    it('renders "In your paths" section when course is in a curriculum', async () => {
+    it('renders "More courses" section when course is in a curriculum', async () => {
       mockUseCurriculums.mockReturnValue({ data: [CURRICULUM] });
       mockUseCourseOutline.mockReturnValue({ data: OUTLINE_A });
       mockUseCourseProgressSummary.mockReturnValue({ data: { completedUnits: 0, totalUnits: 1, fraction: 0 } });
       getCatalogMock().getEnrolledCourses.mockResolvedValue([COURSE_A]);
       renderComponent();
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'In your paths' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'More courses' })).toBeInTheDocument();
       });
     });
 
@@ -294,6 +296,35 @@ describe('CourseLibrary', () => {
       await waitFor(() => {
         expect(screen.getByText('More courses')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('CL-NEXT-LESSON: "Next:" subtitle', () => {
+    it('names the first incomplete lesson, not a unit-fraction index', async () => {
+      // Lesson 1 has 1 unit (complete); lesson 2 has 5 units (none complete).
+      // Unit fraction 1/6 * 2 lessons = 0.33 -> floor 0 would wrongly say "Next: Lesson one".
+      mockUseCourseOutline.mockReturnValue({
+        data: {
+          courseId: COURSE_A.courseId,
+          title: 'Road Safety Fundamentals',
+          sections: { 'sec-1': { id: 'sec-1', title: 'Module One', sequenceIds: ['seq-1', 'seq-2'] } },
+          sequences: {
+            'seq-1': {
+              id: 'seq-1', title: 'Lesson one', sectionId: 'sec-1', complete: true,
+            },
+            'seq-2': {
+              id: 'seq-2', title: 'Lesson two', sectionId: 'sec-1', complete: false,
+            },
+          },
+        },
+      });
+      mockUseCourseProgressSummary.mockReturnValue({ data: { completedUnits: 1, totalUnits: 6, fraction: 1 / 6 } });
+      getCatalogMock().getEnrolledCourses.mockResolvedValue([COURSE_A]);
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Next: Lesson two')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Next: Lesson one')).not.toBeInTheDocument();
     });
   });
 });

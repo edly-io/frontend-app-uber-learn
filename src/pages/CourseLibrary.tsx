@@ -7,7 +7,7 @@ import { qk } from '../api/queries';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
-import { mapOutlineToLessons } from '../lib/outline-mapper';
+import { mapOutlineToLessons, findNextLessonIndex } from '../lib/outline-mapper';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
 
@@ -15,13 +15,7 @@ import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
 import iconChevronDown from '../assets/icons/icon-chevron-down.svg';
 import iconChevronRight from '../assets/icons/chevron-right.svg';
 import iconNoResults from '../assets/icons/icon-no-results.svg';
-import courseArtBlue from '../assets/icons/course-art-blue.svg';
-import courseArtTeal from '../assets/icons/course-art-teal.svg';
-import courseArtLime from '../assets/icons/course-art-lime.svg';
-import courseArtPurple from '../assets/icons/course-art-purple.svg';
-import courseArtMagenta from '../assets/icons/course-art-magenta.svg';
-import courseArtTeenRides from '../assets/icons/course-art-teen-rides.svg';
-import courseArtOrange from '../assets/icons/course-art-orange.svg';
+import scenePhoto from '../assets/images/scene-safety-education.png';
 
 import './course-library.scss';
 
@@ -38,25 +32,7 @@ function courseCountLabel(n: number): string {
 
 // ── Art cycling ───────────────────────────────────────────────────────────────
 
-type CourseTint = 'blue' | 'teal' | 'lime' | 'purple' | 'magenta' | 'teen-rides' | 'orange';
-
-const TINTS: CourseTint[] = ['blue', 'teal', 'lime', 'purple', 'magenta', 'teen-rides', 'orange'];
-const ART_SRCS: Record<CourseTint, string> = {
-  blue: courseArtBlue,
-  teal: courseArtTeal,
-  lime: courseArtLime,
-  purple: courseArtPurple,
-  magenta: courseArtMagenta,
-  'teen-rides': courseArtTeenRides,
-  orange: courseArtOrange,
-};
-
 // ── Filters ───────────────────────────────────────────────────────────────────
-
-const QUICK_CHIPS: { key: FilterKey; label: string }[] = [
-  { key: 'completed', label: 'Completed' },
-  { key: 'in-paths', label: 'In your paths' },
-];
 
 const STATUS_FILTERS: { key: CourseStatus; label: string }[] = [
   { key: 'not-started', label: 'Not started' },
@@ -76,7 +52,6 @@ function passesFilters(status: CourseStatus, inPath: boolean, active: Set<Filter
 
 interface ConnectedCourseCardProps {
   course: EnrolledCourse;
-  index: number;
   inPath: boolean;
   category?: string;
   onClick: () => void;
@@ -86,7 +61,6 @@ interface ConnectedCourseCardProps {
 
 const ConnectedCourseCard = ({
   course,
-  index,
   inPath,
   category,
   onClick,
@@ -101,10 +75,10 @@ const ConnectedCourseCard = ({
 
   const fraction = progressData?.fraction ?? 0;
 
-  const resumeIdx = allLessons.length > 0
-    ? Math.min(Math.floor(fraction * allLessons.length), allLessons.length - 1)
-    : 0;
-  const nextLesson = allLessons[resumeIdx];
+  // First lesson the outline reports incomplete. `fraction` is a unit ratio and cannot be
+  // scaled into a lesson index (units per lesson vary).
+  const nextLessonIdx = findNextLessonIndex(allLessons);
+  const nextLesson = nextLessonIdx >= 0 ? allLessons[nextLessonIdx] : undefined;
 
   let status: CourseStatus = 'not-started';
   if (fraction >= 1) { status = 'completed'; } else if (fraction > 0) { status = 'in-progress'; }
@@ -118,14 +92,12 @@ const ConnectedCourseCard = ({
     return null;
   }
 
-  const tint = TINTS[index % TINTS.length];
-  const artSrc = ART_SRCS[tint];
   const showRealImage = Boolean(course.imageUrl) && !imgError;
 
   if (outlineError) {
     return (
       <div className="cl-card cl-card--error">
-        <div className={`cl-card__tile cl-card__tile--${tint}`} />
+        <div className="cl-card__tile" />
         <div className="cl-card__body">
           <span className="cl-card__title">{course.title}</span>
           <span className="cl-card__next cl-card__next--error">Could not load</span>
@@ -137,7 +109,7 @@ const ConnectedCourseCard = ({
   if (!outline) {
     return (
       <div className="cl-card cl-card--loading" aria-busy="true">
-        <div className={`cl-card__tile cl-card__tile--${tint}`} />
+        <div className="cl-card__tile" />
         <div className="cl-card__body">
           <LoadingSkeleton variant="card" />
         </div>
@@ -160,17 +132,14 @@ const ConnectedCourseCard = ({
 
   return (
     <button type="button" className="cl-card" onClick={onClick} aria-label={`Open ${course.title}`}>
-      <div className={`cl-card__tile${showRealImage ? '' : ` cl-card__tile--${tint}`}`}>
-        {showRealImage ? (
-          <img
-            src={course.imageUrl!}
-            alt=""
-            className="cl-card__thumbnail"
-            onError={() => setImgError(true)}
-          />
-        ) : (
-          <img src={artSrc} alt="" className="cl-card__art" aria-hidden="true" />
-        )}
+      <div className="cl-card__tile">
+        <img
+          src={showRealImage ? course.imageUrl! : scenePhoto}
+          alt=""
+          className="cl-card__thumbnail"
+          onError={() => setImgError(true)}
+          aria-hidden="true"
+        />
       </div>
       <div className="cl-card__body">
         {category && <span className="cl-card__category">{category}</span>}
@@ -194,61 +163,94 @@ const ConnectedCourseCard = ({
 
 // ── Filter bar ────────────────────────────────────────────────────────────────
 
+const XIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+
 interface FilterBarProps {
   active: Set<FilterKey>;
   onToggle: (key: FilterKey) => void;
   onOpenSheet: () => void;
 }
 
-const FilterBar = ({ active, onToggle, onOpenSheet }: FilterBarProps) => (
-  <div className="cl-filter-bar" role="group" aria-label="Filter courses">
-    <button
-      type="button"
-      className={`cl-filter-chip cl-filter-chip--has-icon${active.size > 0 ? ' cl-filter-chip--active' : ''}`}
-      onClick={onOpenSheet}
-      aria-expanded={false}
-    >
-      <span>{active.size > 0 ? `Filters · ${active.size}` : 'Filters'}</span>
-      <img src={iconChevronDown} alt="" className="cl-filter-chip__icon" aria-hidden="true" />
-    </button>
-    {QUICK_CHIPS.map((chip) => (
-      <button
-        key={chip.key}
-        type="button"
-        className={`cl-filter-chip${active.has(chip.key) ? ' cl-filter-chip--active' : ''}`}
-        onClick={() => onToggle(chip.key)}
-        aria-pressed={active.has(chip.key)}
-      >
-        {chip.label}
-      </button>
-    ))}
-  </div>
-);
+const FilterBar = ({ active, onToggle, onOpenSheet }: FilterBarProps) => {
+  const activeStatusFilters = STATUS_FILTERS.filter((f) => active.has(f.key));
+  const completedIsActive = active.has('completed');
 
-// ── Filter sheet ──────────────────────────────────────────────────────────────
-
-interface CheckboxRowProps {
-  label: string;
-  checked: boolean;
-  onChange: () => void;
-}
-
-const CheckboxRow = ({ label, checked, onChange }: CheckboxRowProps) => {
-  const id = `cl-checkbox-${label.toLowerCase().replace(/\s+/g, '-')}`;
   return (
-    <div className="cl-sheet-checkbox">
-      <label htmlFor={id} className="cl-sheet-checkbox__label">{label}</label>
-      <span className={`cl-sheet-checkbox__box${checked ? ' cl-sheet-checkbox__box--checked' : ''}`} aria-hidden="true">
-        {checked && (
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path d="M2.5 7L5.5 10L11.5 4" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
-      </span>
-      <input id={id} type="checkbox" className="cl-sheet-checkbox__input" checked={checked} onChange={onChange} />
+    <div className="cl-filter-bar" role="group" aria-label="Filter courses">
+      <button
+        type="button"
+        className="cl-filter-chip cl-filter-chip--has-icon"
+        onClick={onOpenSheet}
+        aria-expanded={false}
+      >
+        <span>{active.size > 0 ? `Filters · ${active.size}` : 'Filters'}</span>
+        <img src={iconChevronDown} alt="" className="cl-filter-chip__icon" aria-hidden="true" />
+      </button>
+
+      {activeStatusFilters.map((f) => (
+        <button
+          key={f.key}
+          type="button"
+          className="cl-filter-chip cl-filter-chip--selected"
+          onClick={() => onToggle(f.key)}
+          aria-label={`Remove ${f.label} filter`}
+        >
+          <span>{f.label}</span>
+          <XIcon />
+        </button>
+      ))}
+
+      {!completedIsActive && (
+        <button
+          type="button"
+          className="cl-filter-chip"
+          onClick={() => onToggle('completed')}
+          aria-pressed={false}
+        >
+          Completed
+        </button>
+      )}
     </div>
   );
 };
+
+// ── Filter sheet ──────────────────────────────────────────────────────────────
+
+interface ListItemProps {
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+  divider?: boolean;
+}
+
+const ListItem = ({
+  label, checked, onChange, divider = true,
+}: ListItemProps) => (
+  <button
+    type="button"
+    className={`cl-sheet-list-item${divider ? ' cl-sheet-list-item--divider' : ''}`}
+    onClick={onChange}
+    aria-pressed={checked}
+  >
+    <span className="cl-sheet-list-item__label">{label}</span>
+    <span className="cl-sheet-list-item__control" aria-hidden="true">
+      {checked ? (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <rect width="24" height="24" rx="4" fill="black" />
+          <path d="M6 12.5L10 16.5L18 8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <rect x="0.75" y="0.75" width="22.5" height="22.5" rx="3.25" stroke="var(--u-content-state-disabled)" strokeWidth="1.5" />
+        </svg>
+      )}
+    </span>
+  </button>
+);
 
 interface FiltersSheetProps {
   active: Set<FilterKey>;
@@ -257,7 +259,6 @@ interface FiltersSheetProps {
   onApply: () => void;
   onClose: () => void;
   totalVisible: number;
-  hasPathCourses: boolean;
 }
 
 const FiltersSheet = ({
@@ -267,7 +268,6 @@ const FiltersSheet = ({
   onApply,
   onClose,
   totalVisible,
-  hasPathCourses,
 }: FiltersSheetProps) => (
   <>
     <div className="cl-sheet-overlay" aria-hidden="true" onClick={onClose} />
@@ -276,35 +276,27 @@ const FiltersSheet = ({
       <div className="cl-sheet__header">
         <span className="cl-sheet__title">Filters</span>
       </div>
+      <div className="cl-sheet__divider" aria-hidden="true" />
       <div className="cl-sheet__body">
         <div className="cl-sheet-section">
           <p className="cl-sheet-section__heading">Status</p>
-          {STATUS_FILTERS.map((f) => (
-            <CheckboxRow
+          {STATUS_FILTERS.map((f, idx) => (
+            <ListItem
               key={f.key}
               label={f.label}
               checked={active.has(f.key)}
               onChange={() => onToggle(f.key)}
+              divider={idx < STATUS_FILTERS.length - 1}
             />
           ))}
         </div>
-        {hasPathCourses && (
-          <div className="cl-sheet-section">
-            <p className="cl-sheet-section__heading">Learning paths</p>
-            <CheckboxRow
-              label="In your paths"
-              checked={active.has('in-paths')}
-              onChange={() => onToggle('in-paths')}
-            />
-          </div>
-        )}
       </div>
       <div className="cl-sheet__footer">
-        <button type="button" className="btn-primary cl-sheet__apply" onClick={onApply}>
-          {totalVisible === 1 ? 'Show 1 course' : `Show ${totalVisible} courses`}
-        </button>
-        <button type="button" className="btn-tertiary" onClick={onReset}>
+        <button type="button" className="cl-sheet__reset" onClick={onReset}>
           Reset
+        </button>
+        <button type="button" className="cl-sheet__apply" onClick={onApply}>
+          {totalVisible === 1 ? 'Show 1 course' : `Show ${totalVisible} courses`}
         </button>
       </div>
     </div>
@@ -365,7 +357,18 @@ export const CourseLibrary = () => {
 
   const { data: curricula } = useCurriculums();
 
-  const enrolledCourses = useMemo(() => courses ?? [], [courses]);
+  const kcCourseIds = useMemo(() => {
+    const ids = new Set<string>();
+    curricula?.forEach((c) => {
+      if (c.knowledge_check?.course_id) { ids.add(c.knowledge_check.course_id); }
+    });
+    return ids;
+  }, [curricula]);
+
+  const enrolledCourses = useMemo(
+    () => (courses ?? []).filter((c) => !kcCourseIds.has(c.courseId)),
+    [courses, kcCourseIds],
+  );
 
   const pathCourseIds = useMemo(() => {
     const ids = new Set<string>();
@@ -442,19 +445,19 @@ export const CourseLibrary = () => {
   };
 
   // Visible counts per section (for "Show N courses" in filter sheet and section metas)
-  const countVisible = (list: EnrolledCourse[], filters: Set<FilterKey>, defaultInPath: boolean) => list.filter((c) => {
+  const countVisible = (list: EnrolledCourse[], filters: Set<FilterKey>) => list.filter((c) => {
     const s = resolvedStatuses[c.courseId] ?? 'not-started';
     const inPath = pathCourseIds.has(c.courseId);
-    return passesFilters(s, inPath ?? defaultInPath, filters);
+    return passesFilters(s, inPath, filters);
   }).length;
 
-  const inProgressVisible = countVisible(inProgressCourses, activeFilters, false);
-  const inYourPathsVisible = countVisible(inYourPathsCourses, activeFilters, true);
-  const moreVisible = countVisible(moreCoursesList, activeFilters, false);
+  const inProgressVisible = countVisible(inProgressCourses, activeFilters);
+  const inYourPathsVisible = countVisible(inYourPathsCourses, activeFilters);
+  const moreVisible = countVisible(moreCoursesList, activeFilters);
   const totalVisible = inProgressVisible + inYourPathsVisible + moreVisible;
 
   // For pending-filter count in sheet
-  const pendingTotal = countVisible(enrolledCourses, pendingFilters, false);
+  const pendingTotal = countVisible(enrolledCourses, pendingFilters);
 
   const hasFilters = activeFilters.size > 0;
   const allResolved = Object.keys(resolvedStatuses).length === enrolledCourses.length;
@@ -467,7 +470,7 @@ export const CourseLibrary = () => {
           type="button"
           className="cl-nav__back"
           aria-label="Back to learning home"
-          onClick={() => (location.key === 'default' ? navigate('/') : navigate(-1))}
+          onClick={() => navigate('/')}
         >
           <img src={iconArrowLeft} alt="" className="cl-nav__back-icon" aria-hidden="true" />
         </button>
@@ -513,51 +516,42 @@ export const CourseLibrary = () => {
                 {/* In progress */}
                 {inProgressCourses.length > 0 && inProgressVisible > 0 && (
                   <Section title="In progress" count={inProgressVisible}>
-                    {inProgressCourses.map((course, idx) => (
+                    {inProgressCourses.map((course) => (
                       <ConnectedCourseCard
                         key={course.courseId}
                         course={course}
-                        index={idx}
                         inPath={pathCourseIds.has(course.courseId)}
                         category={courseCategoryMap[course.courseId]}
                         activeFilters={activeFilters}
                         onResolved={handleStatusResolved}
-                        onClick={() => navigate(`/course/${course.courseId}`)}
+                        onClick={() => navigate(`/course/${course.courseId}`, { state: { origin: '/courses' } })}
                       />
                     ))}
                   </Section>
                 )}
 
-                {/* In your paths */}
-                {inYourPathsCourses.length > 0 && inYourPathsVisible > 0 && (
-                  <Section title="In your paths" count={inYourPathsVisible}>
-                    {inYourPathsCourses.map((course, idx) => (
+                {(inYourPathsCourses.length > 0 || moreCoursesList.length > 0)
+                  && (inYourPathsVisible + moreVisible) > 0 && (
+                  <Section title="More courses" count={inYourPathsVisible + moreVisible}>
+                    {inYourPathsCourses.map((course) => (
                       <ConnectedCourseCard
                         key={course.courseId}
                         course={course}
-                        index={inProgressCourses.length + idx}
                         inPath
                         category={courseCategoryMap[course.courseId]}
                         activeFilters={activeFilters}
                         onResolved={handleStatusResolved}
-                        onClick={() => navigate(`/course/${course.courseId}`)}
+                        onClick={() => navigate(`/course/${course.courseId}`, { state: { origin: '/courses' } })}
                       />
                     ))}
-                  </Section>
-                )}
-
-                {/* More courses */}
-                {moreCoursesList.length > 0 && moreVisible > 0 && (
-                  <Section title="More courses" count={moreVisible}>
-                    {moreCoursesList.map((course, idx) => (
+                    {moreCoursesList.map((course) => (
                       <ConnectedCourseCard
                         key={course.courseId}
                         course={course}
-                        index={inProgressCourses.length + inYourPathsCourses.length + idx}
                         inPath={false}
                         activeFilters={activeFilters}
                         onResolved={handleStatusResolved}
-                        onClick={() => navigate(`/course/${course.courseId}`)}
+                        onClick={() => navigate(`/course/${course.courseId}`, { state: { origin: '/courses' } })}
                       />
                     ))}
                   </Section>
@@ -567,15 +561,14 @@ export const CourseLibrary = () => {
                 {inYourPathsCourses.length === 0 && moreCoursesList.length === 0
                   && inProgressCourses.length === 0 && enrolledCourses.length > 0 && (
                   <div className="cl-course-list">
-                    {enrolledCourses.map((course, idx) => (
+                    {enrolledCourses.map((course) => (
                       <ConnectedCourseCard
                         key={course.courseId}
                         course={course}
-                        index={idx}
                         inPath={false}
                         activeFilters={activeFilters}
                         onResolved={handleStatusResolved}
-                        onClick={() => navigate(`/course/${course.courseId}`)}
+                        onClick={() => navigate(`/course/${course.courseId}`, { state: { origin: '/courses' } })}
                       />
                     ))}
                   </div>
@@ -609,7 +602,6 @@ export const CourseLibrary = () => {
           onApply={applySheet}
           onClose={() => setSheetOpen(false)}
           totalVisible={pendingTotal}
-          hasPathCourses={pathCourseIds.size > 0}
         />
       )}
     </div>

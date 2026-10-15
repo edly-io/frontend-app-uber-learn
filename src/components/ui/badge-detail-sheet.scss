@@ -97,20 +97,20 @@
   inset: 5px;
   border-radius: 50%;
   border: 3px solid var(--u-background-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   overflow: hidden;
+  background: var(--u-background-tertiary);
 }
 
 .bds-seal-ring__art {
-  width: 55%;
-  height: 55%;
-  object-fit: contain;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .bds-seal-ring__art--locked {
-  filter: grayscale(100%) opacity(0.5);
+  filter: grayscale(1);
 }
 
 /* Trophy overlay — shown on the ring for path badges when complete */

@@ -16,10 +16,12 @@ interface ContentIFrameProps {
    * for subresources such as a video's first frame.
    */
   onContentReady?: () => void;
+  /** Called when the iframe fails to load (network error or server error response). */
+  onError?: () => void;
 }
 
 export const ContentIFrame = ({
-  usageKey, onCompleted, onLoad, onContentReady,
+  usageKey, onCompleted, onLoad, onContentReady, onError,
 }: ContentIFrameProps) => {
   const frameRef = useRef<HTMLIFrameElement>(null);
 
@@ -63,7 +65,7 @@ export const ContentIFrame = ({
     [onCompleted],
   );
 
-  usePostMessage(handleEvent);
+  usePostMessage(handleEvent, frameRef);
 
   return (
     <div className="content-iframe-wrapper">
@@ -76,6 +78,7 @@ export const ContentIFrame = ({
         data-usage-key={usageKey}
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
         onLoad={onLoad}
+        onError={onError}
       />
     </div>
   );

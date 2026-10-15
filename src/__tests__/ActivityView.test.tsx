@@ -10,7 +10,7 @@
  *   - AC-ACT-PM-01: Continue sends uber.continueClicked postMessage to LMS iframe
  *   - AC-ACT-RESET-01: Completion state resets when unit changes
  *   - AC-ACT-LOAD-01: Loading skeleton while sequence is fetching
- *   - AC-ACT-ERR-01: ErrorView rendered when sequence fetch fails
+ *   - AC-ACT-ERR-01: SlowLoadView rendered when sequence fetch fails
  *   - AC-ACT-STEP-01: StepIndicator visible when sequence has multiple units
  *   - AC-ACT-IFRAME-01: ContentIFrame renders with the current unit usage key
  */
@@ -111,8 +111,14 @@ function renderComponent() {
   );
 }
 
+function getFrame(): HTMLIFrameElement {
+  return document.querySelector<HTMLIFrameElement>('.content-iframe-frame')!;
+}
+
 /**
  * Simulate a postMessage from the XBlock iframe.
+ * Passes the iframe's contentWindow as `source` so the updated usePostMessage
+ * source-window guard accepts the message (same as a real browser would send).
  * Wraps in act() because it triggers React state updates.
  */
 function dispatchPluginMessage(
@@ -121,9 +127,11 @@ function dispatchPluginMessage(
   origin: string = LMS_ORIGIN,
 ) {
   act(() => {
+    const frame = document.querySelector<HTMLIFrameElement>('.content-iframe-frame');
     window.dispatchEvent(
       new MessageEvent('message', {
         origin,
+        source: frame?.contentWindow ?? null,
         data: { type, payload, version: 1 },
       }),
     );
@@ -140,6 +148,7 @@ beforeEach(() => {
   mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '0' });
   jest.mocked(coursewareApi.getSequenceMetadata).mockResolvedValue(MOCK_SEQUENCE_DATA);
   jest.mocked(progressApi.saveSequencePosition).mockResolvedValue(undefined);
+  jest.mocked(progressApi.markBlockComplete).mockResolvedValue(undefined);
 });
 
 // ---------------------------------------------------------------------------
@@ -157,7 +166,7 @@ describe('ActivityView', () => {
       expect(screen.getByRole('heading', { level: 1, name: /loading/i })).toBeInTheDocument();
     });
 
-    it('AC-ACT-ERR-01: shows ErrorView when sequence fetch fails', async () => {
+    it('AC-ACT-ERR-01: shows SlowLoadView when sequence fetch fails', async () => {
       jest.mocked(coursewareApi.getSequenceMetadata).mockRejectedValue(
         new Error('Sequence not found'),
       );
@@ -165,9 +174,9 @@ describe('ActivityView', () => {
       renderComponent();
 
       await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
+        expect(screen.getByText(/this is taking longer than expected/i)).toBeInTheDocument();
       });
-      expect(screen.getByText(/could not load lesson/i)).toBeInTheDocument();
+      expect(screen.getByText(/try again/i)).toBeInTheDocument();
     });
   });
 
@@ -323,6 +332,98 @@ describe('ActivityView', () => {
           `/course/${COURSE_ID}/lesson-complete/${SEQ_ID}`,
           { state: { since: expect.any(String) } },
         );
+      });
+    });
+
+    it('AC-ACT-NAV-03: waits for the final unit completion write before opening the results page', async () => {
+      // The results page reads points awarded from that completion; navigating first made it
+      // read before the last step's points existed (10 instead of 20).
+      mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
+      let resolveComplete: () => void = () => {};
+      jest.mocked(progressApi.markBlockComplete).mockReturnValue(
+        new Promise<void>((resolve) => { resolveComplete = resolve; }),
+      );
+
+      renderComponent();
+      await waitFor(() => expect(screen.getByRole('button', { name: /finish/i })).toBeInTheDocument());
+      dispatchPluginMessage('plugin.completed', { correct: true });
+      await waitFor(() => expect(screen.getByRole('button', { name: /finish/i })).not.toBeDisabled());
+
+      fireEvent.click(screen.getByRole('button', { name: /finish/i }));
+      await waitFor(() => expect(progressApi.markBlockComplete).toHaveBeenCalled());
+      await act(async () => { await new Promise((r) => { setTimeout(r, 50); }); });
+      expect(mockNavigate).not.toHaveBeenCalled();
+
+      await act(async () => { resolveComplete(); });
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith(
+          `/course/${COURSE_ID}/lesson-complete/${SEQ_ID}`,
+          { state: { since: expect.any(String) } },
+        );
+      });
+    });
+  });
+
+  describe('course outline freshness after finishing a lesson', () => {
+    const SEQ_2 = 'block-v1:Uber+L2024+type@sequential+block@seq2';
+    const staleOutline = () => ({
+      courseId: COURSE_ID,
+      title: 'Course',
+      sections: { s1: { id: 's1', title: 'S1', sequenceIds: [SEQ_ID, SEQ_2] } },
+      sequences: {
+        [SEQ_ID]: {
+          id: SEQ_ID, title: 'L1', sectionId: 's1', complete: false,
+        },
+        [SEQ_2]: {
+          id: SEQ_2, title: 'L2', sectionId: 's1', complete: false,
+        },
+      },
+    });
+
+    async function finishLastUnit(client: QueryClient) {
+      mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID, unitIdx: '1' });
+      render(
+        <QueryClientProvider client={client}>
+          <ActivityView />
+        </QueryClientProvider>,
+      );
+      await waitFor(() => expect(screen.getByRole('button', { name: /finish/i })).toBeInTheDocument());
+      await waitFor(() => expect(client.getQueryData(['outline', COURSE_ID])).toBeDefined());
+      dispatchPluginMessage('plugin.completed', { correct: true });
+      await waitFor(() => expect(screen.getByRole('button', { name: /finish/i })).not.toBeDisabled());
+      fireEvent.click(screen.getByRole('button', { name: /finish/i }));
+      // Navigation now waits for the completion write, so wait for the write to be issued.
+      await waitFor(() => expect(progressApi.markBlockComplete).toHaveBeenCalled());
+    }
+
+    it('marks the finished lesson complete in the cached outline before navigating', async () => {
+      jest.mocked(coursewareApi.getCourseOutline).mockResolvedValue(staleOutline());
+      jest.mocked(progressApi.markBlockComplete).mockReturnValue(new Promise(() => {}));
+      const client = makeQueryClient();
+
+      await finishLastUnit(client);
+
+      const outline = client.getQueryData<ReturnType<typeof staleOutline>>(['outline', COURSE_ID]);
+      expect(outline?.sequences[SEQ_ID].complete).toBe(true);
+      expect(outline?.sequences[SEQ_2].complete).toBe(false);
+    });
+
+    it('refetches the outline only after the final unit completion is recorded', async () => {
+      jest.mocked(coursewareApi.getCourseOutline).mockResolvedValue(staleOutline());
+      let resolveComplete: () => void = () => {};
+      jest.mocked(progressApi.markBlockComplete).mockReturnValue(
+        new Promise<void>((resolve) => { resolveComplete = resolve; }),
+      );
+      const client = makeQueryClient();
+
+      await finishLastUnit(client);
+      const callsBeforeWrite = jest.mocked(coursewareApi.getCourseOutline).mock.calls.length;
+
+      await act(async () => { resolveComplete(); });
+
+      await waitFor(() => {
+        expect(jest.mocked(coursewareApi.getCourseOutline).mock.calls.length)
+          .toBeGreaterThan(callsBeforeWrite);
       });
     });
   });
@@ -502,11 +603,14 @@ describe('ActivityView', () => {
   describe('AC-ACT-PM-01: uber.continueClicked postMessage to LMS iframe', () => {
     // Isolate the contentWindow override to this describe block only.
     const mockPostMessage = jest.fn();
+    // Stable reference — the getter must return the same object on every call so
+    // that event.source === frameRef.current.contentWindow comparisons hold.
+    const mockContentWindow = { postMessage: mockPostMessage };
 
     beforeEach(() => {
       mockPostMessage.mockClear();
       Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
-        get() { return { postMessage: mockPostMessage }; },
+        get() { return mockContentWindow; },
         configurable: true,
       });
     });

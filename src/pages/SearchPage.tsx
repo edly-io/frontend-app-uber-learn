@@ -40,11 +40,6 @@ function removeRecentSearch(query: string) {
   } catch { /* ignore */ }
 }
 
-// ── Topics ────────────────────────────────────────────────
-
-// TODO: derive topics from course tags/categories via API (no backend endpoint exists yet — needs uber-features work)
-// const TOPICS = ['Safety', 'Driving', 'Riders', 'Vehicle', 'Basics'];
-
 // ── Icons ─────────────────────────────────────────────────
 
 const SearchIcon = () => (
@@ -139,11 +134,6 @@ export const SearchPage = () => {
     handleSubmit(s);
   };
 
-  // const handleTopicClick = (topic: string) => {
-  //   setQuery(topic);
-  //   handleSubmit(topic);
-  // };
-
   const isSearching = submitted.length > 0;
 
   return (
@@ -215,14 +205,6 @@ export const SearchPage = () => {
                   <div className="sp-empty">
                     <p className="sp-empty__title">No results for &ldquo;{submitted}&rdquo;</p>
                     <p className="sp-empty__sub">Try a different keyword.</p>
-                    {/* TODO: re-enable topic chips once backend endpoint exists */}
-                    {/* <div className="sp-topics">
-                      {TOPICS.map((t) => (
-                        <button key={t} type="button" className="sp-topic-chip" onClick={() => handleTopicClick(t)}>
-                          {t}
-                        </button>
-                      ))}
-                    </div> */}
                   </div>
                 )}
               </>
@@ -259,17 +241,6 @@ export const SearchPage = () => {
               </section>
             )}
 
-            {/* TODO: re-enable Topics section once backend endpoint exists */}
-            {/* <section className="sp-section">
-              <h2 className="sp-section-title">Topics</h2>
-              <div className="sp-topics">
-                {TOPICS.map((t) => (
-                  <button key={t} type="button" className="sp-topic-chip" onClick={() => handleTopicClick(t)}>
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </section> */}
           </>
         )}
       </div>

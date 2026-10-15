@@ -84,10 +84,6 @@
   overflow: hidden;
 }
 
-.cp-badge-seal--blue {
-  background: var(--u-learning-course-tint-blue);
-}
-
 .cp-badge-seal--green {
   background: var(--u-background-positive-light);
 }
@@ -108,7 +104,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
   padding: 16px;
 }
 
@@ -125,6 +121,7 @@
   gap: 12px;
   width: 100%;
   text-align: center;
+  padding-top: 8px;
 }
 
 .cpl-done-mark {
@@ -201,6 +198,7 @@
   height: 32px;
   display: block;
   flex-shrink: 0;
+  filter: brightness(0);
 }
 
 .cpl-points__value {
@@ -225,7 +223,7 @@
 .cp-stats-card {
   background: var(--u-background-secondary);
   border-radius: 16px;
-  padding: 4px 16px 0;
+  padding: 0 16px;
   width: 100%;
 }
 
@@ -246,7 +244,7 @@
 }
 
 .cp-stats-row--with-bar .cp-stats-row__main {
-  padding-bottom: 0;
+  padding-bottom: 14px;
 }
 
 .cp-stats-row__icon {
@@ -254,6 +252,7 @@
   height: 20px;
   display: block;
   flex-shrink: 0;
+  filter: brightness(0);
 }
 
 .cp-stats-row__label {
@@ -265,6 +264,7 @@
   color: var(--u-content-secondary);
   line-height: 1.5;
   margin: 0;
+  text-align: left;
 }
 
 .cp-stats-row__value {
@@ -337,13 +337,102 @@
   margin: 0;
 }
 
+.cpl-next-card__steps {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-tertiary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+/* ── Curriculum badge row ────────────────────────────────────────────────── */
+.cpc-badge-row {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.cpc-badge-item {
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--u-background-tertiary);
+  border: 2px solid var(--u-background-primary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cpc-badge-item--earned {
+  background: var(--u-learning-course-tint-blue);
+  border-color: var(--u-background-accent);
+}
+
+.cpc-badge-item__img {
+  width: 29px;
+  height: 29px;
+  object-fit: contain;
+  display: block;
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+.cpc-badge-item--earned .cpc-badge-item__img {
+  opacity: 1;
+  filter: none;
+}
+
+/* Dash connector between course badges and path seal */
+.cpc-badge-dash {
+  width: 16px;
+  height: 2px;
+  background: var(--u-border-opaque);
+  flex-shrink: 0;
+}
+
+/* Curriculum progress ring (last item in the badge row) */
+.cpc-curriculum-ring {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cpc-curriculum-ring svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.cpc-curriculum-ring__badge {
+  position: absolute;
+  inset: 7px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.cpc-curriculum-ring__badge--locked {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
 /* ── Course Complete: words block ────────────────────────────────────────── */
 .cpc-words {
   display: flex;
   flex-direction: column;
   gap: 8px;
   width: 100%;
-  align-items: inherit; /* inherits from cp-content--centered */
+  align-items: center;
+  text-align: center;
 }
 
 /* ── Course Complete: path progress card head ────────────────────────────── */
@@ -363,6 +452,7 @@
   color: var(--u-content-primary);
   line-height: 1.25;
   margin: 0;
+  text-align: left;
 }
 
 .cpc-path-count {
@@ -374,6 +464,7 @@
   white-space: nowrap;
   margin: 0;
   flex-shrink: 0;
+  text-align: right;
 }
 
 /* ── Course Complete: commitment card ────────────────────────────────────── */

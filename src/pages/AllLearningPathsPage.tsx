@@ -116,7 +116,7 @@ const EmptyIllustration = () => (
       <rect x="20" y="24" width="24" height="2.5" rx="1.25" fill="var(--u-border-opaque)" />
       <rect x="20" y="31" width="18" height="2.5" rx="1.25" fill="var(--u-border-opaque)" />
       <rect x="20" y="38" width="20" height="2.5" rx="1.25" fill="var(--u-border-opaque)" />
-      <circle cx="17" cy="25.25" r="2" fill="var(--u-content-accent)" />
+      <circle cx="17" cy="25.25" r="2" fill="var(--u-background-accent)" />
       <circle cx="17" cy="32.25" r="2" fill="var(--u-border-opaque)" />
       <circle cx="17" cy="39.25" r="2" fill="var(--u-border-opaque)" />
     </svg>
@@ -142,7 +142,7 @@ export const AllLearningPathsPage = () => {
           type="button"
           className="alp-nav__back"
           aria-label="Go back"
-          onClick={() => (location.key === 'default' ? navigate('/') : navigate(-1))}
+          onClick={() => navigate('/')}
         >
           <ArrowLeft />
         </button>
@@ -174,7 +174,7 @@ export const AllLearningPathsPage = () => {
             </p>
           </div>
           <footer className="alp-footer">
-            <button type="button" className="btn-primary" onClick={() => navigate('/library')}>
+            <button type="button" className="btn-primary" onClick={() => navigate('/courses')}>
               See all courses
             </button>
           </footer>
@@ -203,7 +203,7 @@ export const AllLearningPathsPage = () => {
                       <PathCard
                         key={c.uuid}
                         curriculum={c}
-                        onClick={() => navigate(`/learning-path/${c.uuid}`)}
+                        onClick={() => navigate(`/learning-path/${c.uuid}`, { state: { origin: location.pathname } })}
                       />
                     ))}
                   </div>
@@ -218,7 +218,7 @@ export const AllLearningPathsPage = () => {
                       <PathCard
                         key={c.uuid}
                         curriculum={c}
-                        onClick={() => navigate(`/learning-path/${c.uuid}`)}
+                        onClick={() => navigate(`/learning-path/${c.uuid}`, { state: { origin: location.pathname } })}
                       />
                     ))}
                   </div>

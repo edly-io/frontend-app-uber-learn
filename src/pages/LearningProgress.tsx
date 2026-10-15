@@ -1,5 +1,5 @@
 import React, {
-  useState, useCallback, useMemo, useRef, useEffect,
+  useState, useCallback, useRef, useEffect,
 } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,6 +11,8 @@ import { useGamification, type GamificationSummary } from '../hooks/useGamificat
 import { useLeaderboard, type LeaderboardData } from '../hooks/useLeaderboard';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { useBadges } from '../hooks/useBadges';
+import { useCourseOutline } from '../hooks/useCourseOutline';
+import { countLessons } from '../lib/outline-mapper';
 import { qk } from '../api/queries';
 import type { LearnerCurriculum, BadgeEntry } from '../api/curriculum';
 import { getLastActivity } from '../api/curriculum';
@@ -166,7 +168,7 @@ const StreakTab = ({ apiSummary }: { apiSummary?: GamificationSummary }) => {
   const longestStreak = apiSummary.longest_streak_weeks;
   const weeks = mapApiRecentWeeks(apiSummary);
   const subLine = longestStreak > streakCount
-    ? `weeks in a row · longest ${longestStreak}`
+    ? `weeks in a row · your best is ${longestStreak} weeks`
     : 'weeks in a row';
 
   return (
@@ -222,9 +224,9 @@ const COURSE_ARTS = [
 // ── Badge grid seal ring ──────────────────────────────────
 
 const GridSealRing = ({
-  progress, art, tintColor, earned, hasThirty, thirtyOpen,
+  progress, art, earned, hasThirty, thirtyOpen,
 }: {
-  progress: number; art: string; tintColor: string; earned: boolean;
+  progress: number; art: string; earned: boolean;
   hasThirty?: boolean; thirtyOpen?: boolean;
 }) => {
   const size = 88;
@@ -253,10 +255,7 @@ const GridSealRing = ({
           />
         )}
       </svg>
-      <div
-        className="lp-badge-grid-ring__inner"
-        style={{ background: earned ? tintColor : 'var(--u-background-tertiary)' }}
-      >
+      <div className="lp-badge-grid-ring__inner">
         <img
           src={art}
           alt=""
@@ -307,16 +306,19 @@ const CourseGridBadgeItem = ({
   course: EnrolledCourse; idx: number; award?: BadgeEntry; isNew?: boolean; onClick: () => void;
 }) => {
   const progressQuery = useCourseProgressSummary(course.courseId);
+  const outlineQuery = useCourseOutline(course.courseId);
   const artMeta = COURSE_ARTS[idx % COURSE_ARTS.length];
   const earned = Boolean(award?.awarded);
   const progress = earned ? 1 : (progressQuery.data?.fraction ?? 0);
-  const artSrc = (earned && award?.badge?.image_url) ? award.badge.image_url : artMeta.art;
+  const artSrc = award?.badge?.image_url ?? artMeta.art;
+
+  const totalLessons = outlineQuery.data ? countLessons(outlineQuery.data).total : null;
 
   let sub: string;
   if (earned && award?.awarded_at) {
     sub = new Date(award.awarded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  } else if (progressQuery.data?.totalUnits != null) {
-    sub = `${progressQuery.data.totalUnits} lessons`;
+  } else if (totalLessons != null) {
+    sub = `${totalLessons} ${totalLessons === 1 ? 'lesson' : 'lessons'}`;
   } else {
     sub = '';
   }
@@ -331,7 +333,6 @@ const CourseGridBadgeItem = ({
         <GridSealRing
           progress={progress}
           art={artSrc}
-          tintColor={artMeta.tint}
           earned={earned}
         />
       )}
@@ -392,8 +393,7 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
       courseId: course.courseId,
       title: award?.badge.title ?? course.title,
       description: award?.badge?.description ?? '',
-      art: (earned && badgeImageUrl) ? badgeImageUrl : artMeta.art,
-      tintColor: artMeta.tint,
+      art: badgeImageUrl ?? artMeta.art,
       progress: 'In progress',
       earned,
       earnedDate: award?.awarded_at
@@ -451,7 +451,6 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
                     <GridSealRing
                       progress={progress}
                       art={complete?.badge?.image_url ?? iconBadgeCheck}
-                      tintColor="var(--u-learning-course-tint-blue)"
                       earned={isComplete}
                       hasThirty
                       thirtyOpen={thirtyEarned}
@@ -547,7 +546,13 @@ const LeaderboardTab = ({
   const isRanked = apiData?.status === 'ranked';
   const myRank = apiData?.my_rank ?? null;
   const totalDrivers = apiData?.total_drivers ?? 0;
-  const displayRows = apiData?.rows ?? [];
+
+  const allRows = [...(apiData?.rows ?? [])].sort((a, b) => a.rank - b.rank);
+  const top10 = allRows.filter((r) => r.rank <= 10);
+  const myRow = allRows.find((r) => r.is_me) ?? null;
+  const displayRows = myRank && myRank > 10 && myRow
+    ? [...top10, myRow]
+    : top10;
 
   const heroLabel = 'Your rank this month';
   let heroValue: string;
@@ -581,12 +586,8 @@ const LeaderboardTab = ({
             <LeaderboardRowSkeleton />
           </>
         ) : (
-          displayRows.map((row, i) => {
-            const prev = displayRows[i - 1];
-            const hasGap = prev && row.rank - prev.rank > 1;
-            return (
+          displayRows.map((row) => (
               <React.Fragment key={row.rank}>
-                {hasGap && <div className="lp-leaderboard-gap" aria-hidden="true">•••</div>}
                 <div className={`lp-leaderboard-row--hifi${row.is_me ? ' lp-leaderboard-row--you' : ''}`}>
                   <span className="lp-leaderboard-row__rank--hifi">{row.rank}</span>
                   <div className={`lp-leaderboard-avatar${row.is_me ? ' lp-leaderboard-avatar--me' : ''}`}>
@@ -596,9 +597,9 @@ const LeaderboardTab = ({
                   <span className="lp-leaderboard-row__points--hifi">{row.points}</span>
                 </div>
               </React.Fragment>
-            );
-          })
-        )}
+            ))
+          )
+        }
       </div>
 
     </div>
@@ -652,21 +653,9 @@ export const LearningProgress = () => {
   } = useGamification();
   const queryClient = useQueryClient();
 
-  // Calculate how many neighbor rows fit in the available list area based on viewport height.
-  // Constants: header 44px, tabs 56px, content-padding-top 16px, hero ~140px, gap 20px, footer 72px
-  // Each row is 44px (12+20+12), the gap row is 24px.
-  const leaderboardNeighbors = useMemo(() => {
-    const ROW_H = 44;
-    const GAP_H = 24;
-    const OVERHEAD = 44 + 56 + 16 + 140 + 20 + 72;
-    const available = Math.max(0, window.innerHeight - OVERHEAD);
-    const totalRowSlots = Math.max(7, Math.floor((available - GAP_H) / ROW_H));
-    return Math.min(Math.max(3, Math.floor((totalRowSlots - 3 - 1) / 2)), 15);
-  }, []);
-
   const {
     data: leaderboardData, isLoading: leaderboardLoading, isError: leaderboardError, refetch: refetchLeaderboard,
-  } = useLeaderboard(leaderboardNeighbors, leaderboardNeighbors);
+  } = useLeaderboard(100, 10);
   const { data: curriculums } = useCurriculums();
 
   const enrolledCourses = courses ?? [];
@@ -689,10 +678,7 @@ export const LearningProgress = () => {
     }
   };
 
-  // On deep-link entry (no in-app history), navigate(-1) would leave the MFE.
-  const handleClose = () => {
-    if (location.key === 'default') { navigate('/'); } else { navigate(-1); }
-  };
+  const handleClose = () => { navigate('/'); };
 
   return (
     <div className="lp-page">

@@ -189,17 +189,36 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--u-background-secondary);
+  background: var(--u-background-tertiary);
+  border: 2px solid var(--u-background-primary);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background var(--u-duration-fast);
+}
+
+.cd-badge-seal--earned {
+  background: var(--u-learning-course-tint-blue);
 }
 
 .cd-badge-seal__icon {
-  width: 24px;
-  height: 24px;
-  opacity: 0.6;
+  width: 20px;
+  height: 20px;
+  opacity: 0.5;
   filter: grayscale(1);
+  transition: opacity var(--u-duration-fast), filter var(--u-duration-fast);
+}
+
+.cd-badge-seal--earned .cd-badge-seal__icon {
+  opacity: 1;
+  filter: none;
+}
+
+.cd-badge-seal__icon--badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .cd-progress-label {
@@ -628,6 +647,19 @@
   user-select: none;
 }
 
+/* Fallback: course art SVG centered on accent-light bg when no course photo exists */
+.cp-scene-header__fallback-art {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120px;
+  height: 120px;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* ── Art panel (optional / intro / save-resume pages) ───────────────────── */
 .cp-art-panel {
   position: relative;
@@ -695,57 +727,6 @@
 .cp-back-btn__icon {
   width: 24px;
   height: 24px;
-}
-
-/* ── Learning record card (yellow, hi-fi) ───────────────────────────────── */
-.cp-record-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  background: var(--u-background-warning-light);
-  border-radius: 16px;
-  width: 100%;
-  cursor: pointer;
-  text-align: left;
-  border: none;
-  transition: opacity var(--u-duration-fast) var(--u-ease-out);
-}
-
-.cp-record-card:hover { opacity: 0.9; }
-.cp-record-card:active { opacity: 0.75; }
-
-.cp-record-card__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.cp-record-card__title {
-  font-family: var(--u-font-body);
-  font-size: 1.125rem;
-  font-weight: 500;
-  color: var(--u-content-primary);
-  line-height: 1.33;
-  margin: 0;
-}
-
-.cp-record-card__desc {
-  font-family: var(--u-font-body);
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: var(--u-content-tertiary);
-  line-height: 1.43;
-  margin: 0;
-}
-
-.cp-record-card__chevron {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  display: block;
 }
 
 /* ── Unit section wrapper ───────────────────────────────────────────────── */

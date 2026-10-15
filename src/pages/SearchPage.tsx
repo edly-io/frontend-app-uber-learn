@@ -99,15 +99,30 @@ export const SearchPage = () => {
   const location = useLocation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
-  const [submitted, setSubmitted] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [recents, setRecents] = useState<string[]>(() => getRecentSearches());
+
+  // Fire search 300ms after user stops typing
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setDebouncedQuery('');
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      setDebouncedQuery(trimmed);
+      saveRecentSearch(trimmed);
+      setRecents(getRecentSearches());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   const {
     data, isFetching, isError, refetch,
   } = useQuery({
-    queryKey: qk.search(submitted),
-    queryFn: () => searchLearnerContent(submitted),
-    enabled: Boolean(submitted),
+    queryKey: qk.search(debouncedQuery),
+    queryFn: () => searchLearnerContent(debouncedQuery),
+    enabled: Boolean(debouncedQuery),
     staleTime: 60_000,
   });
 
@@ -119,18 +134,9 @@ export const SearchPage = () => {
   const courseResults = data?.courses ?? [];
   const totalResults = curriculumResults.length + courseResults.length;
 
-  const handleSubmit = (q: string) => {
-    const trimmed = q.trim();
-    if (!trimmed) { return; }
-    saveRecentSearch(trimmed);
-    setRecents(getRecentSearches());
-    setQuery(trimmed);
-    setSubmitted(trimmed);
-  };
-
   const handleClear = () => {
     setQuery('');
-    setSubmitted('');
+    setDebouncedQuery('');
     inputRef.current?.focus();
   };
 
@@ -139,12 +145,23 @@ export const SearchPage = () => {
     setRecents(getRecentSearches());
   };
 
-  const handleRecentClick = (s: string) => {
-    setQuery(s);
-    handleSubmit(s);
+  // Enter key: fire immediately without waiting for debounce
+  const handleEnter = () => {
+    const trimmed = query.trim();
+    if (!trimmed) { return; }
+    setDebouncedQuery(trimmed);
+    saveRecentSearch(trimmed);
+    setRecents(getRecentSearches());
   };
 
-  const isSearching = submitted.length > 0;
+  const handleRecentClick = (s: string) => {
+    setQuery(s);
+    setDebouncedQuery(s);
+    saveRecentSearch(s);
+    setRecents(getRecentSearches());
+  };
+
+  const isSearching = Boolean(debouncedQuery);
   const isLoading = isFetching;
 
   return (
@@ -163,7 +180,7 @@ export const SearchPage = () => {
             placeholder="Search paths and courses"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { handleSubmit(query); } }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { handleEnter(); } }}
             aria-label="Search paths and courses"
           />
           {query.length > 0 && (
@@ -231,7 +248,7 @@ export const SearchPage = () => {
                   </>
                 ) : (
                   <div className="sp-empty">
-                    <p className="sp-empty__title">No results for &ldquo;{submitted}&rdquo;</p>
+                    <p className="sp-empty__title">No results for &ldquo;{debouncedQuery}&rdquo;</p>
                     <p className="sp-empty__sub">Try a different keyword.</p>
                   </div>
                 )}

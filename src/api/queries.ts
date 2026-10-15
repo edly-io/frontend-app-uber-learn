@@ -18,4 +18,5 @@ export const qk = {
   enrolledCourses: () => ['enrolled-courses'] as const,
   lastActivity: () => ['curriculum', 'last-activity'] as const,
   blockCompletion: (courseId: string, sequenceId: string, unitId: string | null) => ['block-completion', courseId, sequenceId, unitId] as const,
+  courseMaxPoints: (courseId: string) => ['gamification', 'course-max-points', courseId] as const,
 } as const;

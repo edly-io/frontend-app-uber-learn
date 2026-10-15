@@ -24,7 +24,6 @@ import iconNodeCurrent from '../assets/icons/icon-node-current.svg';
 import iconChevronRight from '../assets/icons/chevron-right.svg';
 import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
 import courseArtBook from '../assets/icons/course-art-book.svg';
-import courseArtSteering from '../assets/icons/course-art-steering.svg';
 import './course-page.scss';
 
 /** @deprecated The auto-resume redirect has been removed. This is a no-op kept for test compatibility. */
@@ -219,23 +218,6 @@ const SceneHeader = ({ onBack, imageUrl }: { onBack: () => void; imageUrl?: stri
   </div>
 );
 
-// ── Art panel header ──────────────────────────────────────────────────────
-
-const ArtPanel = ({
-  art, color, onBack,
-}: { art: string; color: 'blue' | 'green'; onBack: () => void }) => (
-  <div className={`cp-art-panel cp-art-panel--${color}`}>
-    <div className="cp-art-panel__halo">
-      <div className="cp-art-panel__disc">
-        <img src={art} alt="" className="cp-art-panel__art" />
-      </div>
-    </div>
-    <button type="button" className="cp-back-btn" onClick={onBack} aria-label="Back">
-      <img src={iconArrowLeft} alt="" className="cp-back-btn__icon" />
-    </button>
-  </div>
-);
-
 // ── CourseOverview page ────────────────────────────────────────────────────
 
 export const CourseOverview = () => {
@@ -267,23 +249,10 @@ export const CourseOverview = () => {
     c.courses.some((course) => course.course_id === courseId)
     || c.knowledge_check?.course_id === courseId
   ));
-  const isOptional = curriculums !== undefined && parentCurriculum === undefined;
-  let kicker: string;
-  if (isOptional) {
-    kicker = 'Optional';
-  } else if (parentCurriculum) {
-    kicker = `Required · ${parentCurriculum.title}`;
-  } else {
-    kicker = 'Required';
-  }
+  const kicker = parentCurriculum ? `Required · ${parentCurriculum.title}` : null;
   const courseInCurriculum = parentCurriculum?.courses.find((c) => c.course_id === courseId);
   const courseDescription = courseInCurriculum?.description ?? null;
   const courseImageUrl = courseInCurriculum?.image_url || null;
-  const config = {
-    optional: isOptional,
-    art: courseArtSteering,
-    kicker,
-  };
 
   const resumeQuery = useQuery({
     queryKey: qk.resume(courseId),
@@ -335,9 +304,7 @@ export const CourseOverview = () => {
     }
     return (
       <div className="course-page">
-        {config.optional
-          ? <ArtPanel art={config.art} color="blue" onBack={handleBack} />
-          : <SceneHeader onBack={handleBack} imageUrl={courseImageUrl} />}
+        <SceneHeader onBack={handleBack} imageUrl={courseImageUrl} />
         <div className="course-scroll">
           <LoadingSkeleton />
         </div>
@@ -421,7 +388,7 @@ export const CourseOverview = () => {
   let ctaLabel = 'Start course';
   if (courseComplete) { ctaLabel = 'Review course'; } else if (fraction > 0 || resumeSequenceId) { ctaLabel = 'Continue course'; }
 
-  const showProgress = !config.optional;
+  const showProgress = true;
   const isKnowledgeCheckCourse = parentCurriculum?.knowledge_check?.course_id === courseId;
   const retentionPassed = parentCurriculum?.milestones?.retained?.reached_at != null;
   const hideFooter = isKnowledgeCheckCourse && courseComplete && retentionPassed;
@@ -429,15 +396,13 @@ export const CourseOverview = () => {
 
   return (
     <div className="course-page">
-      {config.optional
-        ? <ArtPanel art={config.art} color="blue" onBack={handleBack} />
-        : <SceneHeader onBack={handleBack} imageUrl={courseImageUrl} />}
+      <SceneHeader onBack={handleBack} imageUrl={courseImageUrl} />
 
       <div className="course-scroll">
         <main className="course-content">
           {/* Heading block */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <p className="cd-kicker">{config.kicker}</p>
+            {kicker && <p className="cd-kicker">{kicker}</p>}
             <h1 className="cd-title">{outline?.title ?? 'Course'}</h1>
             {courseDescription && <p className="cd-lead">{courseDescription}</p>}
           </div>
@@ -475,15 +440,11 @@ export const CourseOverview = () => {
                     alt=""
                     className={`cd-badge-seal__icon${courseBadgeImageUrl ? ' cd-badge-seal__icon--badge' : ''}`}
                     aria-hidden="true"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = courseArtBook; }}
                   />
                 </div>
               </button>
             </div>
-          )}
-
-          {/* Lessons section heading for optional */}
-          {config.optional && lessons.length > 0 && (
-            <p className="cp-lessons-heading">Lessons</p>
           )}
 
           {/* Units / path steps */}
@@ -492,7 +453,7 @@ export const CourseOverview = () => {
               (lesson) => getLessonState(lesson, resumeSequenceId, lessons, courseComplete),
             );
             const unitState = getUnitState(section.lessons, sectionLessonStates);
-            const showUnitBanner = !config.optional && sections.length >= 1;
+            const showUnitBanner = sections.length >= 1;
 
             return (
               <div key={section.sectionId} className="cp-unit-section">

@@ -32,15 +32,47 @@
   margin-left: -10px;
 }
 
+.sp-bar__back-icon {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  background-color: currentColor;
+  -webkit-mask-image: url('../assets/icons/icon-arrow-left.svg');
+  mask-image: url('../assets/icons/icon-arrow-left.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.sp-bar__search-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask-image: url('../assets/icons/icon-search.svg');
+  mask-image: url('../assets/icons/icon-search.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
 .sp-bar__field {
   flex: 1;
   display: flex;
   align-items: center;
   gap: 8px;
   background: var(--u-background-secondary);
-  border-radius: 999px;
-  padding: 10px 16px;
-  min-height: 44px;
+  border-radius: 22px;
+  padding: 10px 12px 10px 14px;
+  height: 44px;
+  overflow: hidden;
   color: var(--u-content-secondary);
 }
 
@@ -58,14 +90,13 @@
   appearance: none;
 }
 
-/* DEF-034 fix: Visible focus ring for the search input (WCAG 2.4.7). */
+/* DEF-034: focus ring is on .sp-bar__field via :focus-within — suppress the native input ring. */
 .sp-bar__input:focus-visible {
-  outline: 2px solid var(--u-background-accent);
-  outline-offset: 2px;
+  outline: none;
 }
 
 .sp-bar__input::placeholder {
-  color: var(--u-content-secondary);
+  color: var(--u-content-tertiary);
 }
 
 .sp-bar__input::-webkit-search-cancel-button {
@@ -76,17 +107,29 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 44px;
+  height: 44px;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 2px;
+  padding: 0;
   flex-shrink: 0;
 }
 
 .sp-bar__clear-icon {
+  display: inline-block;
   width: 20px;
   height: 20px;
   opacity: 0.5;
+  background-color: currentColor;
+  -webkit-mask-image: url('../assets/icons/icon-x.svg');
+  mask-image: url('../assets/icons/icon-x.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
 }
 
 /* ── Body ────────────────────────────────────────────── */
@@ -96,7 +139,7 @@
   padding: 16px 16px 32px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
 }
 
 /* ── Recent searches ─────────────────────────────────── */
@@ -109,11 +152,6 @@
 .sp-recent-row {
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--u-border-opaque);
-}
-
-.sp-recent-row:last-child {
-  border-bottom: none;
 }
 
 .sp-recent-row__main {
@@ -121,19 +159,29 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 0;
+  padding: 10px 0;
   background: none;
   border: none;
   cursor: pointer;
   text-align: left;
-  min-height: 48px;
+  min-height: 44px;
 }
 
 .sp-recent-row__clock {
-  width: 18px;
-  height: 18px;
-  opacity: 0.5;
+  display: inline-block;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
+  opacity: 0.5;
+  background-color: currentColor;
+  -webkit-mask-image: url('../assets/icons/icon-clock-outlined.svg');
+  mask-image: url('../assets/icons/icon-clock-outlined.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
 }
 
 .sp-recent-row__text {
@@ -157,9 +205,19 @@
   opacity: 0.5;
 }
 
-.sp-recent-row__remove img {
-  width: 16px;
-  height: 16px;
+.sp-recent-row__remove-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background-color: currentColor;
+  -webkit-mask-image: url('../assets/icons/icon-x.svg');
+  mask-image: url('../assets/icons/icon-x.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
 }
 
 /* ── Results ─────────────────────────────────────────── */
@@ -217,7 +275,7 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  border: 2.5px solid var(--u-background-tertiary, #e8e8e8);
+  border: 2.5px solid var(--u-background-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -228,8 +286,8 @@
   width: 40px;
   height: 40px;
   border-radius: 20px;
-  background: var(--u-learning-course-tint-teal, #cdeef3);
   border: 2px solid var(--u-background-primary);
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -239,6 +297,10 @@
   width: 28px;
   height: 28px;
   object-fit: contain;
+}
+
+.sp-path-card__seal-art--locked {
+  filter: grayscale(1);
 }
 
 .sp-path-card__body {
@@ -279,7 +341,7 @@
   font-size: 14px;
   font-weight: 400;
   line-height: 1.43;
-  color: var(--u-content-tertiary, #5e5e5e);
+  color: var(--u-content-tertiary);
 }
 
 /* ── Course card ─────────────────────────────────────── */
@@ -304,7 +366,7 @@
   width: 64px;
   height: 64px;
   border-radius: 12px;
-  background: var(--u-learning-course-tint-blue);
+  background: var(--u-background-secondary);
   overflow: hidden;
   flex-shrink: 0;
   display: flex;
@@ -316,12 +378,6 @@
   width: 64px;
   height: 64px;
   object-fit: cover;
-}
-
-.sp-course-card__art-fallback {
-  width: 44px;
-  height: 44px;
-  object-fit: contain;
 }
 
 .sp-course-card__body {
@@ -418,7 +474,8 @@
   align-items: center;
   justify-content: center;
   padding: 10px 20px;
-  background: var(--u-background-tertiary, #e8e8e8);
+  min-height: 44px;
+  background: var(--u-background-tertiary);
   border: none;
   border-radius: 9999px;
   font-family: var(--u-font-body);
@@ -477,6 +534,7 @@
   border: 1px solid var(--u-border-opaque);
   border-radius: 8px;
   padding: 8px 16px;
+  min-height: 44px;
   font-family: var(--u-font-body);
   font-size: 14px;
   font-weight: 500;

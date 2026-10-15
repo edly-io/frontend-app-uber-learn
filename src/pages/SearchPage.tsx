@@ -8,12 +8,9 @@ import {
 } from '../api/curriculum';
 import { qk } from '../api/queries';
 
-import iconClockFilled from '../assets/icons/icon-clock-filled.svg';
-import iconDismiss from '../assets/icons/icon-dismiss.svg';
-import iconCircleX from '../assets/icons/icon-circle-x.svg';
-import courseArtBlue from '../assets/icons/course-art-blue.svg';
-import courseArtTeal from '../assets/icons/course-art-teal.svg';
+import iconBadgeCheck from '../assets/icons/icon-badge-check.svg';
 import searchNoResults from '../assets/icons/search-no-results.svg';
+import scenePhoto from '../assets/images/scene-safety-education.png';
 
 import './search-page.scss';
 
@@ -48,19 +45,6 @@ function removeRecentSearch(query: string) {
 
 // ── Icons ─────────────────────────────────────────────────
 
-const SearchIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-    <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-  </svg>
-);
-
-const ArrowLeft = () => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-    <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
 const ChevronRight = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
     <path d="M6 12L10 8L6 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -72,9 +56,7 @@ const ChevronRight = () => (
 const CourseResult = ({ course, onClick }: { course: SearchCourseResult; onClick: () => void }) => (
   <button type="button" className="sp-course-card" onClick={onClick}>
     <div className="sp-course-card__art">
-      {course.image_url
-        ? <img src={course.image_url} alt="" className="sp-course-card__art-img" aria-hidden="true" />
-        : <img src={courseArtBlue} alt="" className="sp-course-card__art-fallback" aria-hidden="true" />}
+      <img src={scenePhoto} alt="" aria-hidden="true" className="sp-course-card__art-img" loading="lazy" width="64" height="64" />
     </div>
     <div className="sp-course-card__body">
       {course.org && <span className="sp-course-card__kicker">{course.org}</span>}
@@ -86,11 +68,18 @@ const CourseResult = ({ course, onClick }: { course: SearchCourseResult; onClick
 
 const CurriculumResult = ({ curriculum, onClick }: { curriculum: LearnerCurriculum; onClick: () => void }) => {
   const nextCourse = curriculum.courses.find((c) => !c.finished);
+  const badgeUrl = curriculum.milestones.complete?.badge?.image_url ?? null;
   return (
     <button type="button" className="sp-path-card" onClick={onClick}>
       <div className="sp-path-card__seal">
         <div className="sp-path-card__seal-inner">
-          <img src={courseArtTeal} alt="" className="sp-path-card__seal-art" aria-hidden="true" />
+          <img
+            src={badgeUrl || iconBadgeCheck}
+            alt=""
+            className={`sp-path-card__seal-art${curriculum.courses_finished < curriculum.courses_total ? ' sp-path-card__seal-art--locked' : ''}`}
+            aria-hidden="true"
+            onError={(e) => { if (e.currentTarget.src !== iconBadgeCheck) { e.currentTarget.src = iconBadgeCheck; } }}
+          />
         </div>
       </div>
       <div className="sp-path-card__body">
@@ -133,7 +122,7 @@ export const SearchPage = () => {
   }, [query]);
 
   const {
-    data, isFetching, isError, refetch,
+    data, isLoading, isError, refetch,
   } = useQuery({
     queryKey: qk.search(debouncedQuery),
     queryFn: () => searchLearnerContent(debouncedQuery),
@@ -177,17 +166,16 @@ export const SearchPage = () => {
   };
 
   const isSearching = Boolean(debouncedQuery);
-  const isLoading = isFetching;
 
   return (
     <div className="sp-page">
       {/* Search bar */}
       <div className="sp-bar">
         <button type="button" className="sp-bar__back" aria-label="Go back" onClick={() => (location.key === 'default' ? navigate('/') : navigate(-1))}>
-          <ArrowLeft />
+          <span className="sp-bar__back-icon" aria-hidden="true" />
         </button>
         <div className="sp-bar__field">
-          <SearchIcon />
+          <span className="sp-bar__search-icon" aria-hidden="true" />
           <input
             ref={inputRef}
             type="search"
@@ -200,7 +188,7 @@ export const SearchPage = () => {
           />
           {query.length > 0 && (
             <button type="button" className="sp-bar__clear" aria-label="Clear" onClick={handleClear}>
-              <img src={iconCircleX} alt="" className="sp-bar__clear-icon" aria-hidden="true" />
+              <span className="sp-bar__clear-icon" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -294,7 +282,7 @@ export const SearchPage = () => {
                         className="sp-recent-row__main"
                         onClick={() => handleRecentClick(s)}
                       >
-                        <img src={iconClockFilled} alt="" className="sp-recent-row__clock" aria-hidden="true" />
+                        <span className="sp-recent-row__clock" aria-hidden="true" />
                         <span className="sp-recent-row__text">{s}</span>
                       </button>
                       <button
@@ -303,7 +291,7 @@ export const SearchPage = () => {
                         aria-label={`Remove ${s}`}
                         onClick={() => handleRemoveRecent(s)}
                       >
-                        <img src={iconDismiss} alt="" aria-hidden="true" />
+                        <span className="sp-recent-row__remove-icon" aria-hidden="true" />
                       </button>
                     </div>
                   ))}

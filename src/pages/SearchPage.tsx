@@ -249,7 +249,10 @@ export const SearchPage = () => {
                 ) : (
                   <div className="sp-empty">
                     <p className="sp-empty__title">No results for &ldquo;{debouncedQuery}&rdquo;</p>
-                    <p className="sp-empty__sub">Try a different keyword.</p>
+                    <p className="sp-empty__sub">Try another word, or browse every course.</p>
+                    <button type="button" className="sp-empty__cta" onClick={() => navigate('/')}>
+                      See all courses
+                    </button>
                   </div>
                 )}
               </>

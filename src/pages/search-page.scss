@@ -271,7 +271,24 @@
   font-weight: 400;
   line-height: 1.57;
   color: var(--u-content-secondary);
-  margin: 0 0 12px;
+  margin: 0;
+}
+
+.sp-empty__cta {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--u-color-primary, #1d4ed8);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+
+  &:hover { opacity: 0.8; }
 }
 
 /* ── Loading skeleton ────────────────────────────────── */

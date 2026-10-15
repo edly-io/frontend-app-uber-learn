@@ -18,4 +18,5 @@ export const qk = {
   enrolledCourses: () => ['enrolled-courses'] as const,
   lastActivity: () => ['curriculum', 'last-activity'] as const,
   blockCompletion: (courseId: string, sequenceId: string, unitId: string | null) => ['block-completion', courseId, sequenceId, unitId] as const,
+  search: (q: string) => ['learner', 'search', q] as const,
 } as const;

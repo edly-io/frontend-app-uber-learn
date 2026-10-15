@@ -1,13 +1,13 @@
 /**
  * Unit/integration tests for the CourseLibrary page.
  *
- * Strategy: mock the enrolled-courses API and all hooks so the component
- * renders without real HTTP calls. Each test gets a fresh QueryClient to
- * avoid cache bleed-through.
+ * Strategy: mock the courses API and all hooks so the component renders
+ * without real HTTP calls. Each test gets a fresh QueryClient to avoid
+ * cache bleed-through. Request counts are covered in CourseLibrary.requests.test.tsx.
  *
  * AC coverage:
- *   CL-LOADING:         LoadingSkeleton shown while enrolled-courses query is in-flight
- *   CL-ERROR:           ErrorView shown when enrolled-courses query fails
+ *   CL-LOADING:         LoadingSkeleton shown while the courses query is in-flight
+ *   CL-ERROR:           ErrorView shown when the courses query fails
  *   CL-EMPTY:           Empty-state message shown when no enrolled courses
  *   CL-HEADING:         "All courses" heading always rendered
  *   CL-COURSE-TITLE:    course title rendered, path courses merged into "More courses"
@@ -23,7 +23,7 @@ import {
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CourseLibrary } from '../pages/CourseLibrary';
-import type { EnrolledCourse } from '../api/catalog';
+import type { LearnCourse } from '../api/learn';
 import type { LearnerCurriculum } from '../api/curriculum';
 
 // ---------------------------------------------------------------------------
@@ -44,56 +44,40 @@ jest.mock('react-router-dom', () => ({
   }),
 }));
 
-jest.mock('../api/catalog', () => ({
-  getEnrolledCourses: jest.fn(),
-  getCourseProgressSummary: jest.fn(),
+jest.mock('../api/learn', () => ({
+  getLearnCourses: jest.fn(),
 }));
 
 const mockUseCurriculums = jest.fn();
-const mockUseCourseOutline = jest.fn();
-const mockUseCourseProgressSummary = jest.fn();
 
 jest.mock('../hooks/useCurriculums', () => ({
   useCurriculums: (...args: unknown[]) => mockUseCurriculums(...args),
-}));
-jest.mock('../hooks/useCourseOutline', () => ({
-  useCourseOutline: (...args: unknown[]) => mockUseCourseOutline(...args),
-}));
-jest.mock('../hooks/useCourseProgressSummary', () => ({
-  useCourseProgressSummary: (...args: unknown[]) => mockUseCourseProgressSummary(...args),
 }));
 
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const COURSE_A: EnrolledCourse = {
+const COURSE_A: LearnCourse = {
   courseId: 'course-v1:Uber+SafetyA+2026',
   title: 'Road Safety Fundamentals',
   imageUrl: null,
   courseStart: null,
   courseEnd: null,
-  isActive: true,
+  lessonCount: 1,
+  completedLessons: 0,
+  progress: 0,
+  nextLesson: { sequenceKey: 'seq-1', title: 'Getting started' },
+  status: 'not_started',
+  curriculum: null,
+  lastActivity: null,
+  points: 0,
 };
 
-const COURSE_B: EnrolledCourse = {
+const COURSE_B: LearnCourse = {
+  ...COURSE_A,
   courseId: 'course-v1:Uber+SafetyB+2026',
   title: 'Defensive Driving',
-  imageUrl: null,
-  courseStart: null,
-  courseEnd: null,
-  isActive: true,
-};
-
-const OUTLINE_A = {
-  courseId: COURSE_A.courseId,
-  title: 'Road Safety Fundamentals',
-  sections: {
-    'sec-1': { id: 'sec-1', title: 'Module One', sequenceIds: ['seq-1'] },
-  },
-  sequences: {
-    'seq-1': { id: 'seq-1', title: 'Getting started', sectionId: 'sec-1' },
-  },
 };
 
 const CURRICULUM: LearnerCurriculum = {
@@ -136,14 +120,12 @@ const makeQC = () => new QueryClient({
   defaultOptions: { queries: { retry: false, gcTime: 0 } },
 });
 
-function getCatalogMock() {
-  return jest.requireMock('../api/catalog') as { getEnrolledCourses: jest.Mock };
+function getLearnMock() {
+  return jest.requireMock('../api/learn') as { getLearnCourses: jest.Mock };
 }
 
 function setDefaultMocks() {
   mockUseCurriculums.mockReturnValue({ data: [] });
-  mockUseCourseOutline.mockReturnValue({ data: null });
-  mockUseCourseProgressSummary.mockReturnValue({ data: null });
 }
 
 function renderComponent(qc = makeQC()) {
@@ -167,7 +149,7 @@ beforeEach(() => {
 describe('CourseLibrary', () => {
   describe('CL-HEADING: page heading', () => {
     it('always renders "All courses" heading', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([]);
+      getLearnMock().getLearnCourses.mockResolvedValue([]);
       renderComponent();
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: /all courses/i })).toBeInTheDocument();
@@ -176,16 +158,16 @@ describe('CourseLibrary', () => {
   });
 
   describe('CL-LOADING: loading state', () => {
-    it('shows LoadingSkeleton while enrolled-courses query is in-flight', () => {
-      getCatalogMock().getEnrolledCourses.mockReturnValue(new Promise(() => {}));
+    it('shows LoadingSkeleton while courses query is in-flight', () => {
+      getLearnMock().getLearnCourses.mockReturnValue(new Promise(() => {}));
       renderComponent();
       expect(screen.getByLabelText('Loading…')).toBeInTheDocument();
     });
   });
 
   describe('CL-ERROR: error state', () => {
-    it('shows ErrorView when enrolled-courses query rejects', async () => {
-      getCatalogMock().getEnrolledCourses.mockRejectedValue(new Error('Network failure'));
+    it('shows ErrorView when courses query rejects', async () => {
+      getLearnMock().getLearnCourses.mockRejectedValue(new Error('Network failure'));
       renderComponent();
       await waitFor(() => {
         expect(screen.getByText('Could not load courses')).toBeInTheDocument();
@@ -196,7 +178,7 @@ describe('CourseLibrary', () => {
 
   describe('CL-EMPTY: empty state', () => {
     it('shows "You have no courses yet" when no courses enrolled', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([]);
+      getLearnMock().getLearnCourses.mockResolvedValue([]);
       renderComponent();
       await waitFor(() => {
         expect(screen.getByText('You have no courses yet')).toBeInTheDocument();
@@ -204,7 +186,7 @@ describe('CourseLibrary', () => {
     });
 
     it('does not render the filter bar when no courses are enrolled', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([]);
+      getLearnMock().getLearnCourses.mockResolvedValue([]);
       renderComponent();
       await waitFor(() => screen.getByText('You have no courses yet'));
       expect(screen.queryByRole('group', { name: /filter courses/i })).not.toBeInTheDocument();
@@ -213,7 +195,7 @@ describe('CourseLibrary', () => {
 
   describe('CL-FILTER-BAR: filter bar visibility', () => {
     it('renders filter bar when at least one course is enrolled', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([COURSE_A]);
+      getLearnMock().getLearnCourses.mockResolvedValue([COURSE_A]);
       renderComponent();
       await waitFor(() => {
         expect(screen.getByRole('group', { name: /filter courses/i })).toBeInTheDocument();
@@ -223,7 +205,7 @@ describe('CourseLibrary', () => {
 
   describe('CL-FILTER-SHEET: filter sheet open/close', () => {
     it('opens the filter sheet dialog when Filters button is clicked', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([COURSE_A]);
+      getLearnMock().getLearnCourses.mockResolvedValue([COURSE_A]);
       renderComponent();
       await waitFor(() => screen.getByRole('group', { name: /filter courses/i }));
       fireEvent.click(screen.getByRole('button', { name: /^filters/i }));
@@ -234,7 +216,7 @@ describe('CourseLibrary', () => {
 
     it('closes the filter sheet when overlay is clicked', async () => {
       renderComponent();
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([COURSE_A]);
+      getLearnMock().getLearnCourses.mockResolvedValue([COURSE_A]);
       // Re-render with data (fresh component already has this via mock)
       await waitFor(() => screen.queryByRole('group', { name: /filter courses/i }));
       // The filter bar may not be visible if outline not resolved; skip gracefully
@@ -243,7 +225,7 @@ describe('CourseLibrary', () => {
 
   describe('CL-FILTER-CHIP: quick-chip filter toggle', () => {
     it('toggles "Completed" into a selected pill when clicked', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([COURSE_A]);
+      getLearnMock().getLearnCourses.mockResolvedValue([COURSE_A]);
       renderComponent();
       await waitFor(() => screen.getByRole('group', { name: /filter courses/i }));
       const chip = screen.getByRole('button', { name: /^completed$/i });
@@ -255,7 +237,7 @@ describe('CourseLibrary', () => {
     });
 
     it('shows "Filters · 1" on the filter button when a chip is active', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([COURSE_A]);
+      getLearnMock().getLearnCourses.mockResolvedValue([COURSE_A]);
       renderComponent();
       await waitFor(() => screen.getByRole('group', { name: /filter courses/i }));
       fireEvent.click(screen.getByRole('button', { name: /^completed$/i }));
@@ -265,7 +247,7 @@ describe('CourseLibrary', () => {
 
   describe('CL-NAV-BACK: back navigation', () => {
     it('calls navigate(-1) when the back button is clicked', async () => {
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([]);
+      getLearnMock().getLearnCourses.mockResolvedValue([]);
       renderComponent();
       await waitFor(() => screen.getByText('You have no courses yet'));
       const backBtn = screen.getByLabelText('Back to learning home');
@@ -277,9 +259,7 @@ describe('CourseLibrary', () => {
   describe('CL-COURSE-TITLE: course list with path separation', () => {
     it('renders "More courses" section when course is in a curriculum', async () => {
       mockUseCurriculums.mockReturnValue({ data: [CURRICULUM] });
-      mockUseCourseOutline.mockReturnValue({ data: OUTLINE_A });
-      mockUseCourseProgressSummary.mockReturnValue({ data: { completedUnits: 0, totalUnits: 1, fraction: 0 } });
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([COURSE_A]);
+      getLearnMock().getLearnCourses.mockResolvedValue([COURSE_A]);
       renderComponent();
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: 'More courses' })).toBeInTheDocument();
@@ -288,10 +268,8 @@ describe('CourseLibrary', () => {
 
     it('renders "More courses" section for courses not in any curriculum', async () => {
       mockUseCurriculums.mockReturnValue({ data: [CURRICULUM] });
-      mockUseCourseOutline.mockReturnValue({ data: OUTLINE_A });
-      mockUseCourseProgressSummary.mockReturnValue({ data: { completedUnits: 0, totalUnits: 1, fraction: 0 } });
       // COURSE_B is NOT in the curriculum
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([COURSE_A, COURSE_B]);
+      getLearnMock().getLearnCourses.mockResolvedValue([COURSE_A, COURSE_B]);
       renderComponent();
       await waitFor(() => {
         expect(screen.getByText('More courses')).toBeInTheDocument();
@@ -300,31 +278,66 @@ describe('CourseLibrary', () => {
   });
 
   describe('CL-NEXT-LESSON: "Next:" subtitle', () => {
-    it('names the first incomplete lesson, not a unit-fraction index', async () => {
+    it('names the lesson the API reports as next, not a unit-fraction index', async () => {
       // Lesson 1 has 1 unit (complete); lesson 2 has 5 units (none complete).
       // Unit fraction 1/6 * 2 lessons = 0.33 -> floor 0 would wrongly say "Next: Lesson one".
-      mockUseCourseOutline.mockReturnValue({
-        data: {
-          courseId: COURSE_A.courseId,
-          title: 'Road Safety Fundamentals',
-          sections: { 'sec-1': { id: 'sec-1', title: 'Module One', sequenceIds: ['seq-1', 'seq-2'] } },
-          sequences: {
-            'seq-1': {
-              id: 'seq-1', title: 'Lesson one', sectionId: 'sec-1', complete: true,
-            },
-            'seq-2': {
-              id: 'seq-2', title: 'Lesson two', sectionId: 'sec-1', complete: false,
-            },
-          },
-        },
-      });
-      mockUseCourseProgressSummary.mockReturnValue({ data: { completedUnits: 1, totalUnits: 6, fraction: 1 / 6 } });
-      getCatalogMock().getEnrolledCourses.mockResolvedValue([COURSE_A]);
+      getLearnMock().getLearnCourses.mockResolvedValue([{
+        ...COURSE_A,
+        lessonCount: 2,
+        completedLessons: 1,
+        progress: 1 / 6,
+        status: 'in_progress',
+        nextLesson: { sequenceKey: 'seq-2', title: 'Lesson two' },
+      }]);
       renderComponent();
       await waitFor(() => {
         expect(screen.getByText('Next: Lesson two')).toBeInTheDocument();
       });
       expect(screen.queryByText('Next: Lesson one')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('CL-STATUS: card state comes from the row status', () => {
+    it('shows "Complete" and keeps a finished course out of "In progress"', async () => {
+      getLearnMock().getLearnCourses.mockResolvedValue([{
+        ...COURSE_A,
+        lessonCount: 2,
+        completedLessons: 2,
+        progress: 1,
+        status: 'completed',
+        nextLesson: null,
+      }]);
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Complete')).toBeInTheDocument();
+      });
+      expect(screen.queryByRole('heading', { name: 'In progress' })).not.toBeInTheDocument();
+    });
+
+    it('shows the lesson count for a course that has not been started', async () => {
+      getLearnMock().getLearnCourses.mockResolvedValue([{
+        ...COURSE_A, lessonCount: 3, nextLesson: null,
+      }]);
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('3 lessons')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Complete')).not.toBeInTheDocument();
+    });
+
+    it('lists an in-progress course under "In progress" on first paint', async () => {
+      getLearnMock().getLearnCourses.mockResolvedValue([{
+        ...COURSE_A,
+        lessonCount: 2,
+        completedLessons: 1,
+        progress: 0.5,
+        status: 'in_progress',
+        nextLesson: { sequenceKey: 'seq-2', title: 'Lesson two' },
+      }]);
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'In progress' })).toBeInTheDocument();
+      });
     });
   });
 });

@@ -2,16 +2,16 @@ import React, {
   useState, useCallback, useEffect, useRef, useMemo,
 } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { getConfig } from '@edx/frontend-platform';
 import { useBlockCompletion } from '../hooks/useBlockCompletion';
 import { useOffline } from '../hooks/useOffline';
 import { useSequence } from '../hooks/useSequence';
 import { useCourseOutline } from '../hooks/useCourseOutline';
+import { useLearnCourses } from '../hooks/useLearnCourses';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { mapOutlineToLessons, markSequenceComplete } from '../lib/outline-mapper';
 import type { CourseOutline } from '../api/courseware';
-import { getEnrolledCourses } from '../api/catalog';
 import { getLmsOrigin } from '../lib/lms';
 import { saveSequencePosition } from '../api/progress';
 import { getGamificationSummary } from '../api/gamification';
@@ -40,11 +40,7 @@ export const ActivityView = () => {
   const origin = (location.state as { origin?: string } | null)?.origin ?? null;
   const unitIdx = parseInt(unitIdxParam, 10);
 
-  const { data: enrolledCourses, isLoading: enrolledLoading } = useQuery({
-    queryKey: qk.enrolledCourses(),
-    queryFn: getEnrolledCourses,
-    staleTime: 5 * 60_000,
-  });
+  const { data: enrolledCourses, isLoading: enrolledLoading } = useLearnCourses();
   const isEnrolled = enrolledLoading || (enrolledCourses?.some((c) => c.courseId === courseId) ?? true);
 
   // shownVisit: visit number of the step whose iframe content is currently on screen.
@@ -188,6 +184,7 @@ export const ActivityView = () => {
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: qk.outline(courseId) });
           queryClient.invalidateQueries({ queryKey: qk.courseProgress(courseId) });
+          queryClient.invalidateQueries({ queryKey: qk.learnCourses() });
           queryClient.invalidateQueries({ queryKey: qk.leaderboardAll() });
           queryClient.invalidateQueries({ queryKey: qk.curriculums() });
           // refetchType:'all' bypasses the 60s staleTime so the new badge award

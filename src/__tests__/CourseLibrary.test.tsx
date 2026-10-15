@@ -296,4 +296,48 @@ describe('CourseLibrary', () => {
       expect(screen.queryByText('Next: Lesson one')).not.toBeInTheDocument();
     });
   });
+
+  describe('CL-STATUS: card state comes from the row status', () => {
+    it('shows "Complete" and keeps a finished course out of "In progress"', async () => {
+      getLearnMock().getLearnCourses.mockResolvedValue([{
+        ...COURSE_A,
+        lessonCount: 2,
+        completedLessons: 2,
+        progress: 1,
+        status: 'completed',
+        nextLesson: null,
+      }]);
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('Complete')).toBeInTheDocument();
+      });
+      expect(screen.queryByRole('heading', { name: 'In progress' })).not.toBeInTheDocument();
+    });
+
+    it('shows the lesson count for a course that has not been started', async () => {
+      getLearnMock().getLearnCourses.mockResolvedValue([{
+        ...COURSE_A, lessonCount: 3, nextLesson: null,
+      }]);
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('3 lessons')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Complete')).not.toBeInTheDocument();
+    });
+
+    it('lists an in-progress course under "In progress" on first paint', async () => {
+      getLearnMock().getLearnCourses.mockResolvedValue([{
+        ...COURSE_A,
+        lessonCount: 2,
+        completedLessons: 1,
+        progress: 0.5,
+        status: 'in_progress',
+        nextLesson: { sequenceKey: 'seq-2', title: 'Lesson two' },
+      }]);
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'In progress' })).toBeInTheDocument();
+      });
+    });
+  });
 });

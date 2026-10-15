@@ -22,7 +22,11 @@ export interface LearnCourse {
   courseEnd: string | null;
   lessonCount: number;
   completedLessons: number;
-  /** Completed units / units, 0..1 — the same ratio the course_home progress summary gave. */
+  /**
+   * Completed units / units, 0..1, counting only the units the learner can complete (gated and
+   * empty ones are left out of both sides, unlike the course_home progress summary, which keeps
+   * gated units in its total).
+   */
   progress: number;
   /** null when every lesson is complete, or the course has no lesson. */
   nextLesson: LearnNextLesson | null;
@@ -40,20 +44,24 @@ interface RawNextLesson {
   title: string | null;
 }
 
+/**
+ * A row as the API sends it. The counters are optional here on purpose: an older deployment of
+ * uber-features may not send them all, and the mapping below falls back rather than render NaN.
+ */
 interface RawLearnCourse {
   course_id: string;
   title: string | null;
   image_url: string | null;
   start: string | null;
   end: string | null;
-  lesson_count: number;
-  completed_lessons: number;
-  progress: number;
+  lesson_count?: number;
+  completed_lessons?: number;
+  progress?: number;
   next_lesson: RawNextLesson | null;
   status: LearnCourseStatus;
   curriculum: string | null;
   last_activity: string | null;
-  points: number;
+  points?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -83,9 +91,12 @@ function toLearnCourse(row: RawLearnCourse): LearnCourse {
 /**
  * The learner's active enrollments with their progress, in one request.
  *
- * Answers for the logged-in learner only (no user parameter) and returns the courses sorted by title.
- * Replaces the per-course fan-out over the enrollment, course list, outline and progress APIs.
- * Rejects on any HTTP error (401 when the session has expired); callers show their error state.
+ * Answers for the logged-in learner only (no user parameter) and returns the courses sorted by
+ * title, then course id. Replaces the per-course fan-out over the enrollment, course list, outline
+ * and progress APIs.
+ *
+ * Rejects on any HTTP error, so callers can show their error state — except a 401, which the app's
+ * global interceptor (App.tsx) turns into a redirect to /session-ended before the caller renders.
  */
 export async function getLearnCourses(): Promise<LearnCourse[]> {
   const { data } = await getAuthenticatedHttpClient().get<RawLearnCourse[]>(

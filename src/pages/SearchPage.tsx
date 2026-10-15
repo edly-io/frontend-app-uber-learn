@@ -271,7 +271,7 @@ export const SearchPage = () => {
                       <p className="sp-empty__sub">Try another word, or browse every course.</p>
                     </div>
                     <div className="sp-empty__actions">
-                      <button type="button" className="sp-empty__cta" onClick={() => navigate('/')}>
+                      <button type="button" className="sp-empty__cta" onClick={() => navigate('/courses')}>
                         See all courses
                       </button>
                     </div>

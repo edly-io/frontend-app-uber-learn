@@ -105,11 +105,9 @@ export const ActivityView = () => {
   const currentUnit = units[unitIdx];
   const currentUnitId = currentUnit?.id ?? null;
 
-  // Gate Continue on plugin.completed for units that require interaction:
-  // standard CAPA (contentType === 'problem') and graded custom XBlocks like
   // Poll get_completion every 3 s for all unit types.
-  // plugin.completed postMessage is no longer sent by the platform; only the backend XBlock
-  // records completion (problem submit, video view, etc.). The poll picks it up within 3 s.
+  // plugin.completed is no longer sent; the LMS records completion server-side
+  // (HTML blocks via unit.visibilityStatus + publish_completion, problems on submit).
   const isBlockComplete = useBlockCompletion(courseId, sequenceId, currentUnitId, currentUnitId !== null);
 
   // Reset content error whenever the unit changes.

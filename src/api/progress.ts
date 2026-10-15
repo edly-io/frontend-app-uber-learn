@@ -22,8 +22,9 @@ export async function saveSequencePosition(
 
 /**
  * Reads whether a unit block is complete. Mirrors frontend-app-learning's getBlockCompletion.
- * POST to the sequence's get_completion XBlock handler — the platform derives unit completion
- * from leaf-block completions recorded by each XBlock's own handler.
+ * POST to the sequence's get_completion XBlock handler. The vertical is complete when all
+ * completable children reach 1.0: HTML blocks via publish_completion (triggered by the
+ * unit.visibilityStatus messages ContentIFrame sends), problems on submit.
  */
 export async function getBlockCompletion(
   courseId: string,

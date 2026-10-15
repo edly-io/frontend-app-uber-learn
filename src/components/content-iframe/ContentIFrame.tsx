@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { usePostMessage } from '../../hooks/usePostMessage';
+import { useIframeVisibilityReporter } from '../../hooks/useIframeVisibilityReporter';
 import { getLmsOrigin } from '../../lib/lms';
 import { buildXBlockUrl } from '../../lib/xblock-url';
 import './content-iframe.scss';
@@ -67,6 +68,13 @@ export const ContentIFrame = ({
 
   usePostMessage(handleEvent, frameRef);
 
+  // Drives LMS complete-on-view for HTML blocks; without it get_completion never turns true.
+  const reportVisibility = useIframeVisibilityReporter(frameRef);
+  const handleLoad = useCallback(() => {
+    reportVisibility();
+    onLoad?.();
+  }, [reportVisibility, onLoad]);
+
   return (
     <div className="content-iframe-wrapper">
       <iframe
@@ -77,7 +85,7 @@ export const ContentIFrame = ({
         allow="autoplay; fullscreen"
         data-usage-key={usageKey}
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-        onLoad={onLoad}
+        onLoad={handleLoad}
         onError={onError}
       />
     </div>

@@ -10,7 +10,7 @@
  */
 import { render, fireEvent, act } from '@testing-library/react';
 import { mergeConfig } from '@edx/frontend-platform';
-import { ContentIFrame } from '../components/content-iframe/ContentIFrame';
+import { ContentIFrame, IFRAME_FEATURE_POLICY } from '../components/content-iframe/ContentIFrame';
 
 const LMS = 'https://learn.uber.com';
 const USAGE_KEY = 'block-v1:Org+C+R+type@vertical+block@v1';
@@ -33,6 +33,15 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers();
+});
+
+describe('ContentIFrame iframe attributes', () => {
+  it('uses the security-reviewed feature policy and no sandbox so nested video iframes can use EME', () => {
+    const { container } = render(<ContentIFrame usageKey={USAGE_KEY} />);
+    const frame = container.querySelector('iframe') as HTMLIFrameElement;
+    expect(frame.getAttribute('allow')).toBe(IFRAME_FEATURE_POLICY);
+    expect(frame.hasAttribute('sandbox')).toBe(false);
+  });
 });
 
 describe('ContentIFrame visibility reporting (complete-on-view)', () => {

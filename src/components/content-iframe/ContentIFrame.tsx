@@ -5,6 +5,14 @@ import { getLmsOrigin } from '../../lib/lms';
 import { buildXBlockUrl } from '../../lib/xblock-url';
 import './content-iframe.scss';
 
+/**
+ * Feature policy for the XBlock iframe. Mirrors frontend-app-learning's IFRAME_FEATURE_POLICY,
+ * reviewed and approved by the edX Security Working Group (security@edx.org).
+ * Wildcards are required because XBlock content (e.g. LTI consumer) may embed external iframes.
+ * encrypted-media is required so nested video iframes (YouTube, Vimeo) can use the EME API.
+ */
+export const IFRAME_FEATURE_POLICY = 'microphone *; camera *; midi *; geolocation *; encrypted-media *; clipboard-write *; autoplay *; fullscreen *';
+
 interface ContentIFrameProps {
   usageKey: string;
   onCompleted?: (correct: boolean | null) => void;
@@ -82,9 +90,9 @@ export const ContentIFrame = ({
         className="content-iframe-frame"
         src={buildXBlockUrl(usageKey)}
         title="Course activity"
-        allow="autoplay; fullscreen"
+        allow={IFRAME_FEATURE_POLICY}
+        referrerPolicy="origin"
         data-usage-key={usageKey}
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
         onLoad={handleLoad}
         onError={onError}
       />

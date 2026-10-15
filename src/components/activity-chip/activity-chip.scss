@@ -1,0 +1,43 @@
+.activity-chip-bar {
+  /* Inside the content area (below the progress bar, above the iframe).
+     No background — the white from both this element and the iframe merge seamlessly.
+     16 px top matches the XBlock content's own leading padding, making the chip
+     feel like the first line of the lesson rather than a chrome element. */
+  padding: 16px var(--u-page-gutter) 8px;
+  flex-shrink: 0;
+}
+
+.activity-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 999px;
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+  }
+
+  &__label {
+    font-family: var(--u-font-body);
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1rem;
+    color: var(--u-content-primary);
+    white-space: nowrap;
+  }
+
+  &--learn {
+    background: var(--u-background-accent-light);
+    color: var(--u-background-accent);
+  }
+
+  &--practice {
+    background: var(--u-background-positive-light);
+    color: var(--u-content-positive);
+  }
+}

@@ -45,6 +45,34 @@ export function mapOutlineToLessons(outline: CourseOutline): LessonDescriptor[] 
 }
 
 /**
+ * Index of the lesson the learner should do next: the first lesson whose
+ * outline `complete` flag is false. Returns -1 when every lesson is complete.
+ *
+ * Do NOT derive this from the progress API `fraction`: that is a UNIT ratio,
+ * and units per lesson vary, so `fraction * lessons.length` can point past an
+ * unfinished lesson (e.g. 5/8 units over 4 lessons -> 2.5 -> lesson 4).
+ */
+export function findNextLessonIndex(lessons: LessonDescriptor[]): number {
+  return lessons.findIndex((l) => !l.complete);
+}
+
+/**
+ * Returns a copy of `outline` with `sequenceId` flagged complete. Returns the input unchanged
+ * when there is no outline, the sequence is unknown, or it is already complete.
+ */
+export function markSequenceComplete(
+  outline: CourseOutline | undefined,
+  sequenceId: string,
+): CourseOutline | undefined {
+  const seq = outline?.sequences[sequenceId];
+  if (!outline || !seq || seq.complete) { return outline; }
+  return {
+    ...outline,
+    sequences: { ...outline.sequences, [sequenceId]: { ...seq, complete: true } },
+  };
+}
+
+/**
  * Counts lesson-level (sequence-level) completion from the course outline.
  *
  * Use this instead of `completedUnits`/`totalUnits` from the progress API,

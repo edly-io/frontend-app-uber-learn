@@ -34,7 +34,6 @@
   --u-content-primary:           #000000;
   --u-content-secondary:         #4b4b4b;
   --u-content-on-color:          #ffffff;
-  --u-content-accent:            #276ef1;   /* SVG strokes, icon fills — matches --u-background-accent */
 
   /* Borders */
   --u-border-opaque:             #e8e8e8;
@@ -77,6 +76,18 @@
   --u-font-display:              'Uber Move', system-ui, sans-serif;
   --u-font-body:                 'Uber Move Text', system-ui, sans-serif;
   --u-font-mono:                 'Uber Move Mono', ui-monospace, monospace;
+
+  /* Spacing — 4-px base scale */
+  --u-space-1:   4px;
+  --u-space-2:   8px;
+  --u-space-3:   12px;
+  --u-space-4:   16px;
+  --u-space-5:   20px;
+  --u-space-6:   24px;
+  --u-space-8:   32px;
+  --u-space-10:  40px;
+  --u-space-12:  48px;
+  --u-space-16:  64px;
 
   /* Layout */
   --u-page-gutter:               1rem;

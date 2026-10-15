@@ -1,6 +1,6 @@
 import React from 'react';
 import { SystemStateView } from '../ui/SystemStateView';
-import stateSpotOffline from '../../assets/icons/state-spot-offline.svg';
+import { StateSpotOffline } from '../../assets/icons/inline/StateSpotOffline';
 
 interface OfflineViewProps {
   title: string;
@@ -10,7 +10,7 @@ interface OfflineViewProps {
 
 export const OfflineView = ({ title, onBack, onRetry }: OfflineViewProps) => (
   <SystemStateView
-    art={stateSpotOffline}
+    art={<StateSpotOffline />}
     title="You're offline"
     message="Reconnect to load the next step. Your progress is saved."
     buttonLabel="Try again"

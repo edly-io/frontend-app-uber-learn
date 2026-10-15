@@ -3,7 +3,7 @@ import { NavHeader } from '../nav-header/NavHeader';
 import './system-state.scss';
 
 interface SystemStateViewProps {
-  art: string;
+  art: string | React.ReactNode;
   artAlt?: string;
   title: string;
   message: string;
@@ -28,7 +28,9 @@ export const SystemStateView = ({
 
     <main className="ss-content" role={onBack ? undefined : 'alert'} aria-live={onBack ? undefined : 'assertive'}>
       <div className="ss-tile" aria-hidden="true">
-        <img src={art} alt={artAlt} className="ss-tile__art" />
+        {typeof art === 'string'
+          ? <img src={art} alt={artAlt} className="ss-tile__art" />
+          : art}
       </div>
       <div className="ss-heading-block">
         <h1 className="ss-heading">{title}</h1>

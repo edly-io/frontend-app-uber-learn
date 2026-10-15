@@ -40,11 +40,6 @@ function removeRecentSearch(query: string) {
   } catch { /* ignore */ }
 }
 
-// ── Topics ────────────────────────────────────────────────
-
-// TODO: derive topics from course tags/categories via API (no backend endpoint exists yet — needs uber-features work)
-// const TOPICS = ['Safety', 'Driving', 'Riders', 'Vehicle', 'Basics'];
-
 // ── Icons ─────────────────────────────────────────────────
 
 const SearchIcon = () => (
@@ -139,11 +134,6 @@ export const SearchPage = () => {
     handleSubmit(s);
   };
 
-  // const handleTopicClick = (topic: string) => {
-  //   setQuery(topic);
-  //   handleSubmit(topic);
-  // };
-
   const isSearching = submitted.length > 0;
 
   return (
@@ -215,14 +205,6 @@ export const SearchPage = () => {
                   <div className="sp-empty">
                     <p className="sp-empty__title">No results for &ldquo;{submitted}&rdquo;</p>
                     <p className="sp-empty__sub">Try a different keyword.</p>
-                    {/* TODO: re-enable topic chips once backend endpoint exists */}
-                    {/* <div className="sp-topics">
-                      {TOPICS.map((t) => (
-                        <button key={t} type="button" className="sp-topic-chip" onClick={() => handleTopicClick(t)}>
-                          {t}
-                        </button>
-                      ))}
-                    </div> */}
                   </div>
                 )}
               </>
@@ -230,47 +212,33 @@ export const SearchPage = () => {
           </>
         ) : (
           /* ── Pre-search (shown regardless of courses loading state) ── */
-          <>
-            {recents.length > 0 && (
-              <section className="sp-section">
-                <h2 className="sp-section-title">Recent</h2>
-                <div className="sp-recent-list">
-                  {recents.map((s) => (
-                    <div key={s} className="sp-recent-row">
-                      <button
-                        type="button"
-                        className="sp-recent-row__main"
-                        onClick={() => handleRecentClick(s)}
-                      >
-                        <img src={iconClockFilled} alt="" className="sp-recent-row__clock" aria-hidden="true" />
-                        <span className="sp-recent-row__text">{s}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="sp-recent-row__remove"
-                        aria-label={`Remove ${s}`}
-                        onClick={() => handleRemoveRecent(s)}
-                      >
-                        <img src={iconDismiss} alt="" aria-hidden="true" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* TODO: re-enable Topics section once backend endpoint exists */}
-            {/* <section className="sp-section">
-              <h2 className="sp-section-title">Topics</h2>
-              <div className="sp-topics">
-                {TOPICS.map((t) => (
-                  <button key={t} type="button" className="sp-topic-chip" onClick={() => handleTopicClick(t)}>
-                    {t}
-                  </button>
+          recents.length > 0 && (
+            <section className="sp-section">
+              <h2 className="sp-section-title">Recent</h2>
+              <div className="sp-recent-list">
+                {recents.map((s) => (
+                  <div key={s} className="sp-recent-row">
+                    <button
+                      type="button"
+                      className="sp-recent-row__main"
+                      onClick={() => handleRecentClick(s)}
+                    >
+                      <img src={iconClockFilled} alt="" className="sp-recent-row__clock" aria-hidden="true" />
+                      <span className="sp-recent-row__text">{s}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="sp-recent-row__remove"
+                      aria-label={`Remove ${s}`}
+                      onClick={() => handleRemoveRecent(s)}
+                    >
+                      <img src={iconDismiss} alt="" aria-hidden="true" />
+                    </button>
+                  </div>
                 ))}
               </div>
-            </section> */}
-          </>
+            </section>
+          )
         )}
       </div>
     </div>

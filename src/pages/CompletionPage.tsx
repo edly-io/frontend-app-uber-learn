@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { BadgeSlot } from '../api/curriculum';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { BadgeSlot, LearnerCurriculum, BadgesResponse } from '../api/curriculum';
 import { useBadgeCelebration, goToBadgeCelebration } from '../hooks/useBadgeCelebration';
+import { useBadges } from '../hooks/useBadges';
 import { useCourseOutline } from '../hooks/useCourseOutline';
-import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
 import { useGamification } from '../hooks/useGamification';
+import { useSequence } from '../hooks/useSequence';
 import { useCurriculums } from '../hooks/useCurriculums';
-import { getLessonResults } from '../api/gamification';
+import { useLessonResults } from '../hooks/useLessonResults';
+import { markBadgesSeen } from '../api/curriculum';
 import { qk } from '../api/queries';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
@@ -21,13 +23,107 @@ import resultDone from '../assets/icons/result-done.svg';
 import resultRefreshed from '../assets/icons/result-refreshed.svg';
 import badgeRingTrack from '../assets/icons/badge-ring-track.svg';
 import badgeRingEarned from '../assets/icons/badge-ring-earned.svg';
+import iconBadgeCheck from '../assets/icons/icon-badge-check.svg';
 import courseArtBook from '../assets/icons/course-art-book.svg';
+import courseArtBlue from '../assets/icons/course-art-blue.svg';
+import courseArtOrange from '../assets/icons/course-art-orange.svg';
+import courseArtMagenta from '../assets/icons/course-art-magenta.svg';
+import courseArtPurple from '../assets/icons/course-art-purple.svg';
+import courseArtLime from '../assets/icons/course-art-lime.svg';
+import courseArtSteering from '../assets/icons/course-art-steering.svg';
+import courseArtToolbox from '../assets/icons/course-art-toolbox.svg';
 import badgeArtRetained from '../assets/icons/badge-art-retained.svg';
 import './completion-page.scss';
 
 const LESSON_CELEBRATION_SLOTS: readonly BadgeSlot[] = ['complete'];
 const COURSE_CELEBRATION_SLOTS: readonly BadgeSlot[] = ['complete'];
 const RETENTION_CELEBRATION_SLOTS: readonly BadgeSlot[] = ['retained'];
+
+// ── Course art palette (matches LearningProgress order) ───────────────────
+
+const COURSE_ARTS = [
+  courseArtBook,
+  courseArtSteering,
+  courseArtBlue,
+  courseArtOrange,
+  courseArtMagenta,
+  courseArtPurple,
+  courseArtLime,
+  courseArtToolbox,
+];
+
+// ── Curriculum course badge row ────────────────────────────────────────────
+
+const CourseBadgeRow = ({
+  curriculum,
+  badges,
+}: {
+  curriculum: LearnerCurriculum;
+  badges: BadgesResponse | undefined;
+}) => {
+  const courseBadges = badges?.course_badges ?? [];
+  const isComplete = curriculum.milestones.complete?.reached_at != null;
+  const progress = curriculum.courses_total > 0
+    ? curriculum.courses_finished / curriculum.courses_total
+    : 0;
+
+  // SVG curriculum ring dimensions
+  const size = 56;
+  const sw = 3;
+  const c = size / 2;
+  const r = c - sw / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - Math.min(1, progress));
+
+  return (
+    <div className="cpc-badge-row">
+      {curriculum.courses.map((course, idx) => {
+        const entry = courseBadges.find(
+          (b) => b.source.type === 'course' && b.source.course_id === course.course_id,
+        );
+        const earned = Boolean(entry?.awarded);
+        const artSrc = entry?.badge?.image_url ?? COURSE_ARTS[idx % COURSE_ARTS.length];
+        return (
+          <div
+            key={course.course_id}
+            className={`cpc-badge-item${earned ? ' cpc-badge-item--earned' : ''}`}
+          >
+            <img src={artSrc} alt="" className="cpc-badge-item__img" />
+          </div>
+        );
+      })}
+
+      {/* Dash connector between course seals and path ring */}
+      <div className="cpc-badge-dash" aria-hidden="true" />
+
+      {/* Curriculum badge ring — shows completion progress or earned state */}
+      <div className="cpc-curriculum-ring">
+        <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} aria-hidden="true">
+          <circle cx={c} cy={c} r={r} stroke="var(--u-border-opaque)" strokeWidth={sw} fill="none" />
+          {progress > 0 && (
+            <circle
+              cx={c}
+              cy={c}
+              r={r}
+              stroke="var(--u-background-accent)"
+              strokeWidth={sw}
+              fill="none"
+              strokeLinecap="round"
+              strokeDasharray={circ}
+              strokeDashoffset={offset}
+              transform={`rotate(-90 ${c} ${c})`}
+            />
+          )}
+        </svg>
+        <img
+          src={curriculum.milestones.complete?.badge?.image_url ?? iconBadgeCheck}
+          alt=""
+          className={`cpc-curriculum-ring__badge${isComplete ? '' : ' cpc-curriculum-ring__badge--locked'}`}
+        />
+      </div>
+    </div>
+  );
+};
 
 // ── Shared: Simple nav bar with back arrow ─────────────────────────────────
 
@@ -131,16 +227,9 @@ export const LessonCompletePage = () => {
   const since = (location.state as { since?: string } | null)?.since as string | undefined;
 
   const outlineQuery = useCourseOutline(courseId);
-  const progressQuery = useCourseProgressSummary(courseId);
   const { data: gamificationData } = useGamification();
 
-  const resultsQuery = useQuery({
-    queryKey: qk.lessonResults(sequenceId, since ?? ''),
-    queryFn: () => getLessonResults(sequenceId, since!),
-    enabled: Boolean(sequenceId) && Boolean(since),
-    staleTime: Infinity,
-    retry: 1,
-  });
+  const resultsQuery = useLessonResults(sequenceId, since);
 
   const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
   const currentLessonIdx = allLessons.findIndex((l) => l.sequenceId === sequenceId);
@@ -150,6 +239,12 @@ export const LessonCompletePage = () => {
   const nextLesson = currentLessonIdx >= 0 ? (allLessons[currentLessonIdx + 1] ?? null) : null;
   const nextSequenceId = nextLesson?.sequenceId ?? null;
   const isLastLesson = currentLessonIdx >= 0 && currentLessonIdx === allLessons.length - 1;
+
+  // Fetch next lesson's units to show step count in the "Next lesson" card
+  // and to detect if the next lesson is the final check (all units are assessment type).
+  const { units: nextUnits } = useSequence(nextSequenceId ?? '');
+  const nextStepCount = nextUnits.length;
+  const isFinalCheck = nextUnits.length > 0 && nextUnits.every((u) => u.graded === true);
 
   const isRepeat = resultsQuery.data?.already_completed_before ?? false;
   const pointsEarned = resultsQuery.data?.points_earned ?? 0;
@@ -164,8 +259,9 @@ export const LessonCompletePage = () => {
   const outlineCounts = outlineQuery.data ? countLessons(outlineQuery.data) : null;
   const completedUnits = outlineCounts?.completed ?? lessonNumber;
   const totalUnits = outlineCounts?.total ?? lessonCount;
-  const progressFraction = progressQuery.data?.fraction ?? 0;
-  const progressPercent = Math.round(progressFraction * 100);
+  // Drive the bar from the same lesson-based fraction as the text ("2 of 4 = 50%"),
+  // not the unit-based fraction from the progress API which can differ (e.g. 62.5% for CON101).
+  const progressPercent = totalUnits > 0 ? Math.round((completedUnits / totalUnits) * 100) : 0;
 
   const thisWeek = gamificationData?.this_week;
   const weekGoal = thisWeek?.goal ?? 0;
@@ -173,12 +269,21 @@ export const LessonCompletePage = () => {
   const goalMet = thisWeek?.status === 'goal_met';
   let weekLabel: string | null = null;
   if (weekGoal > 0) {
+    // Cap displayed days at the goal when exceeded so "3 of 2" never appears.
+    const displayDays = goalMet ? Math.min(weekDays, weekGoal) : weekDays;
     weekLabel = goalMet
-      ? `Goal met, ${weekDays} of ${weekGoal} days`
-      : `${weekDays} of ${weekGoal} days`;
+      ? `Goal met, ${displayDays} of ${weekGoal} days`
+      : `${displayDays} of ${weekGoal} days`;
   }
 
   const celebration = useBadgeCelebration(LESSON_CELEBRATION_SLOTS);
+  const { data: curriculums } = useCurriculums();
+  const parentCurriculum = curriculums?.find(
+    (c) => c.courses.some((course) => course.course_id === courseId),
+  );
+
+  // Course/curriculum badges only make sense after the last lesson — don't show mid-course.
+  const showCelebration = isLastLesson && celebration !== null;
 
   // Guard against heading flash: "Lesson complete" → "Course refreshed" on repeat completion.
   // Only wait for results when `since` is provided — without it the query is disabled and
@@ -194,15 +299,34 @@ export const LessonCompletePage = () => {
   const handleStartNext = () => {
     if (nextSequenceId) {
       navigate(`/course/${courseId}/lesson/${nextSequenceId}/step/0`);
+    } else if (parentCurriculum) {
+      navigate(`/course/${courseId}/complete`);
     } else {
       navigate(`/course/${courseId}`);
     }
   };
-  const handlePrimary = () => (celebration ? goToBadgeCelebration(navigate, celebration) : handleStartNext());
+
+  // When completing the last lesson of a curriculum course, bypass badge
+  // celebration and go straight to CourseCompletePage, which owns its own
+  // badge flow via "See your badges".
+  const handlePrimary = () => {
+    if (isLastLesson && parentCurriculum) {
+      navigate(`/course/${courseId}/complete`);
+      return;
+    }
+    if (showCelebration) {
+      goToBadgeCelebration(navigate, celebration!);
+      return;
+    }
+    handleStartNext();
+  };
+
   const handleSecondary = () => navigate(`/course/${courseId}`);
 
-  const nextLessonLabel = isLastLesson ? 'Continue' : `Start lesson ${lessonNumber + 1}`;
-  const primaryLabel = celebration ? 'See your badge' : nextLessonLabel;
+  let nextLessonLabel = `Start lesson ${lessonNumber + 1}`;
+  if (isFinalCheck) { nextLessonLabel = 'Start final check'; }
+  if (isLastLesson) { nextLessonLabel = 'Continue'; }
+  const primaryLabel = (isLastLesson && parentCurriculum) || !showCelebration ? nextLessonLabel : 'See your badge';
 
   const headingText = isCourseRefreshed ? 'Course refreshed' : 'Lesson complete';
   const subtitleText = isCourseRefreshed
@@ -244,6 +368,13 @@ export const LessonCompletePage = () => {
 
         {/* Stats card */}
         <div className="cp-stats-card">
+          {isRepeat && (
+            <StatsRow
+              icon={iconLightning}
+              label="Points"
+              value="Already earned"
+            />
+          )}
           {since && correctCount !== null && questions > 0 && (
             <StatsRow
               icon={iconCircleCheck}
@@ -267,12 +398,31 @@ export const LessonCompletePage = () => {
           />
         </div>
 
-        {/* Next lesson card (only when not repeat and there is a next lesson) */}
-        {!isRepeat && nextLesson && (
+        {/* Next lesson / Final check card */}
+        {!isCourseRefreshed && nextLesson && (
           <div className="cpl-next-card">
             <div className="cpl-next-card__body">
-              <p className="cpl-next-card__kicker">Next lesson</p>
-              <p className="cpl-next-card__title">{nextLesson.lessonTitle}</p>
+              {isFinalCheck ? (
+                <>
+                  <p className="cpl-next-card__kicker">Last step</p>
+                  <p className="cpl-next-card__title">Final check</p>
+                  {nextUnits.length > 0 && (
+                    <p className="cpl-next-card__steps">
+                      {`${nextUnits.length} ${nextUnits.length === 1 ? 'question' : 'questions'}`}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="cpl-next-card__kicker">Next lesson</p>
+                  <p className="cpl-next-card__title">{nextLesson.lessonTitle}</p>
+                  {nextStepCount > 0 && (
+                    <p className="cpl-next-card__steps">
+                      {`${nextStepCount} ${nextStepCount === 1 ? 'step' : 'steps'}`}
+                    </p>
+                  )}
+                </>
+              )}
             </div>
           </div>
         )}
@@ -293,15 +443,30 @@ export const LessonCompletePage = () => {
 export const CourseCompletePage = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const { finalCheckSequenceId, since } = (
+    location.state as { finalCheckSequenceId?: string; since?: string } | null
+  ) ?? {};
 
   const courseOutlineQuery = useCourseOutline(courseId);
   const gamificationQuery = useGamification();
   const { data: curriculums } = useCurriculums();
+  const { data: badgesData } = useBadges();
+
+  // Fetch final check results when we came from a final check sequence.
+  const finalCheckResultsQuery = useLessonResults(finalCheckSequenceId, since);
 
   const courseTitle = courseOutlineQuery.data?.title ?? '';
   const totalPoints = gamificationQuery.data?.courses?.find(
     (c) => c.course_key === courseId,
   )?.points ?? 0;
+
+  const finalCheckCorrectPct = finalCheckResultsQuery.data?.correct_percent ?? null;
+  const finalCheckQuestions = finalCheckResultsQuery.data?.questions ?? 0;
+  const finalCheckScore = finalCheckCorrectPct !== null && finalCheckQuestions > 0
+    ? Math.round((finalCheckCorrectPct / 100) * finalCheckQuestions)
+    : null;
 
   const parentCurriculum = curriculums?.find((c) => c.courses.some((course) => course.course_id === courseId));
   const completeMilestone = parentCurriculum?.milestones.complete ?? null;
@@ -316,13 +481,25 @@ export const CourseCompletePage = () => {
   const coursesTotal = parentCurriculum?.courses_total ?? 0;
 
   const celebration = useBadgeCelebration(COURSE_CELEBRATION_SLOTS);
+  const queryClient = useQueryClient();
+
+  const { mutate: markSeen } = useMutation({
+    mutationFn: (ids: string[]) => markBadgesSeen(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.badges() });
+      queryClient.invalidateQueries({ queryKey: qk.curriculums() });
+    },
+  });
+
+  // Mark any unseen badges seen when this screen appears.
+  useEffect(() => {
+    if (celebration?.awardId) {
+      markSeen([celebration.awardId, ...celebration.alsoEarned.map((b) => b.id)]);
+    }
+  }, [celebration?.awardId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleContinue = () => navigate('/');
-  const handleSeeBadges = () => (
-    celebration
-      ? goToBadgeCelebration(navigate, celebration)
-      : navigate('/progress', { state: { tab: 'Badges' } })
-  );
+  const handleSeeBadges = () => navigate('/progress', { state: { tab: 'Badges' } });
 
   return (
     <div className="cp-page cp-page--scrollable">
@@ -334,7 +511,7 @@ export const CourseCompletePage = () => {
           <p className="cpl-kicker">Course complete</p>
           <h1 className="cpl-title">{courseTitle}</h1>
           {earnedDate && (
-            <p className="cpl-subtitle">
+            <p className="cpl-date">
               Earned
               {' '}
               {earnedDate}
@@ -357,11 +534,19 @@ export const CourseCompletePage = () => {
                 courses
               </p>
             </div>
+            <CourseBadgeRow curriculum={parentCurriculum} badges={badgesData} />
           </div>
         )}
 
         {/* Results stats card */}
         <div className="cp-stats-card">
+          {finalCheckScore !== null && finalCheckQuestions > 0 && (
+            <StatsRow
+              icon={iconCircleCheck}
+              label="Final check"
+              value={`${finalCheckScore} of ${finalCheckQuestions}`}
+            />
+          )}
           {totalPoints > 0 && (
             <StatsRow
               icon={iconLightning}
@@ -424,11 +609,9 @@ export const RetentionInvitePage = () => {
         <main className="cp-content cp-content--centered">
           <div className="cpc-words">
             <p className="cpl-kicker">30-day check</p>
-            <h1 className="cpl-title">{opensOnDate ? `Come back on ${opensOnDate}` : 'Come back in 30 days'}</h1>
+            <h1 className="cpl-title">Come back in 30 days</h1>
             <p className="cpl-lead">
-              {opensOnDate
-                ? `Your 30-day check opens on ${opensOnDate}.`
-                : 'Your 30-day check is not yet open.'}
+              {`Your ${pathTitle} check opens${opensOnDate ? ` on ${opensOnDate}` : ' 30 days after you finish'}.`}
             </p>
           </div>
         </main>
@@ -480,13 +663,7 @@ export const RetentionCheckResultPage = () => {
   const location = useLocation();
   const since = (location.state as { since?: string } | null)?.since as string | undefined;
 
-  const resultsQuery = useQuery({
-    queryKey: qk.lessonResults(sequenceId, since ?? ''),
-    queryFn: () => getLessonResults(sequenceId, since!),
-    enabled: Boolean(sequenceId) && Boolean(since),
-    staleTime: Infinity,
-    retry: 1,
-  });
+  const resultsQuery = useLessonResults(sequenceId, since);
 
   const curriculumsQuery = useCurriculums();
   const parentCurriculum = curriculumsQuery.data?.find(
@@ -546,18 +723,9 @@ export const RetentionCheckResultPage = () => {
   const handleTryAgain = () => navigate(`/course/${courseId}/retention`);
 
   // Wait for lesson results when `since` is provided.
+  // On error, fall through with score = null so the result page still shows pass/fail.
   if (since && resultsQuery.isLoading) {
     return <LoadingSkeleton />;
-  }
-
-  if (resultsQuery.isError) {
-    return (
-      <ErrorView
-        title="Unable to load results"
-        message="Please try again."
-        onRetry={() => resultsQuery.refetch()}
-      />
-    );
   }
 
   // Curriculums data not available yet — show loading instead of incorrect fail state.

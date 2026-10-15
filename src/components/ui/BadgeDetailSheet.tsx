@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import type { LearnerCurriculum } from '../../api/curriculum';
 import { getResumeBlock } from '../../api/courseware';
@@ -22,7 +22,6 @@ type CourseBadgeData = {
   title: string;
   description: string;
   art: string;
-  tintColor: string;
   progress: string; // e.g. "2 of 7 lessons done"
   earned: boolean;
   earnedDate?: string;
@@ -55,9 +54,9 @@ const TrophyArt = ({ earned, size }: { earned: boolean; size: number }) => (
 // ── SealRing ──────────────────────────────────────────────
 
 const SealRing = ({
-  size, progress, art, tintColor, earned, thirtyState,
+  size, progress, art, earned, thirtyState,
 }: {
-  size: number; progress: number; art: string; tintColor: string; earned: boolean;
+  size: number; progress: number; art: string; earned: boolean;
   thirtyState?: 'locked' | 'earned';
 }) => {
   const strokeWidth = 3;
@@ -84,10 +83,7 @@ const SealRing = ({
           />
         )}
       </svg>
-      <div
-        className="bds-seal-ring__inner"
-        style={{ background: earned ? tintColor : 'var(--u-background-tertiary)' }}
-      >
+      <div className="bds-seal-ring__inner">
         <img
           src={art}
           alt=""
@@ -154,7 +150,6 @@ const CourseBadgeSheet = ({ data, onClose }: { data: CourseBadgeData; onClose: (
         size={88}
         progress={fraction}
         art={data.art}
-        tintColor={data.tintColor}
         earned={data.earned}
       />
       <p className="bds-type-label">Course badge</p>
@@ -174,6 +169,7 @@ const CourseBadgeSheet = ({ data, onClose }: { data: CourseBadgeData; onClose: (
 
 const PathBadgeSheet = ({ data, onClose }: { data: PathBadgeData; onClose: () => void }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { curriculum } = data;
   const { complete } = curriculum.milestones;
   const { retained } = curriculum.milestones;
@@ -194,7 +190,7 @@ const PathBadgeSheet = ({ data, onClose }: { data: PathBadgeData; onClose: () =>
     if (checkIsActionable && knowledgeCheckCourseId) {
       navigate(`/course/${knowledgeCheckCourseId}`);
     } else {
-      navigate(`/learning-path/${curriculum.uuid}`);
+      navigate(`/learning-path/${curriculum.uuid}`, { state: { origin: location.pathname } });
     }
   };
 
@@ -215,7 +211,6 @@ const PathBadgeSheet = ({ data, onClose }: { data: PathBadgeData; onClose: () =>
         size={88}
         progress={curriculum.courses_total > 0 ? curriculum.courses_finished / curriculum.courses_total : 0}
         art={complete.badge?.image_url ?? iconBadgeCheck}
-        tintColor="var(--u-learning-course-tint-blue)"
         earned={isComplete}
         thirtyState={thirtyDayEarned ? 'earned' : 'locked'}
       />

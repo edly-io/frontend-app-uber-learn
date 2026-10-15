@@ -5,7 +5,7 @@
  *   - AC-NAV-01: Fresh user (sectionId=null) stays on overview, renders lesson list
  *   - AC-NAV-02: Returning user (sectionId set) redirects to /lesson/:sectionId/step/0
  *   - AC-NAV-03: Lesson card click navigates to the selected sequence
- *   - AC-EDGE-01: Outline error renders ErrorView
+ *   - AC-EDGE-01: Outline error renders SlowLoadView
  *   - AC-EDGE-02: Empty outline renders empty-state message
  *   - AC-LOAD-01: Loading skeleton shown while data loads
  */
@@ -16,12 +16,16 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CourseOverview, resetResumedLocationKeys } from '../pages/CourseOverview';
 import * as coursewareApi from '../api/courseware';
+import type { LearnerCurriculum } from '../api/curriculum';
 
 // ---------------------------------------------------------------------------
 // Routing mocks — avoid a real router; use stubs for useNavigate / useParams
 // ---------------------------------------------------------------------------
 
 const mockNavigate = jest.fn();
+const mockUseCurriculums = jest.fn();
+const mockUseBadges = jest.fn();
+const mockUseCourseProgressSummary = jest.fn();
 
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
@@ -30,6 +34,18 @@ jest.mock('react-router-dom', () => ({
   useLocation: () => ({
     key: 'test-key', pathname: '/course/course-v1:Uber+L2024', search: '', hash: '', state: null,
   }),
+}));
+
+jest.mock('../hooks/useCurriculums', () => ({
+  useCurriculums: (...args: unknown[]) => mockUseCurriculums(...args),
+}));
+
+jest.mock('../hooks/useBadges', () => ({
+  useBadges: (...args: unknown[]) => mockUseBadges(...args),
+}));
+
+jest.mock('../hooks/useCourseProgressSummary', () => ({
+  useCourseProgressSummary: (...args: unknown[]) => mockUseCourseProgressSummary(...args),
 }));
 
 // ---------------------------------------------------------------------------
@@ -74,6 +90,28 @@ const OUTLINE: coursewareApi.CourseOutline = {
   },
 };
 
+const RETENTION_CURRICULUM: LearnerCurriculum = {
+  uuid: 'safety-path',
+  title: 'Business Conduct & Ethics',
+  description: 'Required learning path',
+  image_url: null,
+  assigned_at: '2026-01-01T00:00:00Z',
+  courses: [],
+  courses_finished: 1,
+  courses_total: 1,
+  milestones: {
+    complete: { reached_at: '2026-01-01T00:00:00Z', badge: null },
+    retained: { reached_at: null, badge: null },
+  },
+  knowledge_check: {
+    course_id: COURSE_ID,
+    display_name: '30-day check',
+    exists: true,
+    unlocks_at: null,
+    is_open: true,
+  },
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -100,6 +138,9 @@ function renderComponent() {
 beforeEach(() => {
   resetResumedLocationKeys();
   mockNavigate.mockClear();
+  mockUseCurriculums.mockReturnValue({ data: [] });
+  mockUseBadges.mockReturnValue({ data: { curriculum_badges: [], course_badges: [] } });
+  mockUseCourseProgressSummary.mockReturnValue({ data: undefined });
   jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue(RESUME_FRESH);
   jest.mocked(coursewareApi.getCourseOutline).mockResolvedValue(OUTLINE);
 });
@@ -153,6 +194,67 @@ describe('CourseOverview', () => {
     });
   });
 
+  describe('30-day check course context', () => {
+    it('loads the course as required content in its parent curriculum', async () => {
+      mockUseCurriculums.mockReturnValue({ data: [RETENTION_CURRICULUM] });
+
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Driver Safety 101');
+      });
+
+      expect(screen.getByText('Required · Business Conduct & Ethics')).toBeInTheDocument();
+      expect(document.querySelector('.cp-scene-header')).toBeInTheDocument();
+      expect(document.querySelector('.cp-art-panel')).not.toBeInTheDocument();
+    });
+
+    it('AC-KC-RETRY-01: shows "Try final check again" when KC course is complete but retention not passed', async () => {
+      mockUseCurriculums.mockReturnValue({ data: [RETENTION_CURRICULUM] }); // retained.reached_at = null
+      mockUseCourseProgressSummary.mockReturnValue({ data: { completedUnits: 4, totalUnits: 4, fraction: 1.0 } });
+
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Try final check again' })).toBeInTheDocument();
+      });
+    });
+
+    it('AC-KC-RETRY-02: "Try final check again" navigates to first lesson of the KC course', async () => {
+      mockUseCurriculums.mockReturnValue({ data: [RETENTION_CURRICULUM] });
+      mockUseCourseProgressSummary.mockReturnValue({ data: { completedUnits: 4, totalUnits: 4, fraction: 1.0 } });
+
+      renderComponent();
+
+      await waitFor(() => screen.getByRole('button', { name: 'Try final check again' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Try final check again' }));
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        `/course/${COURSE_ID}/lesson/seq-1/step/0`,
+        expect.objectContaining({}),
+      );
+    });
+
+    it('AC-KC-RETRY-03: hides footer when KC course complete AND retention passed', async () => {
+      mockUseCurriculums.mockReturnValue({
+        data: [{
+          ...RETENTION_CURRICULUM,
+          milestones: {
+            complete: { reached_at: '2026-01-01T00:00:00Z', badge: null },
+            retained: { reached_at: '2026-02-01T00:00:00Z', badge: null },
+          },
+        }],
+      });
+      mockUseCourseProgressSummary.mockReturnValue({ data: { completedUnits: 4, totalUnits: 4, fraction: 1.0 } });
+
+      renderComponent();
+
+      await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument());
+      expect(screen.queryByRole('button', { name: 'Try final check again' })).not.toBeInTheDocument();
+      expect(document.querySelector('.course-footer')).not.toBeInTheDocument();
+    });
+  });
+
   describe('returning user (sectionId is set)', () => {
     it('AC-NAV-02: does NOT auto-redirect on mount (resume is driven by the Continue footer, not by auto-redirect)', async () => {
       jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue(RESUME_RETURNING);
@@ -170,7 +272,16 @@ describe('CourseOverview', () => {
   });
 
   describe('lesson card interaction', () => {
-    it('AC-NAV-03: clicking a lesson card navigates to /lesson/:seqId/step/0', async () => {
+    it('AC-NAV-03: clicking a completed lesson navigates to /lesson/:seqId/step/0', async () => {
+      // Both lessons complete so both are clickable
+      jest.mocked(coursewareApi.getCourseOutline).mockResolvedValue({
+        ...OUTLINE,
+        sequences: {
+          'seq-1': { ...OUTLINE.sequences['seq-1'], complete: true },
+          'seq-2': { ...OUTLINE.sequences['seq-2'], complete: true },
+        },
+      });
+
       renderComponent();
 
       await waitFor(() => expect(screen.getByText('Lesson 1: Basics')).toBeInTheDocument());
@@ -179,10 +290,19 @@ describe('CourseOverview', () => {
 
       expect(mockNavigate).toHaveBeenCalledWith(
         `/course/${COURSE_ID}/lesson/seq-1/step/0`,
+        expect.objectContaining({}),
       );
     });
 
-    it('AC-NAV-03b: clicking a different lesson card uses the correct sequenceId', async () => {
+    it('AC-NAV-03b: clicking a different completed lesson uses the correct sequenceId', async () => {
+      jest.mocked(coursewareApi.getCourseOutline).mockResolvedValue({
+        ...OUTLINE,
+        sequences: {
+          'seq-1': { ...OUTLINE.sequences['seq-1'], complete: true },
+          'seq-2': { ...OUTLINE.sequences['seq-2'], complete: true },
+        },
+      });
+
       renderComponent();
 
       await waitFor(() => expect(screen.getByText('Lesson 2: Advanced')).toBeInTheDocument());
@@ -191,18 +311,30 @@ describe('CourseOverview', () => {
 
       expect(mockNavigate).toHaveBeenCalledWith(
         `/course/${COURSE_ID}/lesson/seq-2/step/0`,
+        expect.objectContaining({}),
       );
+    });
+
+    it('AC-NAV-03c: clicking a locked (upcoming) lesson does not navigate', async () => {
+      // Default outline has complete: false — all lessons are locked
+      renderComponent();
+
+      await waitFor(() => expect(screen.getByText('Lesson 1: Basics')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByText('Lesson 1: Basics'));
+
+      expect(mockNavigate).not.toHaveBeenCalled();
     });
   });
 
   describe('edge cases', () => {
-    it('AC-EDGE-01: shows ErrorView with retry option when outline fetch fails', async () => {
+    it('AC-EDGE-01: shows SlowLoadView with retry option when outline fetch fails', async () => {
       jest.mocked(coursewareApi.getCourseOutline).mockRejectedValue(new Error('Network error'));
 
       renderComponent();
 
       await waitFor(() => {
-        expect(screen.getByText(/could not load course/i)).toBeInTheDocument();
+        expect(screen.getByText(/this is taking longer than expected/i)).toBeInTheDocument();
       });
       expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
     });
@@ -220,6 +352,163 @@ describe('CourseOverview', () => {
         // CourseOverview renders "No lessons are available yet." in the empty state
         expect(screen.getByText(/no lessons/i)).toBeInTheDocument();
       });
+    });
+
+    it('AC-BADGE-01: shows actual badge image (grayscale) when course badge has not been earned', async () => {
+      // Curriculum must contain the course so showProgress = true and the seal renders
+      mockUseCurriculums.mockReturnValue({
+        data: [{
+          ...RETENTION_CURRICULUM,
+          courses: [{
+            course_id: COURSE_ID,
+            display_name: 'Driver Safety 101',
+            exists: true,
+            position: 1,
+            finished: false,
+            description: null,
+            image_url: null,
+          }],
+          knowledge_check: {
+            course_id: 'kc-other',
+            display_name: null,
+            exists: false,
+            unlocks_at: null,
+            is_open: false,
+          },
+        }],
+      });
+      mockUseBadges.mockReturnValue({
+        data: {
+          curriculum_badges: [],
+          course_badges: [{
+            awarded: false,
+            id: null,
+            awarded_at: null,
+            seen: null,
+            badge: {
+              uuid: 'b1',
+              title: 'Safety Badge',
+              description: '',
+              image_url: 'http://cdn/badge.png',
+            },
+            source: { type: 'course', course_id: COURSE_ID, display_name: null },
+          }],
+        },
+      });
+
+      renderComponent();
+
+      await waitFor(() => expect(screen.getByText('Driver Safety 101')).toBeInTheDocument());
+
+      const seal = document.querySelector('.cd-badge-seal') as HTMLElement;
+      const sealImg = document.querySelector('.cd-badge-seal__icon') as HTMLImageElement;
+      expect(seal).not.toBeNull();
+      expect(seal.classList.contains('cd-badge-seal--earned')).toBe(false);
+      expect(sealImg).not.toBeNull();
+      expect(sealImg.src).toContain('badge.png');
+      expect(sealImg.classList.contains('cd-badge-seal__icon--badge')).toBe(true);
+    });
+
+    it('AC-BADGE-02: shows course badge image when badge has been earned', async () => {
+      mockUseCurriculums.mockReturnValue({
+        data: [{
+          ...RETENTION_CURRICULUM,
+          courses: [{
+            course_id: COURSE_ID,
+            display_name: 'Driver Safety 101',
+            exists: true,
+            position: 1,
+            finished: true,
+            description: null,
+            image_url: null,
+          }],
+          knowledge_check: {
+            course_id: 'kc-other',
+            display_name: null,
+            exists: false,
+            unlocks_at: null,
+            is_open: false,
+          },
+        }],
+      });
+      mockUseBadges.mockReturnValue({
+        data: {
+          curriculum_badges: [],
+          course_badges: [{
+            awarded: true,
+            id: 'award-1',
+            awarded_at: '2026-10-01T00:00:00Z',
+            seen: true,
+            badge: {
+              uuid: 'b1',
+              title: 'Safety Badge',
+              description: '',
+              image_url: 'http://cdn/badge.png',
+            },
+            source: { type: 'course', course_id: COURSE_ID, display_name: null },
+          }],
+        },
+      });
+
+      renderComponent();
+
+      await waitFor(() => expect(screen.getByText('Driver Safety 101')).toBeInTheDocument());
+
+      const seal = document.querySelector('.cd-badge-seal') as HTMLElement;
+      const sealImg = document.querySelector('.cd-badge-seal__icon') as HTMLImageElement;
+      expect(seal).not.toBeNull();
+      expect(seal.classList.contains('cd-badge-seal--earned')).toBe(true);
+      expect(sealImg).not.toBeNull();
+      expect(sealImg.src).toContain('badge.png');
+      expect(sealImg.classList.contains('cd-badge-seal__icon--badge')).toBe(true);
+    });
+
+    it('AC-BADGE-03: falls back to book placeholder when badge is earned but has no image_url', async () => {
+      mockUseCurriculums.mockReturnValue({
+        data: [{
+          ...RETENTION_CURRICULUM,
+          courses: [{
+            course_id: COURSE_ID,
+            display_name: 'Driver Safety 101',
+            exists: true,
+            position: 1,
+            finished: true,
+            description: null,
+            image_url: null,
+          }],
+          knowledge_check: {
+            course_id: 'kc-other',
+            display_name: null,
+            exists: false,
+            unlocks_at: null,
+            is_open: false,
+          },
+        }],
+      });
+      mockUseBadges.mockReturnValue({
+        data: {
+          curriculum_badges: [],
+          course_badges: [{
+            awarded: true,
+            id: 'award-2',
+            awarded_at: '2026-10-01T00:00:00Z',
+            seen: true,
+            badge: {
+              uuid: 'b2', title: 'Safety Badge', description: '', image_url: null,
+            },
+            source: { type: 'course', course_id: COURSE_ID, display_name: null },
+          }],
+        },
+      });
+
+      renderComponent();
+
+      await waitFor(() => expect(screen.getByText('Driver Safety 101')).toBeInTheDocument());
+
+      const sealImg = document.querySelector('.cd-badge-seal__icon') as HTMLImageElement;
+      expect(sealImg).not.toBeNull();
+      expect(sealImg.src).not.toBe('');
+      expect(sealImg.classList.contains('cd-badge-seal__icon--badge')).toBe(false);
     });
 
     it('AC-EDGE-03: resume API failure does not block outline rendering', async () => {

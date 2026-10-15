@@ -415,10 +415,10 @@ export const CourseOverview = () => {
                   {`${completedLessons} of ${totalLessons} lesson${totalLessons !== 1 ? 's' : ''} complete`}
                 </p>
                 <div className="cd-progress-track">
-                  {fraction > 0 && (
+                  {completedLessons > 0 && (
                     <div
                       className="cd-progress-fill"
-                      style={{ width: `${Math.round(fraction * 100)}%` }}
+                      style={{ width: `${Math.round((completedLessons / Math.max(totalLessons, 1)) * 100)}%` }}
                     />
                   )}
                 </div>

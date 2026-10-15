@@ -244,8 +244,7 @@ export const LessonCompletePage = () => {
   // and to detect if the next lesson is the final check (all units are assessment type).
   const { units: nextUnits } = useSequence(nextSequenceId ?? '');
   const nextStepCount = nextUnits.length;
-  const isFinalCheck = nextUnits.length > 0
-    && nextUnits.every((u) => u.contentType === 'problem' || u.graded === true);
+  const isFinalCheck = nextUnits.length > 0 && nextUnits.every((u) => u.graded === true);
 
   const isRepeat = resultsQuery.data?.already_completed_before ?? false;
   const pointsEarned = resultsQuery.data?.points_earned ?? 0;
@@ -283,6 +282,9 @@ export const LessonCompletePage = () => {
     (c) => c.courses.some((course) => course.course_id === courseId),
   );
 
+  // Course/curriculum badges only make sense after the last lesson — don't show mid-course.
+  const showCelebration = isLastLesson && celebration !== null;
+
   // Guard against heading flash: "Lesson complete" → "Course refreshed" on repeat completion.
   // Only wait for results when `since` is provided — without it the query is disabled and
   // we show the page immediately with default (non-repeat) state.
@@ -312,8 +314,8 @@ export const LessonCompletePage = () => {
       navigate(`/course/${courseId}/complete`);
       return;
     }
-    if (celebration) {
-      goToBadgeCelebration(navigate, celebration);
+    if (showCelebration) {
+      goToBadgeCelebration(navigate, celebration!);
       return;
     }
     handleStartNext();
@@ -324,7 +326,7 @@ export const LessonCompletePage = () => {
   let nextLessonLabel = `Start lesson ${lessonNumber + 1}`;
   if (isFinalCheck) { nextLessonLabel = 'Start final check'; }
   if (isLastLesson) { nextLessonLabel = 'Continue'; }
-  const primaryLabel = (isLastLesson && parentCurriculum) || !celebration ? nextLessonLabel : 'See your badge';
+  const primaryLabel = (isLastLesson && parentCurriculum) || !showCelebration ? nextLessonLabel : 'See your badge';
 
   const headingText = isCourseRefreshed ? 'Course refreshed' : 'Lesson complete';
   const subtitleText = isCourseRefreshed

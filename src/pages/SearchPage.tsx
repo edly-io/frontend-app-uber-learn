@@ -13,6 +13,7 @@ import iconDismiss from '../assets/icons/icon-dismiss.svg';
 import iconCircleX from '../assets/icons/icon-circle-x.svg';
 import courseArtBlue from '../assets/icons/course-art-blue.svg';
 import courseArtTeal from '../assets/icons/course-art-teal.svg';
+import searchNoResults from '../assets/icons/search-no-results.svg';
 
 import './search-page.scss';
 
@@ -248,11 +249,18 @@ export const SearchPage = () => {
                   </>
                 ) : (
                   <div className="sp-empty">
-                    <p className="sp-empty__title">No results for &ldquo;{debouncedQuery}&rdquo;</p>
-                    <p className="sp-empty__sub">Try another word, or browse every course.</p>
-                    <button type="button" className="sp-empty__cta" onClick={() => navigate('/')}>
-                      See all courses
-                    </button>
+                    <div className="sp-empty__spot">
+                      <img src={searchNoResults} alt="" className="sp-empty__spot-img" aria-hidden="true" />
+                    </div>
+                    <div className="sp-empty__text">
+                      <p className="sp-empty__title">No results for &ldquo;{debouncedQuery}&rdquo;</p>
+                      <p className="sp-empty__sub">Try another word, or browse every course.</p>
+                    </div>
+                    <div className="sp-empty__actions">
+                      <button type="button" className="sp-empty__cta" onClick={() => navigate('/')}>
+                        See all courses
+                      </button>
+                    </div>
                   </div>
                 )}
               </>

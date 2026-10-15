@@ -79,6 +79,21 @@ export interface LessonResults {
   steps_count: number | null;
 }
 
+export interface LessonMaxPoints {
+  display_name: string;
+  max_points: number;
+  completion_points: number;
+  first_try_points: number;
+}
+
+export interface CourseMaxPoints {
+  course_id: string;
+  max_points: number;
+  completion_points: number;
+  first_try_points: number;
+  lessons: LessonMaxPoints[];
+}
+
 // ---------------------------------------------------------------------------
 // Fetch functions
 // ---------------------------------------------------------------------------
@@ -107,4 +122,11 @@ export async function getLessonResults(
     { params: { since } },
   );
   return data as LessonResults;
+}
+
+export async function getCourseMaxPoints(courseId: string): Promise<CourseMaxPoints> {
+  const { data } = await getAuthenticatedHttpClient().get(
+    `${getConfig().LMS_BASE_URL}/api/uber/gamification/v1/courses/${encodeURIComponent(courseId)}/max-points/`,
+  );
+  return data as CourseMaxPoints;
 }

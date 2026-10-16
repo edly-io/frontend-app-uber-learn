@@ -3,7 +3,7 @@
 .bds-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--u-overlay-black-40);
   z-index: 200;
 }
 

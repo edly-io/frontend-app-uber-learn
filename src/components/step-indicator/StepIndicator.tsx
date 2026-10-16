@@ -25,7 +25,7 @@ export const StepIndicator = ({ current, total }: StepIndicatorProps) => {
         style={{
           height: '4px',
           borderRadius: '2px',
-          background: 'var(--u-background-state-disabled)',
+          background: 'var(--u-background-tertiary)',
           position: 'relative',
           overflow: 'hidden',
         }}

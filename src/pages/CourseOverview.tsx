@@ -16,6 +16,7 @@ import { useCurriculums } from '../hooks/useCurriculums';
 import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
 import { useLearnCourses } from '../hooks/useLearnCourses';
 import { useBadges } from '../hooks/useBadges';
+import { Navigate } from 'react-router-dom';
 import { NotEnrolledPage } from './NotEnrolledPage';
 import { OfflineView } from '../components/offline-view/OfflineView';
 import { useOffline } from '../hooks/useOffline';
@@ -345,6 +346,11 @@ export const CourseOverview = () => {
   }
 
   if (outlineQuery.isError) {
+    const status = (outlineQuery.error as { response?: { status?: number } } | null)
+      ?.response?.status;
+    if (status === 404) {
+      return <Navigate to={`/course/${courseId}/unavailable`} replace />;
+    }
     const courseDisplayName = outlineQuery.data?.title
       ?? parentCurriculum?.courses.find((c) => c.course_id === courseId)?.display_name
       ?? '';

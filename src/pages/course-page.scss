@@ -121,7 +121,7 @@
   font-family: var(--u-font-body);
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--u-content-primary);
+  color: var(--u-content-secondary);
   line-height: 1.33;
   margin: 0;
 }
@@ -638,7 +638,7 @@
 .cp-scene-header__photo {
   position: absolute;
   left: 0;
-  top: -75px;
+  top: -48px;
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;

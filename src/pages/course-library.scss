@@ -54,7 +54,7 @@
   padding: 4px 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
@@ -331,7 +331,7 @@
 
 /* Progress bar */
 .cl-card__progress-wrap {
-  padding-top: 4px;
+  padding-top: 6px;
 }
 
 .cl-card__progress-bar {

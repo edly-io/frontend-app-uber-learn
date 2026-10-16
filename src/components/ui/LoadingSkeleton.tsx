@@ -36,6 +36,7 @@ export const LoadingSkeleton = ({ className, variant = 'page' }: LoadingSkeleton
       <div className="skel-bone skel-art" aria-hidden="true" />
       <div className="skel-bone skel-kicker" aria-hidden="true" />
       <div className="skel-bone skel-h1" aria-hidden="true" />
+      <div className="skel-bone skel-h1b" aria-hidden="true" />
       <div className="skel-bone skel-b1" aria-hidden="true" />
       <div className="skel-bone skel-b2" aria-hidden="true" />
       <LessonRow />

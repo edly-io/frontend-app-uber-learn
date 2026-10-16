@@ -25,6 +25,7 @@ import { SearchPage } from './pages/SearchPage';
 import { NoRequiredCoursesPage } from './pages/NoRequiredCoursesPage';
 import { VideoCouldntLoadPage } from './pages/VideoCouldntLoadPage';
 import { ThirtyDayChecksPage } from './pages/ThirtyDayChecksPage';
+import { CourseNotAvailablePage } from './pages/CourseNotAvailablePage';
 
 import { useSequence } from './hooks/useSequence';
 import { LoadingSkeleton } from './components/ui/LoadingSkeleton';
@@ -203,6 +204,7 @@ export const App = () => (
         <Route path="/30-day-checks" element={<ThirtyDayChecksPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/no-courses" element={<NoRequiredCoursesPage />} />
+        <Route path="/course/:courseId/unavailable" element={<CourseNotAvailablePage />} />
         <Route path="/course/:courseId/lesson/:sequenceId/video-error" element={<VideoCouldntLoadPage />} />
         <Route path="/session-ended" element={<SessionEndedRoute />} />
         <Route path="/unsupported-version" element={<UnsupportedVersionRoute />} />

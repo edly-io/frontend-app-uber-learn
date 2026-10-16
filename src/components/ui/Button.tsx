@@ -13,14 +13,15 @@ export const Button = ({
   ...rest
 }: ButtonProps) => {
   const baseStyle: React.CSSProperties = {
-    height: '52px',
+    minHeight: '44px',
     minWidth: '44px',
-    padding: '0 1.5rem',
+    padding: '16px 20px',
     border: 'none',
     borderRadius: '8px',
     fontFamily: 'var(--u-font-body)',
     fontWeight: 500,
-    fontSize: '16px',
+    fontSize: '1.125rem',
+    lineHeight: '1.33',
     cursor: 'pointer',
     transition: 'opacity var(--u-duration-fast)',
     width: fullWidth ? '100%' : undefined,

@@ -516,9 +516,9 @@
 
 .lp-week-col__month {
   font-family: var(--u-font-body);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  line-height: 1.33;
+  line-height: 16px;
   color: var(--u-content-secondary);
   height: 16px;
   display: flex;
@@ -545,7 +545,7 @@
 
 .lp-week-cell--forgiven {
   background: var(--u-background-positive-light);
-  border: 1.5px dashed var(--u-background-positive);
+  border: 1px dashed var(--u-background-positive);
 }
 
 .lp-week-cell--missed {
@@ -565,9 +565,9 @@
 
 .lp-week-col__date {
   font-family: var(--u-font-body);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  line-height: 1.33;
+  line-height: 16px;
   color: var(--u-content-tertiary);
   text-align: center;
 }
@@ -951,7 +951,7 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 0;
+  padding: 0 4px;
   background: none;
   border: none;
   cursor: pointer;

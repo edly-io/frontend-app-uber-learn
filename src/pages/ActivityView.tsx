@@ -326,21 +326,21 @@ export const ActivityView = () => {
     ? `Lesson ${currentLessonIdx + 1} of ${allLessons.length}`
     : lessonTitle;
 
-  // Show the Figma offline screen when the device loses connectivity or content fails to load
-  if (isOffline || isContentError) {
+  // Offline: show the "You're offline" screen
+  if (isOffline) {
     return (
       <OfflineView
         title={lessonTitle}
         onBack={handleBack}
-        onRetry={() => {
-          if (isContentError) {
-            handleContentRetry();
-          } else {
-            window.location.reload();
-          }
-        }}
+        onRetry={() => window.location.reload()}
       />
     );
+  }
+
+  // Content load failure: navigate to the video-error screen (Figma: "This video could not load")
+  if (isContentError) {
+    navigate(`/course/${courseId}/lesson/${sequenceId}/video-error`, { replace: true });
+    return null;
   }
 
   const buttonLabel = unitIdx < units.length - 1 ? 'Continue' : 'Finish';

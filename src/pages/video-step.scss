@@ -245,24 +245,54 @@
 /* ── Footer ───────────────────────────────────────────────────────────────── */
 .vs-footer {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   padding: 12px 16px;
   padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   background: var(--u-background-primary);
+}
+
+/* Row variant: two buttons side by side */
+.vs-footer--row {
+  flex-direction: row;
+  gap: 12px;
 }
 
 .vs-footer__btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  flex: 1;
   padding: 16px 20px;
-  background: var(--u-background-state-disabled);
-  color: var(--u-content-state-disabled);
+  background: var(--u-background-always-dark);
+  color: var(--u-content-on-color);
   border: none;
   border-radius: 8px;
   font-family: var(--u-font-body);
   font-size: 1.125rem;
   font-weight: 500;
   line-height: 1.33;
-  cursor: not-allowed;
+  cursor: pointer;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.vs-footer__btn:hover,
+.vs-footer__btn:focus-visible {
+  opacity: 0.85;
+}
+
+.vs-footer__btn:active {
+  opacity: 0.7;
+}
+
+.vs-footer__btn:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
+
+/* Secondary variant: ghost / outline */
+.vs-footer__btn--secondary {
+  background: var(--u-background-secondary);
+  color: var(--u-content-primary);
 }

@@ -51,7 +51,7 @@
 
 /* ── Page heading ─────────────────────────────────────── */
 .cl-heading {
-  padding: 4px 16px 20px;
+  padding: 16px 16px 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -88,7 +88,7 @@
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  padding: 0 16px 12px;
+  padding: 6px 16px 6px;
 }
 
 .cl-filter-bar::-webkit-scrollbar {
@@ -146,8 +146,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 0 16px 32px;
+  gap: 16px;
+  padding: 16px 16px 32px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -162,10 +162,10 @@
 
 .cl-results-line__count {
   font-family: var(--u-font-body);
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 1.43;
-  color: var(--u-content-secondary);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--u-content-primary);
 }
 
 .cl-results-line__reset {
@@ -192,14 +192,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 0 12px;
+  padding: 8px 0 0;
 }
 
 .cl-section-header__title {
   font-family: var(--u-font-display);
   font-size: 24px;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 32px;
   color: var(--u-content-primary);
   margin: 0;
 }
@@ -216,7 +216,7 @@
 .cl-course-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 /* ── Section wrapper ─────────────────────────────────── */

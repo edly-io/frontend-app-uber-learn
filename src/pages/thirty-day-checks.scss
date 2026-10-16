@@ -14,7 +14,7 @@
   display: flex;
   align-items: center;
   height: 44px;
-  padding: 0 var(--u-space-1, 4px);
+  padding: 0 8px;
   position: sticky;
   top: env(safe-area-inset-top, 0px);
   z-index: 20;
@@ -60,7 +60,7 @@
   font-family: var(--u-font-display);
   font-size: 32px;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 40px;
   color: var(--u-content-primary);
   margin: 0;
 }
@@ -69,45 +69,45 @@
   font-family: var(--u-font-body);
   font-size: 16px;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 24px;
   color: var(--u-content-secondary);
   margin: 0;
 }
 
-/* ── Content ─────────────────────────────────────────────── */
+/* ── Content ─────────────────────────────────────────── */
 
 .tdc-content {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--u-space-2, 8px);
-  padding: 0 var(--u-space-4, 16px) var(--u-space-8, 32px);
+  gap: 16px;
+  padding: 0 16px 16px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
-/* ── Section ─────────────────────────────────────────────── */
+/* ── Section ─────────────────────────────────────────── */
 
 .tdc-section {
   display: flex;
   flex-direction: column;
-  gap: var(--u-space-2, 8px);
+  gap: 0;
 }
 
 .tdc-section__header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  padding-top: var(--u-space-2, 8px);
-  padding-bottom: var(--u-space-3, 12px);
+  padding-top: 8px;
+  padding-bottom: 12px;
 }
 
 .tdc-section__title {
   font-family: var(--u-font-display);
   font-size: 24px;
   font-weight: 700;
-  line-height: 1.33;
+  line-height: 32px;
   color: var(--u-content-primary);
   margin: 0;
 }
@@ -116,23 +116,24 @@
   font-family: var(--u-font-body);
   font-size: 14px;
   font-weight: 400;
+  line-height: 20px;
   color: var(--u-content-secondary);
 }
 
 .tdc-section__list {
   display: flex;
   flex-direction: column;
-  gap: var(--u-space-3, 12px);
+  gap: 12px;
 }
 
-/* ── Card ────────────────────────────────────────────────── */
+/* ── Card ────────────────────────────────────────────── */
 
 .tdc-card {
   display: flex;
   align-items: center;
-  gap: var(--u-space-4, 16px);
+  gap: 16px;
   width: 100%;
-  padding: var(--u-space-4, 16px) var(--u-space-3, 12px) var(--u-space-4, 16px) var(--u-space-4, 16px);
+  padding: 16px 12px 16px 16px;
   background: var(--u-background-primary);
   border: 1px solid var(--u-border-opaque);
   border-radius: 20px;
@@ -145,14 +146,14 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--u-space-2, 8px);
+  gap: 8px;
 }
 
 .tdc-card__title {
   font-family: var(--u-font-body);
   font-size: 18px;
   font-weight: 500;
-  line-height: 1.333;
+  line-height: 24px;
   color: var(--u-content-primary);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -170,7 +171,7 @@
   font-family: var(--u-font-body);
   font-size: 14px;
   font-weight: 400;
-  line-height: 1.43;
+  line-height: 20px;
   color: var(--u-content-secondary);
   display: block;
 }
@@ -185,7 +186,7 @@
   height: 24px;
 }
 
-/* ── Ring ────────────────────────────────────────────────── */
+/* ── Ring ────────────────────────────────────────────── */
 
 .tdc-ring {
   position: relative;
@@ -238,7 +239,7 @@
   height: 24px;
   border-radius: 12px;
   background: var(--u-background-tertiary);
-  border: 2px solid var(--u-background-primary);
+  border: 2.4px solid var(--u-background-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -256,21 +257,21 @@
   object-fit: contain;
 }
 
-/* ── Empty state ─────────────────────────────────────────── */
+/* ── Empty state ─────────────────────────────────────── */
 
 .tdc-empty {
-  padding: var(--u-space-8, 32px) var(--u-space-4, 16px);
+  padding: 32px 16px;
   font-family: var(--u-font-body);
   font-size: 14px;
   color: var(--u-content-secondary);
   text-align: center;
 }
 
-/* ── Footer ──────────────────────────────────────────────── */
+/* ── Footer ──────────────────────────────────────────── */
 
 .tdc-footer {
-  padding: var(--u-space-4, 16px);
-  padding-bottom: calc(var(--u-space-4, 16px) + env(safe-area-inset-bottom, 0px));
+  padding: 12px 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   background: var(--u-background-primary);
   flex-shrink: 0;
 }

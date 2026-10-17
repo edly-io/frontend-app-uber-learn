@@ -513,12 +513,12 @@ const PersonIcon = () => (
 
 const LeaderboardRowSkeleton = () => (
   <div className="lp-leaderboard-row--hifi" aria-hidden="true">
-    <div className="skel-bone" style={{ width: 24, height: 16, borderRadius: 4 }} />
+    <div className="skel-bone" style={{ width: 24, height: 16 }} />
     <div className="lp-leaderboard-avatar">
       <span className="lp-leaderboard-avatar__icon"><PersonIcon /></span>
     </div>
-    <div className="skel-bone" style={{ flex: 1, height: 16, borderRadius: 4 }} />
-    <div className="skel-bone" style={{ width: 32, height: 16, borderRadius: 4 }} />
+    <div className="skel-bone" style={{ flex: 1, height: 16 }} />
+    <div className="skel-bone" style={{ width: 32, height: 16 }} />
   </div>
 );
 

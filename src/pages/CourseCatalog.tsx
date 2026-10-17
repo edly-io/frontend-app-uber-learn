@@ -963,11 +963,11 @@ export const CourseCatalog = () => {
           >
             <div
               className="skel-bone"
-              style={{ width: '60%', height: 20, borderRadius: 4 }}
+              style={{ width: '60%', height: 20 }}
             />
             <div
               className="skel-bone"
-              style={{ width: '80%', height: 14, borderRadius: 4 }}
+              style={{ width: '80%', height: 14 }}
             />
           </div>
         )}

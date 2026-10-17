@@ -27,6 +27,7 @@ import { OfflineView } from '../components/offline-view/OfflineView';
 import { SlowLoadView } from '../components/slow-load-view/SlowLoadView';
 import { NotEnrolledPage } from './NotEnrolledPage';
 import { useSlowLoad } from '../hooks/useSlowLoad';
+import './activity-view.scss';
 
 export const ActivityView = () => {
   const {
@@ -292,10 +293,7 @@ export const ActivityView = () => {
       );
     }
     return (
-      <div style={{
-        display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden',
-      }}
-      >
+      <div className="activity-view">
         <NavHeader title="Loading…" onBack={handleBack} onClose={handleClose} />
         <LoadingSkeleton />
       </div>
@@ -346,13 +344,7 @@ export const ActivityView = () => {
   const buttonLabel = unitIdx < units.length - 1 ? 'Continue' : 'Finish';
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100dvh',
-      overflow: 'hidden',
-    }}
-    >
+    <div className="activity-view">
       <NavHeader
         title={lessonNavTitle}
         onBack={handleBack}
@@ -361,26 +353,10 @@ export const ActivityView = () => {
 
       <StepIndicator current={unitIdx} total={units.length} />
 
-      <main style={{
-        flex: 1,
-        minHeight: 0,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-      }}
-      >
+      <main className="activity-view__main">
         {!isIframeLoaded && (
           <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'var(--u-background-primary)',
-              zIndex: 1,
-            }}
+            className="activity-view__spinner-overlay"
             aria-hidden="true"
           >
             <div className="content-iframe-spinner" />

@@ -1,0 +1,71 @@
+/* ── Lesson list + lesson card — course outline rows ──────── */
+
+.lesson-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lesson-list__empty {
+  padding: var(--u-page-gutter);
+  color: var(--u-content-secondary);
+  text-align: center;
+}
+
+/* ── Row button ───────────────────────────────────────────── */
+.lesson-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 1rem var(--u-page-gutter);
+  min-height: 64px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--u-border-opaque);
+  cursor: pointer;
+  text-align: left;
+}
+
+.lesson-card--active {
+  background: var(--u-mastery-light);
+}
+
+/* ── Completion dot ───────────────────────────────────────── */
+.lesson-card__icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--u-background-state-disabled);
+  /* currentColor lets the SVG checkmark inherit --u-content-on-color */
+  color: var(--u-content-on-color);
+}
+
+.lesson-card__icon--completed {
+  background: var(--u-mastery);
+}
+
+/* ── Text block ───────────────────────────────────────────── */
+.lesson-card__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.lesson-card__kicker {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--u-content-secondary);
+  margin-bottom: 0.125rem;
+}
+
+.lesson-card__title {
+  display: block;
+  font-family: var(--u-font-body);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  color: var(--u-content-primary);
+}

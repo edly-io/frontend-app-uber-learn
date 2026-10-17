@@ -967,9 +967,7 @@ export const CourseCatalog = () => {
             />
             <div
               className="skel-bone"
-              style={{
-                width: '80%', height: 14, borderRadius: 4, marginTop: 8,
-              }}
+              style={{ width: '80%', height: 14, borderRadius: 4 }}
             />
           </div>
         )}

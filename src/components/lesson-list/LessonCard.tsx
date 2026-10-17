@@ -1,5 +1,6 @@
 import React from 'react';
 import type { LessonDescriptor } from '../../lib/outline-mapper';
+import './lesson-card.scss';
 
 interface LessonCardProps {
   lesson: LessonDescriptor;
@@ -16,69 +17,29 @@ export const LessonCard = ({
       type="button"
       onClick={() => onClick(lesson.sequenceId)}
       aria-current={isActive ? 'step' : undefined}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem',
-        width: '100%',
-        padding: '1rem var(--u-page-gutter)',
-        background: isActive ? 'var(--u-mastery-light)' : 'transparent',
-        border: 'none',
-        borderBottom: '1px solid var(--u-border-opaque)',
-        cursor: 'pointer',
-        textAlign: 'left',
-        minHeight: '64px',
-      }}
+      className={`lesson-card${isActive ? ' lesson-card--active' : ''}`}
     >
       {/* Completion indicator — RULE-002: mastery green ONLY for checkmarks */}
       <span
         aria-hidden="true"
-        style={{
-          width: '24px',
-          height: '24px',
-          borderRadius: '50%',
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: isCompleted ? 'var(--u-mastery)' : 'var(--u-background-state-disabled)',
-        }}
+        className={`lesson-card__icon${isCompleted ? ' lesson-card__icon--completed' : ''}`}
       >
         {isCompleted && (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-          <path
-            d="M2 7L5.5 10.5L12 3.5"
-            stroke="#ffffff"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path
+              d="M2 7L5.5 10.5L12 3.5"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         )}
       </span>
 
-      <span style={{ flex: 1 }}>
-        <span
-          style={{
-            display: 'block',
-            fontSize: '0.75rem',
-            color: 'var(--u-content-secondary)',
-            marginBottom: '0.125rem',
-          }}
-        >
-          {lesson.sectionTitle}
-        </span>
-        <span
-          style={{
-            display: 'block',
-            fontFamily: 'var(--u-font-body)',
-            fontWeight: 500,
-            fontSize: '0.9375rem',
-            color: 'var(--u-content-primary)',
-          }}
-        >
-          {lesson.lessonTitle}
-        </span>
+      <span className="lesson-card__text">
+        <span className="lesson-card__kicker">{lesson.sectionTitle}</span>
+        <span className="lesson-card__title">{lesson.lessonTitle}</span>
       </span>
 
       {/* Chevron */}

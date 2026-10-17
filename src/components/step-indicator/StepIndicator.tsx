@@ -1,4 +1,5 @@
 import React from 'react';
+import './step-indicator.scss';
 
 interface StepIndicatorProps {
   /** 0-based current step index */
@@ -16,32 +17,13 @@ export const StepIndicator = ({ current, total }: StepIndicatorProps) => {
       aria-valuemin={1}
       aria-valuemax={total}
       aria-label={`Step ${current + 1} of ${total}`}
-      style={{
-        padding: '4px 16px',
-        flexShrink: 0,
-      }}
+      className="step-indicator"
     >
-      <div
-        style={{
-          height: '4px',
-          borderRadius: '2px',
-          background: 'var(--u-background-tertiary)',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
+      <div className="step-indicator__track">
         <div
           aria-hidden="true"
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: `${pct}%`,
-            background: 'var(--u-background-accent)',
-            borderRadius: '2px',
-            transition: 'width var(--u-duration-normal) var(--u-ease-out)',
-          }}
+          className="step-indicator__fill"
+          style={{ width: `${pct}%` }}
         />
       </div>
     </div>

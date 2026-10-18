@@ -1,12 +1,14 @@
 import React from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getResumeBlock } from '../api/courseware';
 import { qk } from '../api/queries';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
 import { mapOutlineToLessons, countLessons } from '../lib/outline-mapper';
+import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
+import { ErrorView } from '../components/ui/ErrorView';
 import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
 import scenePhoto from '../assets/images/scene-safety-education.png';
 import './course-page.scss';
@@ -39,6 +41,7 @@ export const SaveAndResumePage = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
 
   const { data: curriculums } = useCurriculums();
   const courseInCurriculum = curriculums
@@ -85,13 +88,35 @@ export const SaveAndResumePage = () => {
   };
 
   const handleHome = () => navigate('/');
+  const handleBack = () => (location.key === 'default' ? navigate(`/course/${courseId}`) : navigate(-1));
+
+  if (outlineQuery.isLoading) {
+    return (
+      <div className="course-page">
+        <ArtPanel art={scenePhoto} imageUrl={imageUrl} onBack={handleBack} />
+        <div className="course-scroll"><LoadingSkeleton /></div>
+      </div>
+    );
+  }
+
+  if (outlineQuery.isError) {
+    return (
+      <ErrorView
+        onRetry={() => {
+          queryClient.invalidateQueries({ queryKey: qk.outline(courseId) });
+          queryClient.invalidateQueries({ queryKey: qk.resume(courseId) });
+        }}
+        onBack={handleBack}
+      />
+    );
+  }
 
   return (
     <div className="course-page">
       <ArtPanel
         art={scenePhoto}
         imageUrl={imageUrl}
-        onBack={() => (location.key === 'default' ? navigate(`/course/${courseId}`) : navigate(-1))}
+        onBack={handleBack}
       />
 
       <div className="course-scroll">

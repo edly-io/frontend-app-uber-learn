@@ -337,7 +337,7 @@ export const CourseOverview = () => {
           <LoadingSkeleton />
         </div>
         <footer className="course-footer">
-          <button type="button" className="course-footer__primary" disabled style={{ opacity: 0.4 }}>
+          <button type="button" className="course-footer__primary course-footer__primary--loading" disabled>
             Loading…
           </button>
         </footer>
@@ -517,7 +517,7 @@ export const CourseOverview = () => {
           })}
 
           {lessons.length === 0 && (
-            <p style={{ color: 'var(--u-content-secondary)', textAlign: 'center', padding: '2rem 0' }}>
+            <p className="course-page__empty-note">
               No lessons are available yet.
             </p>
           )}

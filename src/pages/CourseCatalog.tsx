@@ -961,14 +961,8 @@ export const CourseCatalog = () => {
             aria-busy="true"
             aria-label="Loading…"
           >
-            <div
-              className="skel-bone"
-              style={{ width: '60%', height: 20 }}
-            />
-            <div
-              className="skel-bone"
-              style={{ width: '80%', height: 14 }}
-            />
+            <div className="skel-bone skel-bone--line-title" />
+            <div className="skel-bone skel-bone--line-body" />
           </div>
         )}
         {gamificationError && !gamificationLoading && (

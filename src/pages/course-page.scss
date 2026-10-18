@@ -70,6 +70,12 @@
   opacity: 0.7;
 }
 
+.course-footer__primary--loading {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
 .course-footer__primary:focus-visible {
   outline: 2px solid var(--u-content-primary);
   outline-offset: 2px;
@@ -308,6 +314,17 @@
   line-height: 1.43;
   margin: 0;
   white-space: nowrap;
+}
+
+/* ── Empty lesson note ────────────────────────────────────────────────────── */
+.course-page__empty-note {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  text-align: center;
+  padding: 2rem 0;
+  margin: 0;
 }
 
 /* ── Lesson section group ─────────────────────────────────────────────────── */

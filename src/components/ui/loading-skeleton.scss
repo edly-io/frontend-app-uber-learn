@@ -63,6 +63,10 @@
 /* Points bone — 32px wide × 16px tall */
 .skel-bone--w32 { width: 32px; height: 16px; }
 
+/* This-week-card skeleton bones */
+.skel-bone--line-title { width: 60%; height: 20px; border-radius: 6px; }
+.skel-bone--line-body  { width: 80%; height: 14px; border-radius: 6px; }
+
 /* ── Lesson row bones ───────────────────────────────── */
 
 .skel-row {

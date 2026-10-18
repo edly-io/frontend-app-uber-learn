@@ -1,6 +1,7 @@
 import React from 'react';
 import type { LessonDescriptor } from '../../lib/outline-mapper';
 import { LessonCard } from './LessonCard';
+import './lesson-list.scss';
 
 interface LessonListProps {
   lessons: LessonDescriptor[];

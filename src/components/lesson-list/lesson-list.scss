@@ -1,0 +1,13 @@
+/* ── Lesson list container ─────────────────────────────────── */
+
+.lesson-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lesson-list__empty {
+  padding: var(--u-page-gutter);
+  color: var(--u-content-secondary);
+  text-align: center;
+}

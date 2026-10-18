@@ -42,7 +42,10 @@
 
 .rto-heading {
   font-family: var(--u-font-display);
-  font-size: 1.375rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.015625rem;
   color: var(--u-content-primary);
   margin: 0 0 0.5rem;
 }
@@ -58,7 +61,8 @@
 
 .rto-sub {
   font-family: var(--u-font-body);
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
+  line-height: 1.43;
   color: var(--u-content-secondary);
   margin: 0 0 1.5rem;
 }

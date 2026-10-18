@@ -435,7 +435,7 @@ export const CourseOverview = () => {
       <div className="course-scroll">
         <main className="course-content">
           {/* Heading block */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="course-heading">
             {kicker && <p className="cd-kicker">{kicker}</p>}
             <h1 className="cd-title">{outlineQuery.data?.title ?? 'Course'}</h1>
             {courseDescription && <p className="cd-lead">{courseDescription}</p>}

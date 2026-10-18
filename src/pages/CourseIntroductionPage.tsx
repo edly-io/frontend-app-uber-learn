@@ -96,7 +96,7 @@ export const SaveAndResumePage = () => {
 
       <div className="course-scroll">
         <main className="course-content">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="course-heading">
             <p className="sr-kicker">{outlineQuery.data?.title ?? ''}</p>
             <h1 className="sr-title">Progress saved</h1>
             <p className="sr-lead">

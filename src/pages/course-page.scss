@@ -25,6 +25,13 @@
   padding-bottom: 32px;
 }
 
+/* ── Heading block (kicker + title + lead) ────────────────────────────────── */
+.course-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u-space-2);
+}
+
 /* ── Shared footer ────────────────────────────────────────────────────────── */
 .course-footer {
   flex-shrink: 0;

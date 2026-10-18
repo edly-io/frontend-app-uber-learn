@@ -1,4 +1,5 @@
 import React from 'react';
+import './progress-bar.scss';
 
 interface ProgressBarProps {
   /** 0–1 fraction completed */
@@ -16,21 +17,11 @@ export const ProgressBar = ({ fraction, label }: ProgressBarProps) => {
       aria-valuemin={0}
       aria-valuemax={100}
       aria-label={label ?? `Course progress: ${Math.round(pct)}%`}
-      style={{
-        height: '4px',
-        background: 'var(--u-background-state-disabled)',
-        borderRadius: '2px',
-        overflow: 'hidden',
-      }}
+      className="progress-bar"
     >
       <div
-        style={{
-          height: '100%',
-          width: `${pct}%`,
-          background: 'var(--u-background-accent)',
-          borderRadius: '2px',
-          transition: 'width var(--u-duration-normal) var(--u-ease-out)',
-        }}
+        className="progress-bar__fill"
+        style={{ width: `${pct}%` }}
       />
     </div>
   );

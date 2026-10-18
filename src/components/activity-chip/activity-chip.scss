@@ -40,4 +40,9 @@
     background: var(--u-background-positive-light);
     color: var(--u-content-positive);
   }
+
+  &--watch {
+    background: var(--u-background-warning-light);
+    color: var(--u-content-warning);
+  }
 }

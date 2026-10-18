@@ -1,7 +1,7 @@
 import React from 'react';
 import './activity-chip.scss';
 
-export type ChipType = 'learn' | 'practice';
+export type ChipType = 'learn' | 'practice' | 'watch';
 
 interface ActivityChipProps {
   type: ChipType;
@@ -21,13 +21,21 @@ const PracticeIcon = () => (
   </svg>
 );
 
+const WatchIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <polygon points="6,4 13,8 6,12" fill="currentColor" />
+  </svg>
+);
+
 const CHIP_CONFIG: Record<ChipType, { label: string; Icon: React.FC; modifier: string }> = {
   learn: { label: 'Learn', Icon: LearnIcon, modifier: 'activity-chip--learn' },
   practice: { label: 'Practice', Icon: PracticeIcon, modifier: 'activity-chip--practice' },
+  watch: { label: 'Watch', Icon: WatchIcon, modifier: 'activity-chip--watch' },
 };
 
 export const getChipType = (contentType: string, graded: boolean): ChipType => {
   if (contentType === 'problem' || graded) { return 'practice'; }
+  if (contentType === 'video') { return 'watch'; }
   return 'learn';
 };
 

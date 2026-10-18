@@ -250,9 +250,6 @@ export const LessonCompletePage = () => {
   const pointsEarned = resultsQuery.data?.points_earned ?? 0;
   const correctPercent = resultsQuery.data?.correct_percent ?? null;
   const questions = resultsQuery.data?.questions ?? 0;
-  const correctCount = correctPercent !== null && questions > 0
-    ? Math.round((correctPercent / 100) * questions)
-    : null;
 
   // Use outline-based lesson counts (sequences) rather than the progress API's unit (step) counts,
   // which would overcount steps within a lesson as separate "lessons".
@@ -352,17 +349,33 @@ export const LessonCompletePage = () => {
           )}
         </div>
 
-        {/* Points — only shown when `since` was provided (results are scoped to this attempt) */}
-        {since && pointsEarned > 0 && (
-          <div className="cpl-points">
-            <div className="cpl-points__figure">
-              <img src={iconLightning} alt="" aria-hidden="true" className="cpl-points__icon" />
-              <span className="cpl-points__value">
-                +
-                {pointsEarned}
-              </span>
-            </div>
-            <p className="cpl-points__label">{pointsLabel}</p>
+        {/* Stat cards grid — 2-up colored cards (Figma spec: points + accuracy side by side) */}
+        {since && (pointsEarned > 0 || correctPercent !== null) && (
+          <div className="cpl-stat-grid">
+            {pointsEarned > 0 && (
+              <div className="cpl-stat-card cpl-stat-card--points">
+                <div className="cpl-stat-card__figure">
+                  <img src={iconLightning} alt="" aria-hidden="true" className="cpl-stat-card__icon" />
+                  <span className="cpl-stat-card__value">
+                    +
+                    {pointsEarned}
+                  </span>
+                </div>
+                <p className="cpl-stat-card__label">{pointsLabel}</p>
+              </div>
+            )}
+            {correctPercent !== null && questions > 0 && (
+              <div className="cpl-stat-card cpl-stat-card--correct">
+                <div className="cpl-stat-card__figure">
+                  <img src={iconCircleCheck} alt="" aria-hidden="true" className="cpl-stat-card__icon" />
+                  <span className="cpl-stat-card__value">
+                    {correctPercent}
+                    %
+                  </span>
+                </div>
+                <p className="cpl-stat-card__label">correct</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -373,13 +386,6 @@ export const LessonCompletePage = () => {
               icon={iconLightning}
               label="Points"
               value="Already earned"
-            />
-          )}
-          {since && correctCount !== null && questions > 0 && (
-            <StatsRow
-              icon={iconCircleCheck}
-              label="Right first time"
-              value={`${correctCount} of ${questions}`}
             />
           )}
           {weekLabel && (

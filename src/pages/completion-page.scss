@@ -182,44 +182,58 @@
   margin: 0;
 }
 
-/* ── Points earned section ───────────────────────────────────────────────── */
-.cpl-points {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
+/* ── Stat grid — 2-up colored cards (Figma: points + accuracy side by side) ─ */
+.cpl-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
   width: 100%;
 }
 
-.cpl-points__figure {
+.cpl-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.cpl-stat-card--points {
+  background: var(--u-background-warning-light);
+}
+
+.cpl-stat-card--correct {
+  background: var(--u-background-positive-light);
+}
+
+.cpl-stat-card__figure {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-.cpl-points__icon {
-  width: 32px;
-  height: 32px;
+.cpl-stat-card__icon {
+  width: 24px;
+  height: 24px;
   display: block;
   flex-shrink: 0;
-  filter: brightness(0);
 }
 
-.cpl-points__value {
+.cpl-stat-card__value {
   font-family: var(--u-font-display);
-  font-size: 2.75rem; /* 44px */
+  font-size: 1.75rem;
   font-weight: 700;
   color: var(--u-content-primary);
-  line-height: 1.18;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
 
-.cpl-points__label {
+.cpl-stat-card__label {
   font-family: var(--u-font-body);
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--u-content-secondary);
-  line-height: 1.14;
+  line-height: 1.43;
   margin: 0;
 }
 

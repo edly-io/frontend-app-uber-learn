@@ -32,3 +32,38 @@ a,
   outline-offset: 2px;
   border-radius: 2px;
 }
+
+/* ── App-level error boundary ──────────────────────────────────────────────── */
+.app-error-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+  font-family: var(--u-font-body);
+  background: var(--u-background-primary);
+  color: var(--u-content-primary);
+}
+
+.app-error-message {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  margin: 0;
+}
+
+.app-error-btn {
+  padding: 14px 24px;
+  border-radius: 999px;
+  border: none;
+  background: var(--u-background-always-dark);
+  color: var(--u-content-on-color);
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+}

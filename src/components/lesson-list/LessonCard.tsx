@@ -25,7 +25,7 @@ export const LessonCard = ({
         className={`lesson-card__icon${isCompleted ? ' lesson-card__icon--completed' : ''}`}
       >
         {isCompleted && (
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true">
             <path
               d="M2 7L5.5 10.5L12 3.5"
               stroke="currentColor"
@@ -43,9 +43,9 @@ export const LessonCard = ({
       </span>
 
       {/* Chevron */}
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
-          d="M6 12L10 8L6 4"
+          d="M9 18L15 12L9 6"
           stroke="var(--u-content-secondary)"
           strokeWidth="1.5"
           strokeLinecap="round"

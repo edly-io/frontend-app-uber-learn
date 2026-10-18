@@ -52,6 +52,17 @@
 /* Course card subtitle — 14px font × 1.43 line-height ≈ 20px */
 .skel-card-sub { height: 16px; width: 55%; max-width: 100%; border-radius: 6px; }
 
+/* ── Leaderboard row bones ──────────────────────────── */
+
+/* Rank number bone — 24px wide × 16px tall */
+.skel-bone--w24 { width: 24px; height: 16px; }
+
+/* Name bone — fills remaining space × 16px tall */
+.skel-bone--flex { flex: 1; height: 16px; }
+
+/* Points bone — 32px wide × 16px tall */
+.skel-bone--w32 { width: 32px; height: 16px; }
+
 /* ── Lesson row bones ───────────────────────────────── */
 
 .skel-row {

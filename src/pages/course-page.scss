@@ -511,26 +511,6 @@
   margin: 0;
 }
 
-/* ── Prerequisite card ────────────────────────────────────────────────────── */
-.ci-prerequisite {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 16px;
-  background: var(--u-background-accent-light);
-  border-radius: 8px;
-  width: 100%;
-}
-
-.ci-prerequisite__label {
-  font-family: var(--u-font-body);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--u-background-accent);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin: 0;
-}
 
 .ci-prerequisite__name {
   font-family: var(--u-font-body);

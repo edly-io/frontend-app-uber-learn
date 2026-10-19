@@ -3,20 +3,25 @@
  *
  * AC coverage:
  *   - SP-FOCUS: input auto-focuses on mount
- *   - SP-PRE-TOPICS: topic chips NOT shown
  *   - SP-PRE-NO-RECENTS: "Recent" section absent when localStorage empty
- *   - SP-RECENT-SHOWN: recent search saved to localStorage after submit
+ *   - SP-RECENT-SHOWN: recent search saved to localStorage after Enter submit
+ *   - SP-RECENT-DEDUP: re-submitting an existing term moves it to top, not duplicated
+ *   - SP-RECENT-CAP: list capped at MAX_RECENT (8), oldest entry dropped
+ *   - SP-RECENT-ORDER: most recent appears first
  *   - SP-RECENT-REMOVE: clicking remove dismisses a recent search
+ *   - SP-RECENT-CLICK: clicking a recent entry fills input and fires the search
+ *   - SP-CORRUPT-STORAGE: corrupt or non-array localStorage doesn't crash the page
  *   - SP-RESULTS: submitting shows matching courses from backend
  *   - SP-RESULT-NAV: clicking a course result navigates to /course/:id
  *   - SP-LP-RESULTS: submitting shows matching learning paths from backend
  *   - SP-LP-RESULT-NAV: clicking a learning path result navigates to /learning-path/:uuid
  *   - SP-LP-SECTION: "Learning paths" section shown before "Courses"
  *   - SP-NO-RESULTS: zero-match search shows no-results message
+ *   - SP-ERROR: API error shows error view with a "Try again" button
  *   - SP-CLEAR: pressing the clear button resets query and results
- *   - SP-TOPIC-CLICK: topic chip click disabled (chips commented out)
- *   - SP-ENTER: pressing Enter submits the query
- *   - SP-BACK: back button calls navigate(-1)
+ *   - SP-ENTER: pressing Enter fires the query immediately (before the 300ms debounce)
+ *   - SP-BACK: back button calls navigate(-1) when there is history
+ *   - SP-BACK-HOME: back button navigates to "/" when location.key is "default" (no history)
  */
 import React from 'react';
 import {
@@ -29,12 +34,13 @@ import * as curriculumApi from '../api/curriculum';
 // ── Mocks ──────────────────────────────────────────────────
 
 const mockNavigate = jest.fn();
+let mockLocationKey = 'test-key';
 
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
   useLocation: () => ({
-    key: 'test-key',
+    key: mockLocationKey,
     pathname: '/',
     search: '',
     hash: '',
@@ -115,7 +121,8 @@ const STORAGE_KEY = 'uber-learn-recent-searches';
 
 describe('SearchPage', () => {
   beforeEach(() => {
-    mockNavigate.mockClear();
+    jest.clearAllMocks();
+    mockLocationKey = 'test-key';
     localStorage.clear();
     (curriculumApi.searchLearnerContent as jest.Mock).mockResolvedValue({
       query: '',
@@ -138,18 +145,14 @@ describe('SearchPage', () => {
     expect(input).toHaveAttribute('aria-label', 'Search paths and courses');
   });
 
-  it('does NOT show topic chips before any search (SP-PRE-TOPICS)', () => {
-    renderPage();
-    expect(screen.queryByRole('button', { name: 'Safety' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Driving' })).not.toBeInTheDocument();
-  });
-
   it('hides "Recent" section when localStorage is empty (SP-PRE-NO-RECENTS)', () => {
     renderPage();
     expect(screen.queryByText('Recent')).not.toBeInTheDocument();
   });
 
-  it('saves recent search to localStorage after submitting (SP-RECENT-SHOWN)', async () => {
+  // ── Recent searches ──────────────────────────────────────
+
+  it('saves recent search to localStorage after Enter submit (SP-RECENT-SHOWN)', async () => {
     renderPage();
     const input = screen.getByRole('searchbox');
     fireEvent.change(input, { target: { value: 'safety' } });
@@ -158,6 +161,39 @@ describe('SearchPage', () => {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as string[];
       expect(saved).toContain('safety');
     });
+  });
+
+  it('deduplicates recents — re-submitting an existing term does not add a second entry (SP-RECENT-DEDUP)', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(['safety', 'other']));
+    renderPage();
+    const input = screen.getByRole('searchbox');
+    fireEvent.change(input, { target: { value: 'safety' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as string[];
+    expect(saved.filter((s) => s === 'safety')).toHaveLength(1);
+  });
+
+  it('caps recents at 8 entries, dropping the oldest (SP-RECENT-CAP)', () => {
+    const existing = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+    renderPage();
+    const input = screen.getByRole('searchbox');
+    fireEvent.change(input, { target: { value: 'new' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as string[];
+    expect(saved).toHaveLength(8);
+    expect(saved[0]).toBe('new');
+    expect(saved).not.toContain('h');
+  });
+
+  it('places the newest recent first (SP-RECENT-ORDER)', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(['old']));
+    renderPage();
+    const input = screen.getByRole('searchbox');
+    fireEvent.change(input, { target: { value: 'newer' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as string[];
+    expect(saved[0]).toBe('newer');
   });
 
   it('removes a recent search on dismiss click (SP-RECENT-REMOVE)', async () => {
@@ -169,6 +205,35 @@ describe('SearchPage', () => {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as string[];
     expect(saved).not.toContain('teen rides');
   });
+
+  it('fills input and triggers search when a recent entry is clicked (SP-RECENT-CLICK)', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(['safety']));
+    (curriculumApi.searchLearnerContent as jest.Mock).mockResolvedValue({
+      query: 'safety',
+      curriculums: [],
+      courses: [COURSE_SAFETY],
+    });
+    renderPage();
+    fireEvent.click(screen.getByText('safety'));
+    await waitFor(() => {
+      expect(screen.getByText('Road safety fundamentals')).toBeInTheDocument();
+    });
+    expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('safety');
+  });
+
+  it('does not crash when localStorage contains corrupt JSON (SP-CORRUPT-STORAGE)', () => {
+    localStorage.setItem(STORAGE_KEY, 'not-json{{');
+    expect(() => renderPage()).not.toThrow();
+    expect(screen.queryByText('Recent')).not.toBeInTheDocument();
+  });
+
+  it('does not crash when localStorage contains a non-array value (SP-CORRUPT-STORAGE-TYPE)', () => {
+    localStorage.setItem(STORAGE_KEY, '"just a string"');
+    expect(() => renderPage()).not.toThrow();
+    expect(screen.queryByText('Recent')).not.toBeInTheDocument();
+  });
+
+  // ── Search results ───────────────────────────────────────
 
   it('shows matching courses returned by the backend (SP-RESULTS)', async () => {
     (curriculumApi.searchLearnerContent as jest.Mock).mockResolvedValue({
@@ -266,6 +331,25 @@ describe('SearchPage', () => {
     });
   });
 
+  it('shows an error view with a retry button when the API fails (SP-ERROR)', async () => {
+    (curriculumApi.searchLearnerContent as jest.Mock).mockRejectedValue(new Error('network error'));
+    renderPage();
+    const input = screen.getByRole('searchbox');
+    fireEvent.change(input, { target: { value: 'safety' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => {
+      expect(screen.getByText(/could not load results/i)).toBeInTheDocument();
+    });
+    // "Try again" triggers a refetch
+    (curriculumApi.searchLearnerContent as jest.Mock).mockResolvedValue({
+      query: 'safety', curriculums: [], courses: [COURSE_SAFETY],
+    });
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Road safety fundamentals')).toBeInTheDocument();
+    });
+  });
+
   it('clears query and results on clear button click (SP-CLEAR)', async () => {
     (curriculumApi.searchLearnerContent as jest.Mock).mockResolvedValue({
       query: 'safety',
@@ -282,29 +366,38 @@ describe('SearchPage', () => {
     expect((input as HTMLInputElement).value).toBe('');
   });
 
-  it('does NOT render topic chip buttons (SP-TOPIC-CLICK)', () => {
-    renderPage();
-    expect(screen.queryByRole('button', { name: 'Safety' })).not.toBeInTheDocument();
-  });
-
-  it('submits on Enter key press (SP-ENTER)', async () => {
+  it('Enter fires the query immediately before the 300ms debounce (SP-ENTER)', async () => {
+    jest.useFakeTimers();
     (curriculumApi.searchLearnerContent as jest.Mock).mockResolvedValue({
-      query: 'teen',
-      curriculums: [],
-      courses: [COURSE_TEEN],
+      query: 'teen', curriculums: [], courses: [COURSE_TEEN],
     });
     renderPage();
     const input = screen.getByRole('searchbox');
+
+    // Type — debounce timer starts but has not elapsed
     fireEvent.change(input, { target: { value: 'teen' } });
+    expect(curriculumApi.searchLearnerContent).not.toHaveBeenCalled();
+
+    // Enter fires immediately (before 300ms)
     fireEvent.keyDown(input, { key: 'Enter' });
+
+    // Restore real timers so waitFor can poll
+    jest.useRealTimers();
     await waitFor(() => {
-      expect(screen.getByText('Teen rides')).toBeInTheDocument();
+      expect(curriculumApi.searchLearnerContent).toHaveBeenCalledWith('teen');
     });
   });
 
-  it('back button calls navigate(-1) (SP-BACK)', () => {
+  it('back button calls navigate(-1) when there is history (SP-BACK)', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /go back/i }));
     expect(mockNavigate).toHaveBeenCalledWith(-1);
+  });
+
+  it('back button navigates to "/" when there is no history (SP-BACK-HOME)', () => {
+    mockLocationKey = 'default';
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /go back/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 });

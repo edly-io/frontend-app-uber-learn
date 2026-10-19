@@ -8,13 +8,15 @@ import {
 } from '../api/curriculum';
 import { qk } from '../api/queries';
 
+import { ErrorView } from '../components/ui/ErrorView';
+
 import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
 import iconSearch from '../assets/icons/icon-search.svg';
 import iconClock from '../assets/icons/icon-clock-outlined.svg';
 import iconX from '../assets/icons/icon-x.svg';
 import iconBadgeCheck from '../assets/icons/icon-badge-check.svg';
 import searchNoResults from '../assets/icons/search-no-results.svg';
-import scenePhoto from '../assets/images/scene-safety-education.png';
+import scenePhotoThumb from '../assets/images/scene-safety-education-thumb.png';
 
 import './search-page.scss';
 
@@ -25,24 +27,24 @@ const MAX_RECENT = 8;
 
 function getRecentSearches(): string[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
+    const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+    return Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === 'string') : [];
   } catch {
     return [];
   }
 }
 
 function saveRecentSearch(query: string) {
+  const list = getRecentSearches().filter((s) => s !== query);
+  list.unshift(query);
   try {
-    const list = getRecentSearches().filter((s) => s !== query);
-    list.unshift(query);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, MAX_RECENT)));
-  } catch { /* ignore */ }
+  } catch { /* storage blocked or full: recents are best-effort */ }
 }
 
 function removeRecentSearch(query: string) {
+  const list = getRecentSearches().filter((s) => s !== query);
   try {
-    const list = getRecentSearches().filter((s) => s !== query);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   } catch { /* ignore */ }
 }
@@ -60,7 +62,16 @@ const ChevronRight = () => (
 const CourseResult = ({ course, onClick }: { course: SearchCourseResult; onClick: () => void }) => (
   <button type="button" className="sp-course-card" onClick={onClick}>
     <div className="sp-course-card__art">
-      <img src={scenePhoto} alt="" aria-hidden="true" className="sp-course-card__art-img" loading="lazy" width="64" height="64" />
+      <img
+        src={course.image_url || scenePhotoThumb}
+        alt=""
+        aria-hidden="true"
+        className="sp-course-card__art-img"
+        loading="lazy"
+        width="64"
+        height="64"
+        onError={(e) => { e.currentTarget.src = scenePhotoThumb; }}
+      />
     </div>
     <div className="sp-course-card__body">
       {course.org && <span className="sp-course-card__kicker">{course.org}</span>}
@@ -71,8 +82,8 @@ const CourseResult = ({ course, onClick }: { course: SearchCourseResult; onClick
 );
 
 const CurriculumResult = ({ curriculum, onClick }: { curriculum: LearnerCurriculum; onClick: () => void }) => {
-  const nextCourse = curriculum.courses.find((c) => !c.finished);
-  const badgeUrl = curriculum.milestones.complete?.badge?.image_url ?? null;
+  const nextCourse = curriculum.courses?.find((c) => !c.finished);
+  const badgeUrl = curriculum.milestones?.complete?.badge?.image_url ?? null;
   return (
     <button type="button" className="sp-path-card" onClick={onClick}>
       <div className="sp-path-card__seal">
@@ -82,7 +93,12 @@ const CurriculumResult = ({ curriculum, onClick }: { curriculum: LearnerCurricul
             alt=""
             className={`sp-path-card__seal-art${curriculum.courses_finished < curriculum.courses_total ? ' sp-path-card__seal-art--locked' : ''}`}
             aria-hidden="true"
-            onError={(e) => { if (e.currentTarget.src !== iconBadgeCheck) { e.currentTarget.src = iconBadgeCheck; } }}
+            onError={(e) => {
+              if (e.currentTarget.dataset.fallback) { return; }
+              // eslint-disable-next-line no-param-reassign
+              e.currentTarget.dataset.fallback = '1';
+              e.currentTarget.src = iconBadgeCheck;
+            }}
           />
         </div>
       </div>
@@ -110,7 +126,7 @@ export const SearchPage = () => {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [recents, setRecents] = useState<string[]>(() => getRecentSearches());
 
-  // Fire search 300ms after user stops typing
+  // Fire search 300ms after user stops typing; recents are saved only on deliberate submit
   useEffect(() => {
     const trimmed = query.trim();
     if (!trimmed) {
@@ -119,14 +135,12 @@ export const SearchPage = () => {
     }
     const timer = setTimeout(() => {
       setDebouncedQuery(trimmed);
-      saveRecentSearch(trimmed);
-      setRecents(getRecentSearches());
     }, 300);
     return () => clearTimeout(timer);
   }, [query]);
 
   const {
-    data, isLoading, isError, refetch,
+    data, isLoading, isFetching, isError, refetch,
   } = useQuery({
     queryKey: qk.search(debouncedQuery),
     queryFn: () => searchLearnerContent(debouncedQuery),
@@ -202,22 +216,21 @@ export const SearchPage = () => {
         {isSearching ? (
           /* ── Results ── */
           <>
-            {isLoading && (
+            {(isLoading || isFetching) && (
               <div className="sp-loading" aria-label="Loading…" aria-busy="true">
                 <div className="sp-loading__row" aria-hidden="true" />
                 <div className="sp-loading__row" aria-hidden="true" />
                 <div className="sp-loading__row" aria-hidden="true" />
               </div>
             )}
-            {isError && !isLoading && (
-              <div className="sp-error">
-                <p className="sp-error__message">Could not load results</p>
-                <button type="button" className="sp-error__retry" onClick={() => refetch()}>
-                  Try again
-                </button>
-              </div>
+            {isError && !isFetching && (
+              <ErrorView
+                title="Could not load results"
+                message="We couldn't search right now. Please try again."
+                onRetry={() => refetch()}
+              />
             )}
-            {!isLoading && !isError && (
+            {!isFetching && !isError && (
               <>
                 <p className="sp-results-count">
                   {totalResults} {totalResults === 1 ? 'result' : 'results'}

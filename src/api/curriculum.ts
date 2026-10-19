@@ -136,5 +136,8 @@ export async function searchLearnerContent(q: string): Promise<SearchResponse> {
     `${lmsBase()}/api/uber/curriculum/v1/learner/search/`,
     { params: { q } },
   );
+  if (!data || !Array.isArray(data.curriculums) || !Array.isArray(data.courses)) {
+    throw new Error(`Unexpected search response shape for q="${q}"`);
+  }
   return data;
 }

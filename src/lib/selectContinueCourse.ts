@@ -64,7 +64,6 @@ const mostRelevantUnfinishedCurriculum = (
   );
   return sorted.find(hasAnyProgress)
     ?? sorted.find((c) => c.courses_finished > 0)
-    ?? sorted[0]
     ?? null;
 };
 

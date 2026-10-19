@@ -589,5 +589,20 @@ describe('CourseOverview', () => {
       });
       expect(screen.queryByText('90 of 80 points earned')).not.toBeInTheDocument();
     });
+
+    it('AC-PTS-04: falls back to "X points earned" while max-points query is still loading', async () => {
+      // Simulate max-points query pending: mock never resolves
+      jest.mocked(gamificationApi.getCourseMaxPoints).mockReturnValue(new Promise(() => {}));
+      mockUseGamification.mockReturnValue({
+        data: { courses: [{ course_key: COURSE_ID, points: 40 }] },
+      });
+      mockUseCourseProgressSummary.mockReturnValue({ data: { fraction: 0.5, completedUnits: 2, totalUnits: 4 } });
+
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByText('40 points earned')).toBeInTheDocument();
+      });
+    });
   });
 });

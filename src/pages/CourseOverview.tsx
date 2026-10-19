@@ -353,7 +353,7 @@ export const CourseOverview = () => {
   const fraction = progressSummary?.fraction ?? 0;
   const courseComplete = fraction >= 1;
   const pointsEarned = gamification?.courses?.find((c) => c.course_key === courseId)?.points ?? 0;
-  const maxPoints = maxPointsData?.max_points ?? 0;
+  const maxPoints = maxPointsData?.max_points ?? null;
 
   const resumeSequenceId = apiResumeSequenceId;
 
@@ -439,11 +439,13 @@ export const CourseOverview = () => {
                     />
                   )}
                 </div>
-                {maxPoints > 0 && (
+                {(maxPoints !== null ? maxPoints > 0 : pointsEarned > 0) && (
                   <p className="cd-progress-points">
-                    {(fraction > 0 || completedLessons > 0)
-                      ? `${Math.min(pointsEarned, maxPoints)} of ${maxPoints} points earned`
-                      : `Earn up to ${maxPoints} points`}
+                    {maxPoints !== null
+                      ? ((fraction > 0 || completedLessons > 0)
+                        ? `${Math.min(pointsEarned, maxPoints)} of ${maxPoints} points earned`
+                        : `Earn up to ${maxPoints} points`)
+                      : `${pointsEarned} points earned`}
                   </p>
                 )}
               </div>

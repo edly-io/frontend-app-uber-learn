@@ -35,6 +35,7 @@ import './course-catalog.scss';
 // ── Helpers ─────────────────────────────────────────────
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+const HOME_PATHS_LIMIT = 3;
 
 const SearchIcon = () => (
   <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -816,7 +817,6 @@ export const CourseCatalog = () => {
   const completedPathsForHome = (curriculums ?? []).filter(
     (c) => c.courses_finished === c.courses_total && c.courses_total > 0,
   );
-  const HOME_PATHS_LIMIT = 3;
   const homePathsSlice = [
     ...activePathsForHome,
     ...completedPathsForHome,

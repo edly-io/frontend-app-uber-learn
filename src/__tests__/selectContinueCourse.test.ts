@@ -165,17 +165,14 @@ describe('selectContinueCourse', () => {
   it('prefers standalone in-progress courses over unstarted curriculum courses when no path has activity', () => {
     // safety is an unfinished curriculum but its first course (SAF101) has no progress.
     // SEC103 is a standalone enrolled course with some progress.
+    // mostRelevantUnfinishedCurriculum returns null (no engagement on safety), so
+    // fromRelevantPath is null and the standalone in-progress fallback fires.
     const { course: picked } = selectContinueCourse({
       enrolledCourses: ALL,
       curriculums: [safety],
       lastActivityCourseId: null,
       courseFractions: { [SEC103.courseId]: 0.3 },
     });
-    // safety curriculum exists so fromRelevantPath should fire — BUT SAF101 has no progress,
-    // whereas SEC103 does. Standalone in-progress wins only when the curriculum path has no progress.
-    // SAF101 is returned because path selection fires before standalone fallback.
-    // This test documents current priority: path > standalone even when standalone is in-progress.
-    // Change this expectation if business rules require standalone in-progress to beat new path courses.
-    expect(picked).toBe(SAF101);
+    expect(picked).toBe(SEC103);
   });
 });

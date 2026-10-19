@@ -156,8 +156,8 @@ How it works
 3. The LMS signs the learner in (session and JWT cookies), enrolls them when
    the link names a course, and answers ``{"next": "<app path>", "course_id":
    "<course key>" | null}``.
-4. The page does a full page load of ``/uber-learn`` + ``next``, where the
-   app boots again with the new session. ``next`` is
+4. The page does a full page load of ``/uber-learn`` + ``next`` (see `Deep
+   links`_), where the app boots again with the new session. ``next`` is
    followed only when it is a safe in-app path; otherwise the page opens the
    course (when ``course_id`` is valid) or the app home. A returning learner
    (same External ID) gets the same account and resumes the course.
@@ -197,6 +197,41 @@ Browser signed in to another account         "You're signed in to a different ac
 Feature off (no secret on the LMS)           "Course links aren't available right now"
 Network, server or CSRF error                "Something went wrong" + Try again
 ============================================ ====================================================
+
+Optional courses and deep links
+*******************************
+
+Optional courses
+================
+
+Home has an *Optional courses* section (``id="optional-courses"``), after the
+learning paths, listing the courses the learner's groups offer
+(``GET {LMS_BASE_URL}/api/uber/optional-courses/v1/courses/``). It is hidden
+when the list is empty or the request fails. Tapping an enrolled course opens
+it; otherwise the page enrolls the learner first
+(``POST .../optional-courses/v1/courses/enroll/`` with ``{"course_id"}``),
+refetches the enrolled and optional courses, and then opens the course. If the
+enrollment is refused, the section shows an inline error and home stays put.
+
+Home normally sends a learner with no enrolled courses to ``/no-courses``; it
+does not while optional courses are on offer, so a driver with only optional
+courses can pick one.
+
+Deep links
+==========
+
+These app paths (relative to ``/uber-learn``) are what the LMS answers a
+signed launch with as ``next``, and can also be opened directly:
+
+====================== ==========================================================
+Path                   Page
+====================== ==========================================================
+``/``                  Home.
+``/course/<key>``      The course overview.
+``/?section=optional`` Home, scrolled to the Optional courses section once it
+                       has loaded; ``section`` is then removed from the URL (with
+                       ``replace``), so a refresh does not scroll again.
+====================== ==========================================================
 
 Getting Help
 ************

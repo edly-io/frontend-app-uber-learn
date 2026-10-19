@@ -957,6 +957,19 @@
   cursor: pointer;
   text-align: center;
   position: relative;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lp-badge-grid-item:hover { opacity: 0.8; }
+}
+
+.lp-badge-grid-item:active { opacity: 0.65; }
+
+.lp-badge-grid-item:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 
 .lp-badge-grid-item__ring-wrap {
@@ -1061,3 +1074,13 @@
 }
 
 /* --open: illustration asset provides the golden color */
+
+/* ── Reduced motion ───────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .lp-nav__close,
+  .lp-nav__info,
+  .lp-tab,
+  .btn-primary {
+    transition: none;
+  }
+}

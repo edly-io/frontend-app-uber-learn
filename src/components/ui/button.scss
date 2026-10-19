@@ -18,6 +18,17 @@
     cursor: not-allowed;
   }
 
+  @media (hover: hover) and (pointer: fine) {
+    &:not(:disabled):hover { opacity: 0.85; }
+  }
+
+  &:not(:disabled):active { opacity: 0.7; }
+
+  &:not(:disabled):focus-visible {
+    outline: 2px solid var(--u-content-primary);
+    outline-offset: 2px;
+  }
+
   &--primary {
     background: var(--u-background-always-dark);
     color: var(--u-content-on-color);
@@ -31,4 +42,8 @@
   &--full {
     width: 100%;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-btn { transition: none; }
 }

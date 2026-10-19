@@ -44,11 +44,16 @@ const SearchIcon = () => (
   </svg>
 );
 
-function getGreeting(): string {
+function getGreetingBase(): string {
   const hour = new Date().getHours();
   if (hour < 12) { return 'Good morning'; }
   if (hour < 18) { return 'Good afternoon'; }
   return 'Good evening';
+}
+
+function getGreeting(firstName?: string | null): string {
+  const base = getGreetingBase();
+  return firstName ? `${base}, ${firstName}` : base;
 }
 
 // ── Discovery header ─────────────────────────────────────
@@ -684,7 +689,7 @@ export const CourseCatalog = () => {
     if (celebration) { goToBadgeCelebration(navigate, celebration); }
   }, [celebration, navigate]);
 
-  const greeting = `${getGreeting()}.`;
+  const greeting = `${getGreeting(gamification?.first_name)}.`;
   const enrolledCourses = courses ?? [];
 
   const kcCourseIds = new Set(

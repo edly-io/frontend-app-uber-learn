@@ -13,3 +13,7 @@
   border-radius: 2px;
   transition: width var(--u-duration-normal) var(--u-ease-out);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar__fill { transition: none; }
+}

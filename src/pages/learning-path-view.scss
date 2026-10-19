@@ -31,6 +31,18 @@
   cursor: pointer;
   color: var(--u-content-primary);
   flex-shrink: 0;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lpv-nav__back:hover { opacity: 0.7; }
+}
+
+.lpv-nav__back:active { opacity: 0.6; }
+
+.lpv-nav__back:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
 }
 
 .lpv-nav__back-icon {
@@ -229,6 +241,18 @@
   border-radius: 16px;
   cursor: pointer;
   text-align: left;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lpv-course-card:hover { opacity: 0.85; }
+}
+
+.lpv-course-card:active { opacity: 0.7; }
+
+.lpv-course-card:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
 }
 
 .lpv-course-card__thumb {

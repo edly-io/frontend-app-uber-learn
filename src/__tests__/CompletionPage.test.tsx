@@ -246,12 +246,13 @@ describe('LessonCompletePage', () => {
     expect(screen.getByLabelText('Loading…')).toBeInTheDocument();
   });
 
-  it('LCP-DATA: renders course title and lesson position from outline', async () => {
+  it('LCP-DATA: renders lesson title (not course title) and lesson position from outline', async () => {
     mockUseCourseOutline.mockReturnValue({ data: OUTLINE_TWO_LESSONS, isLoading: false });
     mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID_1 });
     wrap(<LessonCompletePage />);
+    // Subtitle should show the lesson/sequence title, not the course title (Figma 1121:11166)
     await waitFor(() => {
-      expect(screen.getByText('Road Safety · Lesson 1 of 2')).toBeInTheDocument();
+      expect(screen.getByText('Lesson One · Lesson 1 of 2')).toBeInTheDocument();
     });
   });
 

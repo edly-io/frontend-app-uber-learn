@@ -611,12 +611,16 @@
   color: var(--u-content-primary);
   cursor: pointer;
   transition: border-color var(--u-duration-fast) var(--u-ease-out),
-              font-weight var(--u-duration-fast) var(--u-ease-out);
+              opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
 .cl-sheet-topic-chip--active {
   border: 2px solid var(--u-content-secondary);
   font-weight: 500;
+}
+
+.cl-sheet-topic-chip:active {
+  opacity: 0.7;
 }
 
 .cl-sheet-topic-chip:focus-visible {
@@ -685,4 +689,14 @@
 .cl-sheet__apply:focus-visible {
   outline: 2px solid var(--u-content-primary);
   outline-offset: 2px;
+}
+
+/* ── Reduced motion ───────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .cl-nav__back,
+  .cl-filter-chip,
+  .cl-card,
+  .cl-sheet__apply {
+    transition: none;
+  }
 }

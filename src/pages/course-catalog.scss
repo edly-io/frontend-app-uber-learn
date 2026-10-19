@@ -840,6 +840,20 @@
   border-radius: 20px;
   cursor: pointer;
   text-align: left;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.path-card:active {
+  opacity: 0.75;
+}
+
+.path-card:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .path-card:hover { opacity: 0.85; }
 }
 
 .path-card__seal {
@@ -1042,4 +1056,18 @@
   text-decoration: underline;
   min-height: auto;
   min-width: auto;
+}
+
+/* ── Reduced motion ───────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .continue-card,
+  .course-tile,
+  .all-courses-card,
+  .path-card,
+  .notice-card--full-tap,
+  .check-open-banner,
+  .stat-chip,
+  .home-header__search {
+    transition: none;
+  }
 }

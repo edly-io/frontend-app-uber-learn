@@ -35,8 +35,11 @@ function getSubtitles(c: LearnerCurriculum, state: CheckState): [string | null, 
   }
 
   if (state === 'open') {
-    // Score data is not available from the curriculums API — no subtitle for open checks.
-    return [null, null];
+    const qCount = kc.question_count ?? null;
+    const threshold = kc.pass_threshold ?? null;
+    const sub1 = qCount != null ? `${qCount} question${qCount !== 1 ? 's' : ''}` : null;
+    const sub2 = threshold != null ? `Get ${threshold} right to earn the trophy` : null;
+    return [sub1, sub2];
   }
 
   // Coming up — path not fully done yet

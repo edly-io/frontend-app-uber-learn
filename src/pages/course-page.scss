@@ -61,9 +61,8 @@
   transition: opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
-.course-footer__primary:hover,
-.course-footer__primary:focus-visible {
-  opacity: 0.85;
+@media (hover: hover) and (pointer: fine) {
+  .course-footer__primary:not(:disabled):hover { opacity: 0.85; }
 }
 
 .course-footer__primary:active {
@@ -77,6 +76,7 @@
 }
 
 .course-footer__primary:focus-visible {
+  opacity: 0.85;
   outline: 2px solid var(--u-content-primary);
   outline-offset: 2px;
 }
@@ -98,12 +98,16 @@
   transition: opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
-.course-footer__secondary:hover,
-.course-footer__secondary:focus-visible {
-  opacity: 0.7;
+@media (hover: hover) and (pointer: fine) {
+  .course-footer__secondary:hover { opacity: 0.7; }
+}
+
+.course-footer__secondary:active {
+  opacity: 0.6;
 }
 
 .course-footer__secondary:focus-visible {
+  opacity: 0.7;
   outline: 2px solid var(--u-content-primary);
   outline-offset: 2px;
 }
@@ -275,8 +279,15 @@
   transition: opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
-.cd-record-card:hover {
-  opacity: 0.85;
+@media (hover: hover) and (pointer: fine) {
+  .cd-record-card:hover { opacity: 0.85; }
+}
+
+.cd-record-card:active { opacity: 0.7; }
+
+.cd-record-card:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
 }
 
 .cd-record-card__body {
@@ -722,10 +733,17 @@
   transition: opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
-.cp-back-btn:hover,
-.cp-back-btn:focus-visible { opacity: 0.8; }
-.cp-back-btn:active         { opacity: 0.6; }
-.cp-back-btn:focus-visible  { outline: 2px solid var(--u-content-primary); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .cp-back-btn:hover { opacity: 0.8; }
+}
+
+.cp-back-btn:active { opacity: 0.6; }
+
+.cp-back-btn:focus-visible {
+  opacity: 0.8;
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
 
 .cp-back-btn__icon {
   width: 24px;
@@ -977,7 +995,16 @@ button.cp-path-step {
   transition: opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
-.cp-up-next-card:hover { opacity: 0.85; }
+@media (hover: hover) and (pointer: fine) {
+  .cp-up-next-card:hover { opacity: 0.85; }
+}
+
+.cp-up-next-card:active { opacity: 0.7; }
+
+.cp-up-next-card:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
 
 .cp-up-next-card__body {
   flex: 1;

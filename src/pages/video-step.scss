@@ -303,3 +303,7 @@
   background: var(--u-background-secondary);
   color: var(--u-content-primary);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .vs-footer__btn { transition: none; }
+}

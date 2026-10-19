@@ -29,6 +29,18 @@
   border: none;
   cursor: pointer;
   color: var(--u-content-primary);
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .alp-nav__back:hover { opacity: 0.7; }
+}
+
+.alp-nav__back:active { opacity: 0.6; }
+
+.alp-nav__back:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
 }
 
 /* ── Content ─────────────────────────────────────────────── */
@@ -164,6 +176,18 @@
   border-radius: 20px;
   cursor: pointer;
   text-align: left;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .alp-page .path-card:hover { opacity: 0.85; }
+}
+
+.alp-page .path-card:active { opacity: 0.7; }
+
+.alp-page .path-card:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
 }
 
 .alp-page .path-card__seal {

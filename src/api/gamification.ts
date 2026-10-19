@@ -48,6 +48,8 @@ export interface GamificationSummary {
   this_week: GamificationThisWeek;
   recent_weeks: GamificationRecentWeek[];
   server_time: string;
+  /** Driver's first name for the personalised greeting — returned by backend when available */
+  first_name?: string | null;
 }
 
 export interface LeaderboardRow {

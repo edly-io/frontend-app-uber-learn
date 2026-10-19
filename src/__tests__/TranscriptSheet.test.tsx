@@ -123,3 +123,51 @@ test('TS-ESCAPE-CLOSE: Escape key triggers onClose', () => {
   fireEvent.keyDown(document, { key: 'Escape' });
   expect(onClose).toHaveBeenCalledTimes(1);
 });
+
+test('TS-SWIPE-GRABBER-DOWN: swipe down on grabber beyond threshold triggers onClose', () => {
+  const onClose = jest.fn();
+  const { container } = renderSheet('block@abc', onClose);
+  const handle = container.querySelector('.bds-handle')!;
+  fireEvent.touchStart(handle, { touches: [{ clientY: 100 }] });
+  fireEvent.touchEnd(handle, { changedTouches: [{ clientY: 170 }] });
+  expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+test('TS-SWIPE-GRABBER-SHORT: swipe less than threshold does not trigger onClose', () => {
+  const onClose = jest.fn();
+  const { container } = renderSheet('block@abc', onClose);
+  const handle = container.querySelector('.bds-handle')!;
+  fireEvent.touchStart(handle, { touches: [{ clientY: 100 }] });
+  fireEvent.touchEnd(handle, { changedTouches: [{ clientY: 140 }] });
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+test('TS-SWIPE-GRABBER-CANCEL: touch cancel on grabber resets without triggering close', () => {
+  const onClose = jest.fn();
+  const { container } = renderSheet('block@abc', onClose);
+  const handle = container.querySelector('.bds-handle')!;
+  fireEvent.touchStart(handle, { touches: [{ clientY: 100 }] });
+  fireEvent.touchCancel(handle);
+  fireEvent.touchEnd(handle, { changedTouches: [{ clientY: 200 }] });
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+test('TS-SWIPE-BODY-DOWN: swipe down on body at scroll top triggers onClose', () => {
+  const onClose = jest.fn();
+  const { container } = renderSheet('block@abc', onClose);
+  const body = container.querySelector('.ts-body')!;
+  // scrollTop defaults to 0 in jsdom
+  fireEvent.touchStart(body, { touches: [{ clientY: 50 }] });
+  fireEvent.touchEnd(body, { changedTouches: [{ clientY: 120 }] });
+  expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+test('TS-SWIPE-BODY-CANCEL: touch cancel on body resets without triggering close', () => {
+  const onClose = jest.fn();
+  const { container } = renderSheet('block@abc', onClose);
+  const body = container.querySelector('.ts-body')!;
+  fireEvent.touchStart(body, { touches: [{ clientY: 50 }] });
+  fireEvent.touchCancel(body);
+  fireEvent.touchEnd(body, { changedTouches: [{ clientY: 200 }] });
+  expect(onClose).not.toHaveBeenCalled();
+});

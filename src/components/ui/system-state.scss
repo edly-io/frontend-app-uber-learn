@@ -132,3 +132,7 @@
     }
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .ss-footer__btn { transition: none; }
+}

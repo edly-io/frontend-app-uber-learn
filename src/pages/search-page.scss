@@ -36,6 +36,11 @@
   margin-left: -10px;
 
   &:active { opacity: 0.6; }
+
+  &:focus-visible {
+    outline: 2px solid var(--u-content-primary);
+    outline-offset: 2px;
+  }
 }
 
 .sp-bar__back-icon {
@@ -148,6 +153,14 @@
   cursor: pointer;
   text-align: left;
   min-height: 44px;
+
+  &:active { opacity: 0.6; }
+
+  &:focus-visible {
+    outline: 2px solid var(--u-content-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 }
 
 .sp-recent-row__clock {
@@ -176,6 +189,15 @@
   cursor: pointer;
   flex-shrink: 0;
   opacity: 0.5;
+
+  &:active { opacity: 0.3; }
+
+  &:focus-visible {
+    outline: 2px solid var(--u-content-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+    opacity: 0.8;
+  }
 }
 
 .sp-recent-row__remove img {
@@ -263,8 +285,18 @@
   cursor: pointer;
   text-align: left;
   color: var(--u-content-primary);
+  transition: opacity var(--u-duration-fast) ease;
 
   &:active { opacity: 0.75; }
+
+  &:focus-visible {
+    outline: 2px solid var(--u-content-primary);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover { opacity: 0.85; }
+  }
 }
 
 .sp-path-card__seal {
@@ -354,8 +386,18 @@
   cursor: pointer;
   text-align: left;
   color: var(--u-content-primary);
+  transition: opacity var(--u-duration-fast) ease;
 
   &:active { opacity: 0.75; }
+
+  &:focus-visible {
+    outline: 2px solid var(--u-content-primary);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover { opacity: 0.85; }
+  }
 }
 
 .sp-course-card__art {
@@ -400,6 +442,19 @@
   font-weight: 500;
   line-height: 1.33;
   color: var(--u-content-primary);
+}
+
+.sp-course-card__desc {
+  display: block;
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.43;
+  color: var(--u-content-secondary);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 /* ── No results ──────────────────────────────────────── */
@@ -484,6 +539,11 @@
   min-width: 60px;
 
   &:active { opacity: 0.75; }
+
+  &:focus-visible {
+    outline: 2px solid var(--u-content-primary);
+    outline-offset: 2px;
+  }
 }
 
 /* ── Loading skeleton ────────────────────────────────── */
@@ -505,5 +565,10 @@
 @keyframes sp-shimmer {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-loading__row { animation: none; }
+  .sp-topic-chip { transition: none; }
 }
 

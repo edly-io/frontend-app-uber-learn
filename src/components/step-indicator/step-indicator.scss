@@ -21,3 +21,7 @@
   background: var(--u-background-accent);
   transition: width var(--u-duration-normal) var(--u-ease-out);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .step-indicator__fill { transition: none; }
+}

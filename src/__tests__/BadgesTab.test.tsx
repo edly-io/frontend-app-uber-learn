@@ -24,7 +24,7 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LearningProgress } from '../pages/LearningProgress';
 import type { LearnerCurriculum } from '../api/curriculum';
-import type { EnrolledCourse } from '../api/catalog';
+import type { LearnCourse } from '../api/learn';
 
 // ── Module mocks ──────────────────────────────────────────
 
@@ -38,8 +38,8 @@ jest.mock('react-router-dom', () => ({
 
 // Stub every hook/api used by LearningProgress so the render is self-contained
 
-jest.mock('../api/catalog', () => ({
-  getEnrolledCourses: jest.fn().mockResolvedValue([]),
+jest.mock('../api/learn', () => ({
+  getLearnCourses: jest.fn().mockResolvedValue([]),
 }));
 jest.mock('../api/progress', () => ({
   getProgress: jest.fn().mockResolvedValue(null),
@@ -88,13 +88,20 @@ function makeCurriculum(overrides: Partial<LearnerCurriculum> = {}): LearnerCurr
   };
 }
 
-const COURSE: EnrolledCourse = {
+const COURSE: LearnCourse = {
   courseId: 'course-v1:Uber+Safety',
   title: 'Road safety fundamentals',
   imageUrl: null,
   courseStart: null,
   courseEnd: null,
-  isActive: true,
+  lessonCount: 0,
+  completedLessons: 0,
+  progress: 0,
+  nextLesson: null,
+  status: 'not_started',
+  curriculum: null,
+  lastActivity: null,
+  points: 0,
 };
 
 const BADGE_ENTRY_ONE = {
@@ -133,9 +140,9 @@ describe('BadgesTab inside LearningProgress', () => {
     mockNavigate.mockClear();
     mockUseBadges.mockReturnValue({ data: BADGE_DATA_EMPTY });
     mockUseCurriculums.mockReturnValue({ data: [] });
-    // stub catalog for the parent query
-    const catalogMod = jest.requireMock('../api/catalog') as { getEnrolledCourses: jest.Mock };
-    catalogMod.getEnrolledCourses.mockResolvedValue([]);
+    // stub the courses API for the parent query
+    const learnMod = jest.requireMock('../api/learn') as { getLearnCourses: jest.Mock };
+    learnMod.getLearnCourses.mockResolvedValue([]);
   });
 
   it('shows total badge count of 0 in hero (BT-HERO-COUNT)', async () => {
@@ -187,8 +194,8 @@ describe('BadgesTab inside LearningProgress', () => {
   });
 
   it('renders "Courses" section when enrolled courses exist (BT-COURSES-SHOWN)', async () => {
-    const catalogMod = jest.requireMock('../api/catalog') as { getEnrolledCourses: jest.Mock };
-    catalogMod.getEnrolledCourses.mockResolvedValue([COURSE]);
+    const learnMod = jest.requireMock('../api/learn') as { getLearnCourses: jest.Mock };
+    learnMod.getLearnCourses.mockResolvedValue([COURSE]);
     renderProgress();
     switchToBadgesTab();
     await waitFor(() => {
@@ -197,8 +204,8 @@ describe('BadgesTab inside LearningProgress', () => {
   });
 
   it('hides "Courses" section when no enrolled courses (BT-COURSES-HIDDEN)', async () => {
-    const catalogMod = jest.requireMock('../api/catalog') as { getEnrolledCourses: jest.Mock };
-    catalogMod.getEnrolledCourses.mockResolvedValue([]);
+    const learnMod = jest.requireMock('../api/learn') as { getLearnCourses: jest.Mock };
+    learnMod.getLearnCourses.mockResolvedValue([]);
     renderProgress();
     switchToBadgesTab();
     await waitFor(() => {
@@ -233,8 +240,8 @@ describe('BadgesTab inside LearningProgress', () => {
   });
 
   it('shows "New" chip on unseen badge award (BT-NEW-CHIP)', async () => {
-    const catalogMod = jest.requireMock('../api/catalog') as { getEnrolledCourses: jest.Mock };
-    catalogMod.getEnrolledCourses.mockResolvedValue([COURSE]);
+    const learnMod = jest.requireMock('../api/learn') as { getLearnCourses: jest.Mock };
+    learnMod.getLearnCourses.mockResolvedValue([COURSE]);
     mockUseBadges.mockReturnValue({ data: BADGE_DATA_ONE }); // seen: false
     renderProgress();
     switchToBadgesTab();

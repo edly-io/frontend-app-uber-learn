@@ -1,13 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 
-import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
-import { qk } from '../api/queries';
 import { useCurriculums } from '../hooks/useCurriculums';
-import { useCourseOutline } from '../hooks/useCourseOutline';
-import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
-import { mapOutlineToLessons, findNextLessonIndex } from '../lib/outline-mapper';
+import { useLearnCourses, type LearnCourse, type LearnCourseStatus } from '../hooks/useLearnCourses';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
 
@@ -30,6 +25,16 @@ function courseCountLabel(n: number): string {
   return n === 1 ? '1 course' : `${n} courses`;
 }
 
+const CARD_STATUS: Record<LearnCourseStatus, CourseStatus> = {
+  not_started: 'not-started',
+  in_progress: 'in-progress',
+  completed: 'completed',
+};
+
+function cardStatus(status: LearnCourseStatus): CourseStatus {
+  return CARD_STATUS[status] ?? 'not-started';
+}
+
 // ── Art cycling ───────────────────────────────────────────────────────────────
 
 // ── Filters ───────────────────────────────────────────────────────────────────
@@ -48,45 +53,30 @@ function passesFilters(status: CourseStatus, inPath: boolean, active: Set<Filter
   return true;
 }
 
-// ── Connected course card ─────────────────────────────────────────────────────
+// ── Course card ───────────────────────────────────────────────────────────────
 
-interface ConnectedCourseCardProps {
-  course: EnrolledCourse;
+interface CourseCardProps {
+  course: LearnCourse;
   inPath: boolean;
   category?: string;
   onClick: () => void;
   activeFilters: Set<FilterKey>;
-  onResolved: (courseId: string, status: CourseStatus) => void;
 }
 
-const ConnectedCourseCard = ({
+const CourseCard = ({
   course,
   inPath,
   category,
   onClick,
   activeFilters,
-  onResolved,
-}: ConnectedCourseCardProps) => {
-  const { data: outline, isError: outlineError } = useCourseOutline(course.courseId);
-  const { data: progressData } = useCourseProgressSummary(course.courseId);
+}: CourseCardProps) => {
   const [imgError, setImgError] = useState(false);
 
-  const allLessons = useMemo(() => (outline ? mapOutlineToLessons(outline) : []), [outline]);
-
-  const fraction = progressData?.fraction ?? 0;
-
-  // First lesson the outline reports incomplete. `fraction` is a unit ratio and cannot be
+  const status = cardStatus(course.status);
+  const fraction = course.progress;
+  // The API names the first incomplete lesson; `fraction` is a unit ratio and cannot be
   // scaled into a lesson index (units per lesson vary).
-  const nextLessonIdx = findNextLessonIndex(allLessons);
-  const nextLesson = nextLessonIdx >= 0 ? allLessons[nextLessonIdx] : undefined;
-
-  let status: CourseStatus = 'not-started';
-  if (fraction >= 1) { status = 'completed'; } else if (fraction > 0) { status = 'in-progress'; }
-
-  React.useEffect(() => {
-    onResolved(course.courseId, status);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  const nextLessonTitle = course.nextLesson?.title ?? null;
 
   if (!passesFilters(status, inPath, activeFilters)) {
     return null;
@@ -94,38 +84,15 @@ const ConnectedCourseCard = ({
 
   const showRealImage = Boolean(course.imageUrl) && !imgError;
 
-  if (outlineError) {
-    return (
-      <div className="cl-card cl-card--error">
-        <div className="cl-card__tile" />
-        <div className="cl-card__body">
-          <span className="cl-card__title">{course.title}</span>
-          <span className="cl-card__next cl-card__next--error">Could not load</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!outline) {
-    return (
-      <div className="cl-card cl-card--loading" aria-busy="true">
-        <div className="cl-card__tile" />
-        <div className="cl-card__body">
-          <LoadingSkeleton variant="card" />
-        </div>
-      </div>
-    );
-  }
-
   let subtitle: React.ReactNode = null;
   if (status === 'completed') {
     subtitle = <span className="cl-card__next cl-card__next--done">Complete</span>;
-  } else if (status === 'in-progress' && nextLesson) {
-    subtitle = <span className="cl-card__next">Next: {nextLesson.lessonTitle}</span>;
-  } else if (allLessons.length > 0) {
+  } else if (status === 'in-progress' && nextLessonTitle) {
+    subtitle = <span className="cl-card__next">Next: {nextLessonTitle}</span>;
+  } else if (course.lessonCount > 0) {
     subtitle = (
       <span className="cl-card__next">
-        {allLessons.length === 1 ? '1 lesson' : `${allLessons.length} lessons`}
+        {course.lessonCount === 1 ? '1 lesson' : `${course.lessonCount} lessons`}
       </span>
     );
   }
@@ -344,15 +311,10 @@ export const CourseLibrary = () => {
   const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set());
   const [pendingFilters, setPendingFilters] = useState<Set<FilterKey>>(new Set());
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [resolvedStatuses, setResolvedStatuses] = useState<Record<string, CourseStatus>>({});
 
   const {
     data: courses, isLoading, isError, refetch,
-  } = useQuery({
-    queryKey: qk.enrolledCourses(),
-    queryFn: getEnrolledCourses,
-    staleTime: 5 * 60_000,
-  });
+  } = useLearnCourses();
 
   const { data: curricula } = useCurriculums();
 
@@ -388,8 +350,8 @@ export const CourseLibrary = () => {
   // In your paths: path courses that are completed or not-started
   // More courses: non-path courses that are completed or not-started
   const inProgressCourses = useMemo(
-    () => enrolledCourses.filter((c) => resolvedStatuses[c.courseId] === 'in-progress'),
-    [enrolledCourses, resolvedStatuses],
+    () => enrolledCourses.filter((c) => cardStatus(c.status) === 'in-progress'),
+    [enrolledCourses],
   );
   const inProgressIds = useMemo(
     () => new Set(inProgressCourses.map((c) => c.courseId)),
@@ -403,13 +365,6 @@ export const CourseLibrary = () => {
     () => enrolledCourses.filter((c) => !pathCourseIds.has(c.courseId) && !inProgressIds.has(c.courseId)),
     [enrolledCourses, pathCourseIds, inProgressIds],
   );
-
-  const handleStatusResolved = (courseId: string, status: CourseStatus) => {
-    setResolvedStatuses((prev) => {
-      if (prev[courseId] === status) { return prev; }
-      return { ...prev, [courseId]: status };
-    });
-  };
 
   const toggleFilter = (key: FilterKey) => {
     setActiveFilters((prev) => {
@@ -444,10 +399,9 @@ export const CourseLibrary = () => {
   };
 
   // Visible counts per section (for "Show N courses" in filter sheet and section metas)
-  const countVisible = (list: EnrolledCourse[], filters: Set<FilterKey>) => list.filter((c) => {
-    const s = resolvedStatuses[c.courseId] ?? 'not-started';
+  const countVisible = (list: LearnCourse[], filters: Set<FilterKey>) => list.filter((c) => {
     const inPath = pathCourseIds.has(c.courseId);
-    return passesFilters(s, inPath, filters);
+    return passesFilters(cardStatus(c.status), inPath, filters);
   }).length;
 
   const inProgressVisible = countVisible(inProgressCourses, activeFilters);
@@ -459,8 +413,7 @@ export const CourseLibrary = () => {
   const pendingTotal = countVisible(enrolledCourses, pendingFilters);
 
   const hasFilters = activeFilters.size > 0;
-  const allResolved = Object.keys(resolvedStatuses).length === enrolledCourses.length;
-  const showNoResults = hasFilters && totalVisible === 0 && allResolved;
+  const showNoResults = hasFilters && totalVisible === 0;
 
   return (
     <div className="cl-page">
@@ -516,13 +469,12 @@ export const CourseLibrary = () => {
                 {inProgressCourses.length > 0 && inProgressVisible > 0 && (
                   <Section title="In progress" count={inProgressVisible}>
                     {inProgressCourses.map((course) => (
-                      <ConnectedCourseCard
+                      <CourseCard
                         key={course.courseId}
                         course={course}
                         inPath={pathCourseIds.has(course.courseId)}
                         category={courseCategoryMap[course.courseId]}
                         activeFilters={activeFilters}
-                        onResolved={handleStatusResolved}
                         onClick={() => navigate(`/course/${course.courseId}`, { state: { origin: '/courses' } })}
                       />
                     ))}
@@ -533,23 +485,21 @@ export const CourseLibrary = () => {
                   && (inYourPathsVisible + moreVisible) > 0 && (
                   <Section title="More courses" count={inYourPathsVisible + moreVisible}>
                     {inYourPathsCourses.map((course) => (
-                      <ConnectedCourseCard
+                      <CourseCard
                         key={course.courseId}
                         course={course}
                         inPath
                         category={courseCategoryMap[course.courseId]}
                         activeFilters={activeFilters}
-                        onResolved={handleStatusResolved}
                         onClick={() => navigate(`/course/${course.courseId}`, { state: { origin: '/courses' } })}
                       />
                     ))}
                     {moreCoursesList.map((course) => (
-                      <ConnectedCourseCard
+                      <CourseCard
                         key={course.courseId}
                         course={course}
                         inPath={false}
                         activeFilters={activeFilters}
-                        onResolved={handleStatusResolved}
                         onClick={() => navigate(`/course/${course.courseId}`, { state: { origin: '/courses' } })}
                       />
                     ))}
@@ -561,12 +511,11 @@ export const CourseLibrary = () => {
                   && inProgressCourses.length === 0 && enrolledCourses.length > 0 && (
                   <div className="cl-course-list">
                     {enrolledCourses.map((course) => (
-                      <ConnectedCourseCard
+                      <CourseCard
                         key={course.courseId}
                         course={course}
                         inPath={false}
                         activeFilters={activeFilters}
-                        onResolved={handleStatusResolved}
                         onClick={() => navigate(`/course/${course.courseId}`, { state: { origin: '/courses' } })}
                       />
                     ))}

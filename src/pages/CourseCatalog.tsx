@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient, useQueries } from '@tanstack/react-query';
-import { getEnrolledCourses, getCourseProgressSummary, type EnrolledCourse } from '../api/catalog';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCourseOutline } from '../hooks/useCourseOutline';
+import { useLearnCourses, type LearnCourse } from '../hooks/useLearnCourses';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
 import { useSequence } from '../hooks/useSequence';
-import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
 import { qk } from '../api/queries';
 import { getLastActivity } from '../api/curriculum';
 import { selectContinueCourse } from '../lib/selectContinueCourse';
@@ -210,7 +209,7 @@ const ContinueCard = ({
 
 interface ConnectedContinueCardProps {
   /** The course to feature. Selection lives in the page (see lib/selectContinueCourse). */
-  course: EnrolledCourse | null;
+  course: LearnCourse | null;
   onContinue: (courseId: string, sequenceId: string | null, stepIdx: number) => void;
   variant?: ContinueVariant;
   finalCheckMeta?: string | null;
@@ -232,8 +231,7 @@ const ConnectedContinueCard = ({
   // resume block API call that sent learners back to the last *completed* lesson
   // (off-by-one) and caused a deep-link loop when history was empty.
   const completedLessons = allLessons.filter((l) => l.complete).length;
-  const progressQuery = useCourseProgressSummary(courseId);
-  const hasStarted = completedLessons > 0 || (progressQuery.data?.fraction ?? 0) > 0;
+  const hasStarted = completedLessons > 0 || (firstCourse?.progress ?? 0) > 0;
   const nextLesson = allLessons.find((l) => !l.complete) ?? allLessons[0];
 
   // Fetch units for the next lesson: used for step count in subtitle and to
@@ -665,11 +663,7 @@ export const CourseCatalog = () => {
 
   const {
     data: courses, isLoading, isError, refetch,
-  } = useQuery({
-    queryKey: qk.enrolledCourses(),
-    queryFn: getEnrolledCourses,
-    staleTime: 5 * 60_000,
-  });
+  } = useLearnCourses();
 
   const {
     data: gamification, isLoading: gamificationLoading, isError: gamificationError,
@@ -731,26 +725,18 @@ export const CourseCatalog = () => {
     return 'zero';
   })();
 
-  // Fetch progress fraction for the first unfinished course of every unfinished curriculum so we
-  // can prefer curricula the learner has actually started over ones that are merely newer.
+  // Progress in the first unfinished course of every unfinished curriculum, so we can prefer
+  // curricula the learner has actually started over ones that are merely newer. It comes from the
+  // courses list, which already carries every enrolled course's progress.
+  const progressByCourseId = new Map(enrolledCourses.map((c) => [c.courseId, c.progress]));
   const unfinishedCurricula = (curriculums ?? []).filter(
     (c) => c.courses_total > 0 && c.courses_finished < c.courses_total,
   );
-  const unfinishedFirstCourseIds = unfinishedCurricula.map((c) => {
-    const sorted = c.courses.slice().sort((a, b) => a.position - b.position);
-    return sorted.find((course) => !course.finished)?.course_id ?? null;
-  });
-  const curriculumProgressQueries = useQueries({
-    queries: unfinishedFirstCourseIds.map((courseId) => ({
-      queryKey: qk.courseProgress(courseId ?? ''),
-      queryFn: () => getCourseProgressSummary(courseId!),
-      enabled: Boolean(courseId),
-      staleTime: 5 * 60_000,
-    })),
-  });
   const curriculumFraction: Record<string, number> = {};
-  unfinishedCurricula.forEach((c, i) => {
-    curriculumFraction[c.uuid] = curriculumProgressQueries[i]?.data?.fraction ?? 0;
+  unfinishedCurricula.forEach((c) => {
+    const sorted = c.courses.slice().sort((a, b) => a.position - b.position);
+    const firstUnfinishedId = sorted.find((course) => !course.finished)?.course_id ?? null;
+    curriculumFraction[c.uuid] = (firstUnfinishedId && progressByCourseId.get(firstUnfinishedId)) || 0;
   });
 
   // Pick the course for the continue card: last activity first, then path priority.

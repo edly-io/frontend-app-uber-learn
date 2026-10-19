@@ -21,7 +21,7 @@ import {
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SearchPage } from '../pages/SearchPage';
-import * as catalogApi from '../api/catalog';
+import * as learnApi from '../api/learn';
 
 // ── Mocks ──────────────────────────────────────────────────
 
@@ -39,18 +39,25 @@ jest.mock('react-router-dom', () => ({
   }),
 }));
 
-jest.mock('../api/catalog');
+jest.mock('../api/learn');
 
 // ── Test data ──────────────────────────────────────────────
 
-const COURSES: catalogApi.EnrolledCourse[] = [
+const COURSES: learnApi.LearnCourse[] = [
   {
     courseId: 'course-v1:Uber+Safety',
     title: 'Road safety fundamentals',
     imageUrl: null,
     courseStart: null,
     courseEnd: null,
-    isActive: true,
+    lessonCount: 0,
+    completedLessons: 0,
+    progress: 0,
+    nextLesson: null,
+    status: 'not_started',
+    curriculum: null,
+    lastActivity: null,
+    points: 0,
   },
   {
     courseId: 'course-v1:Uber+Teen',
@@ -58,7 +65,14 @@ const COURSES: catalogApi.EnrolledCourse[] = [
     imageUrl: null,
     courseStart: null,
     courseEnd: null,
-    isActive: true,
+    lessonCount: 0,
+    completedLessons: 0,
+    progress: 0,
+    nextLesson: null,
+    status: 'not_started',
+    curriculum: null,
+    lastActivity: null,
+    points: 0,
   },
   {
     courseId: 'course-v1:Uber+Driving',
@@ -66,7 +80,14 @@ const COURSES: catalogApi.EnrolledCourse[] = [
     imageUrl: null,
     courseStart: null,
     courseEnd: null,
-    isActive: true,
+    lessonCount: 0,
+    completedLessons: 0,
+    progress: 0,
+    nextLesson: null,
+    status: 'not_started',
+    curriculum: null,
+    lastActivity: null,
+    points: 0,
   },
 ];
 
@@ -88,7 +109,7 @@ describe('SearchPage', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
     localStorage.clear();
-    (catalogApi.getEnrolledCourses as jest.Mock).mockResolvedValue(COURSES);
+    (learnApi.getLearnCourses as jest.Mock).mockResolvedValue(COURSES);
   });
 
   it('auto-focuses the search input on mount (SP-FOCUS)', async () => {

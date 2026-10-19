@@ -49,6 +49,10 @@ function removeRecentSearch(query: string) {
   } catch { /* ignore */ }
 }
 
+// ── Topic chips (drives a pre-canned search) ──────────────
+
+const TOPIC_CHIPS = ['Safety', 'Driving', 'Riders', 'Vehicle', 'Basics'] as const;
+
 // ── Icons ─────────────────────────────────────────────────
 
 const ChevronRight = () => (
@@ -183,6 +187,13 @@ export const SearchPage = () => {
     setRecents(getRecentSearches());
   };
 
+  const handleTopicClick = (topic: string) => {
+    setQuery(topic);
+    setDebouncedQuery(topic);
+    saveRecentSearch(topic);
+    setRecents(getRecentSearches());
+  };
+
   const isSearching = Boolean(debouncedQuery);
 
   return (
@@ -287,33 +298,50 @@ export const SearchPage = () => {
           </>
         ) : (
           /* ── Pre-search ── */
-          recents.length > 0 && (
+          <>
+            {recents.length > 0 && (
+              <section className="sp-section">
+                <h2 className="sp-section-title">Recent</h2>
+                <div className="sp-recent-list">
+                  {recents.map((s) => (
+                    <div key={s} className="sp-recent-row">
+                      <button
+                        type="button"
+                        className="sp-recent-row__main"
+                        onClick={() => handleRecentClick(s)}
+                      >
+                        <img src={iconClock} alt="" className="sp-recent-row__clock" aria-hidden="true" />
+                        <span className="sp-recent-row__text">{s}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="sp-recent-row__remove"
+                        aria-label={`Remove ${s}`}
+                        onClick={() => handleRemoveRecent(s)}
+                      >
+                        <img src={iconX} alt="" aria-hidden="true" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
             <section className="sp-section">
-              <h2 className="sp-section-title">Recent</h2>
-              <div className="sp-recent-list">
-                {recents.map((s) => (
-                  <div key={s} className="sp-recent-row">
-                    <button
-                      type="button"
-                      className="sp-recent-row__main"
-                      onClick={() => handleRecentClick(s)}
-                    >
-                      <img src={iconClock} alt="" className="sp-recent-row__clock" aria-hidden="true" />
-                      <span className="sp-recent-row__text">{s}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="sp-recent-row__remove"
-                      aria-label={`Remove ${s}`}
-                      onClick={() => handleRemoveRecent(s)}
-                    >
-                      <img src={iconX} alt="" aria-hidden="true" />
-                    </button>
-                  </div>
+              <h2 className="sp-section-title">Topics</h2>
+              <div className="sp-topics">
+                {TOPIC_CHIPS.map((topic) => (
+                  <button
+                    key={topic}
+                    type="button"
+                    className="sp-topic-chip"
+                    onClick={() => handleTopicClick(topic)}
+                  >
+                    {topic}
+                  </button>
                 ))}
               </div>
             </section>
-          )
+          </>
         )}
       </div>
     </div>

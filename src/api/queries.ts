@@ -15,7 +15,8 @@ export const qk = {
   curriculums: () => ['curriculum', 'learner'] as const,
   badges: (unseen?: boolean) => ['curriculum', 'badges', unseen ?? false] as const,
   courseProgress: (courseId: string) => ['course-progress', courseId] as const,
-  enrolledCourses: () => ['enrolled-courses'] as const,
+  /** The learner's courses with progress, from the batched learn API. */
+  learnCourses: () => ['learn', 'courses'] as const,
   lastActivity: () => ['curriculum', 'last-activity'] as const,
   blockCompletion: (courseId: string, sequenceId: string, unitId: string | null) => ['block-completion', courseId, sequenceId, unitId] as const,
   search: (q: string) => ['learner', 'search', q] as const,

@@ -1,9 +1,21 @@
 import { selectContinueCourse } from '../lib/selectContinueCourse';
-import type { EnrolledCourse } from '../api/catalog';
+import type { LearnCourse } from '../api/learn';
 import type { LearnerCurriculum } from '../api/curriculum';
 
-const course = (courseId: string): EnrolledCourse => ({
-  courseId, title: courseId, imageUrl: null, courseStart: null, courseEnd: null, isActive: true,
+const course = (courseId: string): LearnCourse => ({
+  courseId,
+  title: courseId,
+  imageUrl: null,
+  courseStart: null,
+  courseEnd: null,
+  lessonCount: 0,
+  completedLessons: 0,
+  progress: 0,
+  nextLesson: null,
+  status: 'not_started',
+  curriculum: null,
+  lastActivity: null,
+  points: 0,
 });
 
 const path = (

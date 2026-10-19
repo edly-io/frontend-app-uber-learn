@@ -2,7 +2,6 @@ import React from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getResumeBlock } from '../api/courseware';
-import { getEnrolledCourses } from '../api/catalog';
 import { qk } from '../api/queries';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { mapOutlineToLessons, findNextLessonIndex } from '../lib/outline-mapper';
@@ -13,6 +12,7 @@ import { useSlowLoad } from '../hooks/useSlowLoad';
 import { useGamification } from '../hooks/useGamification';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
+import { useLearnCourses } from '../hooks/useLearnCourses';
 import { useBadges } from '../hooks/useBadges';
 import { NotEnrolledPage } from './NotEnrolledPage';
 import { OfflineView } from '../components/offline-view/OfflineView';
@@ -225,11 +225,7 @@ export const CourseOverview = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { data: enrolledCourses, isLoading: enrolledLoading } = useQuery({
-    queryKey: qk.enrolledCourses(),
-    queryFn: getEnrolledCourses,
-    staleTime: 5 * 60_000,
-  });
+  const { data: enrolledCourses, isLoading: enrolledLoading } = useLearnCourses();
   const isEnrolled = enrolledLoading || (enrolledCourses?.some((c) => c.courseId === courseId) ?? true);
   const isOffline = useOffline();
 

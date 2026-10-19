@@ -3,16 +3,13 @@ import React, {
 } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getEnrolledCourses, type EnrolledCourse } from '../api/catalog';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import { ErrorView } from '../components/ui/ErrorView';
-import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
 import { useGamification, type GamificationSummary } from '../hooks/useGamification';
 import { useLeaderboard, type LeaderboardData } from '../hooks/useLeaderboard';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { useBadges } from '../hooks/useBadges';
-import { useCourseOutline } from '../hooks/useCourseOutline';
-import { countLessons } from '../lib/outline-mapper';
+import { useLearnCourses, type LearnCourse } from '../hooks/useLearnCourses';
 import { qk } from '../api/queries';
 import type { LearnerCurriculum, BadgeEntry } from '../api/curriculum';
 import { getLastActivity } from '../api/curriculum';
@@ -303,21 +300,19 @@ const BadgeGridItem = ({
 const CourseGridBadgeItem = ({
   course, idx, award, isNew, onClick,
 }: {
-  course: EnrolledCourse; idx: number; award?: BadgeEntry; isNew?: boolean; onClick: () => void;
+  course: LearnCourse; idx: number; award?: BadgeEntry; isNew?: boolean; onClick: () => void;
 }) => {
-  const progressQuery = useCourseProgressSummary(course.courseId);
-  const outlineQuery = useCourseOutline(course.courseId);
   const artMeta = COURSE_ARTS[idx % COURSE_ARTS.length];
   const earned = Boolean(award?.awarded);
-  const progress = earned ? 1 : (progressQuery.data?.fraction ?? 0);
+  const progress = earned ? 1 : course.progress;
   const artSrc = award?.badge?.image_url ?? artMeta.art;
 
-  const totalLessons = outlineQuery.data ? countLessons(outlineQuery.data).total : null;
+  const totalLessons = course.lessonCount;
 
   let sub: string;
   if (earned && award?.awarded_at) {
     sub = new Date(award.awarded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  } else if (totalLessons != null) {
+  } else if (totalLessons > 0) {
     sub = `${totalLessons} ${totalLessons === 1 ? 'lesson' : 'lessons'}`;
   } else {
     sub = '';
@@ -344,7 +339,7 @@ const CourseGridBadgeItem = ({
 
 interface BadgesTabProps {
   curriculums?: LearnerCurriculum[];
-  courses: EnrolledCourse[];
+  courses: LearnCourse[];
   isCoursesLoading?: boolean;
 }
 
@@ -383,7 +378,7 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
     setSheet({ kind: 'path', curriculum });
   };
 
-  const handleCourseClick = (course: EnrolledCourse, idx: number) => {
+  const handleCourseClick = (course: LearnCourse, idx: number) => {
     const award = courseAwardMap.get(course.courseId);
     const artMeta = COURSE_ARTS[idx % COURSE_ARTS.length];
     const earned = Boolean(award?.awarded);
@@ -633,11 +628,7 @@ export const LearningProgress = () => {
     return () => el.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const { data: courses, isLoading: isCoursesLoading } = useQuery({
-    queryKey: qk.enrolledCourses(),
-    queryFn: getEnrolledCourses,
-    staleTime: 5 * 60_000,
-  });
+  const { data: courses, isLoading: isCoursesLoading } = useLearnCourses();
 
   const { data: lastActivity } = useQuery({
     queryKey: qk.lastActivity(),

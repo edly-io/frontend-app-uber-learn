@@ -119,13 +119,9 @@ export const ActivityView = () => {
     setIsContentError(false);
   }, [sequenceId, unitIdx]);
 
-  const [retryKey, setRetryKey] = useState(0);
+  const retryKey = 0;
   const handleContentError = useCallback(() => {
     setIsContentError(true);
-  }, []);
-  const handleContentRetry = useCallback(() => {
-    setIsContentError(false);
-    setRetryKey((k) => k + 1);
   }, []);
 
   // Each visit to a step gets its own number, so coming back to a step (A → B → A before B

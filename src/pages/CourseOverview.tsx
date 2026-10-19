@@ -1,5 +1,7 @@
 import React from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import {
+  useParams, useNavigate, useLocation, Navigate,
+} from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getResumeBlock } from '../api/courseware';
 import { getCourseMaxPoints } from '../api/gamification';
@@ -16,7 +18,6 @@ import { useCurriculums } from '../hooks/useCurriculums';
 import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
 import { useLearnCourses } from '../hooks/useLearnCourses';
 import { useBadges } from '../hooks/useBadges';
-import { Navigate } from 'react-router-dom';
 import { NotEnrolledPage } from './NotEnrolledPage';
 import { OfflineView } from '../components/offline-view/OfflineView';
 import { useOffline } from '../hooks/useOffline';

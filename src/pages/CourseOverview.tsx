@@ -220,6 +220,17 @@ const SceneHeader = ({ onBack, imageUrl }: { onBack: () => void; imageUrl?: stri
   </div>
 );
 
+const getPointsText = (
+  maxPoints: number | null,
+  pointsEarned: number,
+  fraction: number,
+  completedLessons: number,
+): string => {
+  if (maxPoints === null) { return `${pointsEarned} points earned`; }
+  if (fraction > 0 || completedLessons > 0) { return `${Math.min(pointsEarned, maxPoints)} of ${maxPoints} points earned`; }
+  return `Earn up to ${maxPoints} points`;
+};
+
 // ── CourseOverview page ────────────────────────────────────────────────────
 
 export const CourseOverview = () => {
@@ -441,11 +452,7 @@ export const CourseOverview = () => {
                 </div>
                 {(maxPoints !== null ? maxPoints > 0 : pointsEarned > 0) && (
                   <p className="cd-progress-points">
-                    {maxPoints !== null
-                      ? ((fraction > 0 || completedLessons > 0)
-                        ? `${Math.min(pointsEarned, maxPoints)} of ${maxPoints} points earned`
-                        : `Earn up to ${maxPoints} points`)
-                      : `${pointsEarned} points earned`}
+                    {getPointsText(maxPoints, pointsEarned, fraction, completedLessons)}
                   </p>
                 )}
               </div>

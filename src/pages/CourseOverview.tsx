@@ -2,7 +2,6 @@ import React from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getResumeBlock } from '../api/courseware';
-import { getEnrolledCourses } from '../api/catalog';
 import { getCourseMaxPoints } from '../api/gamification';
 import { qk } from '../api/queries';
 import { useCourseOutline } from '../hooks/useCourseOutline';

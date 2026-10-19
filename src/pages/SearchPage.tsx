@@ -67,7 +67,7 @@ const CourseResult = ({ course, onClick }: { course: SearchCourseResult; onClick
         alt=""
         aria-hidden="true"
         className="sp-course-card__art-img"
-        loading="lazy"
+        loading="eager"
         width="64"
         height="64"
         onError={(e) => { e.currentTarget.src = scenePhotoThumb; }}
@@ -232,7 +232,7 @@ export const SearchPage = () => {
             )}
             {!isFetching && !isError && (
               <>
-                <p className="sp-results-count">
+                <p className="sp-results-count" aria-live="polite" aria-atomic="true">
                   {totalResults} {totalResults === 1 ? 'result' : 'results'}
                 </p>
                 {totalResults > 0 ? (

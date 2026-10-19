@@ -77,9 +77,15 @@
   appearance: none;
 }
 
-/* DEF-034: focus ring is on .sp-bar__field via :focus-within — suppress the native input ring. */
+/* DEF-034: focus ring on the field container, not the input, so the ring wraps the full bar. */
 .sp-bar__input:focus-visible {
   outline: none;
+}
+
+.sp-bar__field:focus-within {
+  outline: 2px solid var(--u-background-accent);
+  outline-offset: 2px;
+  border-radius: 12px;
 }
 
 .sp-bar__input::placeholder {
@@ -468,33 +474,3 @@
   50% { opacity: 0.5; }
 }
 
-/* ── Error state ─────────────────────────────────────── */
-
-.sp-error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 32px 0;
-}
-
-.sp-error__message {
-  font-family: var(--u-font-body);
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--u-content-secondary);
-  margin: 0;
-}
-
-.sp-error__retry {
-  background: none;
-  border: 1px solid var(--u-border-opaque);
-  border-radius: 8px;
-  padding: 8px 16px;
-  min-height: 44px;
-  font-family: var(--u-font-body);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--u-content-primary);
-  cursor: pointer;
-}

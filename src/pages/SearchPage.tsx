@@ -64,7 +64,7 @@ const ChevronRight = () => (
 // ── Search result components ──────────────────────────────
 
 const CourseResult = ({ course, onClick }: { course: SearchCourseResult; onClick: () => void }) => (
-  <button type="button" className="sp-course-card" onClick={onClick}>
+  <button type="button" className="sp-course-card" onClick={onClick} aria-label={course.display_name}>
     <div className="sp-course-card__art">
       <img
         src={course.image_url || scenePhotoThumb}
@@ -78,8 +78,15 @@ const CourseResult = ({ course, onClick }: { course: SearchCourseResult; onClick
       />
     </div>
     <div className="sp-course-card__body">
-      {course.org && <span className="sp-course-card__kicker">{course.org}</span>}
+      {(course.course_type || course.org) && (
+        <span className="sp-course-card__kicker">
+          {[course.course_type, course.org].filter(Boolean).join(' · ')}
+        </span>
+      )}
       <span className="sp-course-card__title">{course.display_name}</span>
+      {course.short_description && (
+        <span className="sp-course-card__desc">{course.short_description}</span>
+      )}
     </div>
     <ChevronRight />
   </button>
@@ -89,7 +96,7 @@ const CurriculumResult = ({ curriculum, onClick }: { curriculum: LearnerCurricul
   const nextCourse = curriculum.courses?.find((c) => !c.finished);
   const badgeUrl = curriculum.milestones?.complete?.badge?.image_url ?? null;
   return (
-    <button type="button" className="sp-path-card" onClick={onClick}>
+    <button type="button" className="sp-path-card" onClick={onClick} aria-label={curriculum.title}>
       <div className="sp-path-card__seal">
         <div className="sp-path-card__seal-inner">
           <img

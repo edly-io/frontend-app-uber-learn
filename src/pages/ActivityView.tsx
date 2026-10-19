@@ -17,6 +17,7 @@ import { saveSequencePosition } from '../api/progress';
 import { getGamificationSummary } from '../api/gamification';
 import { qk } from '../api/queries';
 import { ContentIFrame } from '../components/content-iframe/ContentIFrame';
+import { TranscriptSheet } from '../components/transcript-sheet/TranscriptSheet';
 import { ButtonDock } from '../components/button-dock/ButtonDock';
 import { NavHeader } from '../components/nav-header/NavHeader';
 import { StepIndicator } from '../components/step-indicator/StepIndicator';
@@ -106,6 +107,12 @@ export const ActivityView = () => {
   // (HTML blocks via unit.visibilityStatus + publish_completion, problems on submit).
   const isBlockComplete = useBlockCompletion(courseId, sequenceId, currentUnitId, currentUnitId !== null);
 
+  // Invalidate sequence cache on unmount so unit.complete flags are fresh when the
+  // learner returns home — whether they finish, close, or navigate away mid-lesson.
+  useEffect(() => () => {
+    queryClient.invalidateQueries({ queryKey: qk.sequence(sequenceId) });
+  }, [sequenceId, queryClient]);
+
   // Reset content error whenever the unit changes.
   useEffect(() => {
     setIsContentError(false);
@@ -141,13 +148,22 @@ export const ActivityView = () => {
     setShownVisit(currentVisit);
   }, [currentVisit]);
 
+  // Transcript sheet: opened by plugin.openTranscript from the video XBlock.
+  const [transcriptUsageId, setTranscriptUsageId] = useState<string | null>(null);
+  const handleTranscriptRequest = useCallback((usageId: string) => {
+    setTranscriptUsageId(usageId);
+  }, []);
+  const handleTranscriptClose = useCallback(() => {
+    setTranscriptUsageId(null);
+  }, []);
+
   // Guard against double-tap: if a continue navigation is already in-flight, ignore
   // subsequent presses until the async work completes and the component either
   // unmounts (on navigation) or the ref resets in the finally block.
   const isContinuingRef = useRef(false);
 
   const handleContinue = useCallback(async () => {
-    if (!isCompleted || isContinuingRef.current) { return; }
+    if (!isCompleted || isContinuingRef.current || !courseId || !sequenceId) { return; }
     isContinuingRef.current = true;
     try {
       // Notify iframe of continue click so XBlocks can trigger submission.
@@ -377,6 +393,7 @@ export const ActivityView = () => {
           onContentReady={isLightweightMode ? handleContentShown : undefined}
           onLoad={handleContentShown}
           onError={handleContentError}
+          onTranscriptRequest={handleTranscriptRequest}
         />
       </main>
 
@@ -386,6 +403,12 @@ export const ActivityView = () => {
         label={buttonLabel}
       />
 
+      <TranscriptSheet
+        usageId={transcriptUsageId}
+        courseId={courseId}
+        videoTitle={currentUnit.title}
+        onClose={handleTranscriptClose}
+      />
     </div>
   );
 };

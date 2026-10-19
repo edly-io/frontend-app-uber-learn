@@ -9,7 +9,7 @@
  */
 import React from 'react';
 import {
-  render, screen, fireEvent,
+  render, screen, fireEvent, waitFor,
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CourseOverview } from '../pages/CourseOverview';
@@ -106,5 +106,54 @@ describe('CourseOverview lesson progress (CON101 regression)', () => {
       `/course/${COURSE_ID}/lesson/sequential3/step/0`,
       { state: undefined },
     );
+  });
+
+  it('"Continue course" opens at the first incomplete unit, not always step/0 (continueStepIdx)', async () => {
+    // sequential3: first two units done, third not → continueStepIdx should be 2
+    jest.mocked(coursewareApi.getSequenceMetadata).mockResolvedValue({
+      sequence: {
+        id: 'sequential3', title: 'Raising Concerns', unitIds: ['u1', 'u2', 'u3'], activeUnitIndex: 0,
+      },
+      units: [
+        {
+          id: 'u1', sequenceId: 'sequential3', title: 'Intro', complete: true, contentType: 'html', graded: false,
+        },
+        {
+          id: 'u2', sequenceId: 'sequential3', title: 'Core', complete: true, contentType: 'html', graded: false,
+        },
+        {
+          id: 'u3', sequenceId: 'sequential3', title: 'Quiz', complete: false, contentType: 'problem', graded: true,
+        },
+      ],
+    });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue course' }));
+    expect(mockNavigate).toHaveBeenCalledWith(
+      `/course/${COURSE_ID}/lesson/sequential3/step/2`,
+      { state: undefined },
+    );
+  });
+
+  it('Continue button is disabled while units are loading (race guard)', async () => {
+    // Hold the sequence fetch indefinitely to simulate a slow network.
+    let resolveUnits: (v: unknown) => void = () => {};
+    jest.mocked(coursewareApi.getSequenceMetadata).mockReturnValue(
+      new Promise((res) => { resolveUnits = res; }),
+    );
+    renderPage();
+
+    // Once the outline loads, the course progress bar appears — then units are still in-flight.
+    await screen.findByText('2 of 4 lessons complete');
+    const btn = screen.getByRole('button', { name: /loading/i });
+    expect(btn).toBeDisabled();
+
+    // Resolve units → button becomes interactive.
+    resolveUnits({
+      sequence: { id: 'sequential3', title: 'Raising Concerns', unitIds: ['u1'], activeUnitIndex: 0 },
+      units: [{ id: 'u1', sequenceId: 'sequential3', title: 'Step', complete: false, contentType: 'html', graded: false }],
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Continue course' })).not.toBeDisabled();
+    });
   });
 });

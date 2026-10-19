@@ -26,6 +26,9 @@ import { NoRequiredCoursesPage } from './pages/NoRequiredCoursesPage';
 import { VideoCouldntLoadPage } from './pages/VideoCouldntLoadPage';
 import { ThirtyDayChecksPage } from './pages/ThirtyDayChecksPage';
 
+import { useSequence } from './hooks/useSequence';
+import { LoadingSkeleton } from './components/ui/LoadingSkeleton';
+
 import './styles/tokens.scss';
 import './styles/typography.scss';
 import './styles/global.scss';
@@ -146,8 +149,25 @@ const CourseHomeRedirect = () => {
 // Handles LMS jump_to URLs: /course/<key>/<sequence>/<unit>
 // and staff preview: /preview/course/<key>/<sequence>/<unit>
 const LmsJumpToRedirect = () => {
-  const { courseId, sequenceId } = useParams<{ courseId: string; sequenceId: string; unitId: string }>();
-  return <Navigate to={`/course/${courseId}/lesson/${sequenceId}/step/0`} replace />;
+  const { courseId = '', sequenceId = '', unitId = '' } = useParams<{
+    courseId: string; sequenceId: string; unitId: string;
+  }>();
+  const navigate = useNavigate();
+  const { units, isLoading, isError } = useSequence(sequenceId);
+
+  // Escape hatch: if the sequence fetch hangs (no error, no response) for 8 s,
+  // bail to course overview so the user is never stuck on a spinner.
+  useEffect(() => {
+    if (!isLoading) return;
+    const tid = window.setTimeout(() => navigate(`/course/${courseId}`, { replace: true }), 8000);
+    return () => window.clearTimeout(tid);
+  }, [isLoading, courseId, navigate]);
+
+  if (isLoading) return <LoadingSkeleton />;
+  // On error or empty sequence fall back to course overview rather than silently landing on step/0.
+  if (isError || units.length === 0) return <Navigate to={`/course/${courseId}`} replace />;
+  const idx = units.findIndex((u) => u.id === unitId);
+  return <Navigate to={`/course/${courseId}/lesson/${sequenceId}/step/${idx >= 0 ? idx : 0}`} replace />;
 };
 
 const queryClient = new QueryClient({

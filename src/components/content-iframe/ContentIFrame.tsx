@@ -27,10 +27,16 @@ interface ContentIFrameProps {
   onContentReady?: () => void;
   /** Called when the iframe fails to load (network error or server error response). */
   onError?: () => void;
+  /**
+   * Called when the XBlock asks the MFE to open the transcript panel.
+   * Payload is the block's own usageId (the unit key, not the sequence key).
+   * Sent by the video XBlock's "Read the transcript" button via plugin.openTranscript.
+   */
+  onTranscriptRequest?: (usageId: string) => void;
 }
 
 export const ContentIFrame = ({
-  usageKey, onCompleted = () => {}, onLoad, onContentReady, onError,
+  usageKey, onCompleted = () => {}, onLoad, onContentReady, onError, onTranscriptRequest,
 }: ContentIFrameProps) => {
   const frameRef = useRef<HTMLIFrameElement>(null);
 
@@ -67,11 +73,18 @@ export const ContentIFrame = ({
         case 'plugin.videoEnded':
           onCompleted(null);
           break;
+        case 'plugin.openTranscript': {
+          const usageId = (p as { usageId?: unknown } | undefined)?.usageId;
+          if (typeof usageId === 'string' && usageId) {
+            onTranscriptRequest?.(usageId);
+          }
+          break;
+        }
         default:
           break;
       }
     },
-    [onCompleted],
+    [onCompleted, onTranscriptRequest],
   );
 
   usePostMessage(handleEvent, frameRef);

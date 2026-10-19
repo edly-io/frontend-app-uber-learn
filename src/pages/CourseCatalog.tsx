@@ -136,6 +136,8 @@ interface ContinueCardProps {
   totalLessons: number;
   hasStarted?: boolean;
   onContinue: () => void;
+  disabled?: boolean;
+  loading?: boolean;
   variant?: ContinueVariant;
   finalCheckMeta?: string | null;
   imageUrl?: string | null;
@@ -149,6 +151,8 @@ const ContinueCard = ({
   totalLessons,
   hasStarted = false,
   onContinue,
+  disabled = false,
+  loading = false,
   variant = 'lesson',
   finalCheckMeta = null,
   imageUrl = null,
@@ -195,8 +199,8 @@ const ContinueCard = ({
             </span>
           </div>
         )}
-        <button type="button" className="btn-primary" onClick={onContinue}>
-          {buttonLabel}
+        <button type="button" className="btn-primary" onClick={onContinue} disabled={disabled}>
+          {loading ? 'Loading…' : buttonLabel}
         </button>
       </div>
     </div>
@@ -231,12 +235,12 @@ const ConnectedContinueCard = ({
   // resume block API call that sent learners back to the last *completed* lesson
   // (off-by-one) and caused a deep-link loop when history was empty.
   const completedLessons = allLessons.filter((l) => l.complete).length;
-  const hasStarted = completedLessons > 0 || (firstCourse?.progress ?? 0) > 0;
   const nextLesson = allLessons.find((l) => !l.complete) ?? allLessons[0];
 
   // Fetch units for the next lesson: used for step count in subtitle and to
   // find the first incomplete unit so Continue resumes at the right step.
-  const { units: nextUnits } = useSequence(nextLesson?.sequenceId ?? '');
+  const { units: nextUnits, isLoading: unitsLoading } = useSequence(nextLesson?.sequenceId ?? '');
+  const hasStarted = completedLessons > 0 || nextUnits.some((u) => u.complete);
   const stepCount = nextUnits.length;
   const resumeStepIdx = Math.max(0, nextUnits.findIndex((u) => !u.complete));
 
@@ -260,6 +264,8 @@ const ConnectedContinueCard = ({
       totalLessons={totalLessons}
       hasStarted={hasStarted}
       onContinue={() => onContinue(firstCourse.courseId, nextLesson?.sequenceId ?? null, resumeStepIdx)}
+      disabled={unitsLoading}
+      loading={unitsLoading}
       variant={variant}
       finalCheckMeta={finalCheckMeta}
       imageUrl={imageUrl}

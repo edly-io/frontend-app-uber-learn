@@ -18,6 +18,8 @@ export const qk = {
   /** The learner's courses with progress, from the batched learn API. */
   learnCourses: () => ['learn', 'courses'] as const,
   lastActivity: () => ['curriculum', 'last-activity'] as const,
+  /** The optional courses offered by the learner's groups. */
+  optionalCourses: () => ['optional-courses'] as const,
   blockCompletion: (courseId: string, sequenceId: string, unitId: string | null) => ['block-completion', courseId, sequenceId, unitId] as const,
   search: (q: string) => ['learner', 'search', q] as const,
   courseMaxPoints: (courseId: string) => ['gamification', 'course-max-points', courseId] as const,

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { useLearnCourses, type LearnCourse } from '../hooks/useLearnCourses';
@@ -11,6 +11,9 @@ import { selectContinueCourse } from '../lib/selectContinueCourse';
 import { useGamification } from '../hooks/useGamification';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { useBadges } from '../hooks/useBadges';
+import { useEnrollOptionalCourse, useOptionalCourses, type OptionalCourse } from '../hooks/useOptionalCourses';
+import { optionalEnrollErrorCode, type OptionalEnrollErrorCode } from '../api/optionalCourses';
+import { getCourseArt } from '../lib/courseArt';
 import { useBadgeCelebration, goToBadgeCelebration } from '../hooks/useBadgeCelebration';
 import type { GamificationDay, WeekdayKey } from '../api/gamification';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
@@ -631,6 +634,122 @@ const ChecksOpenBanner = ({ openChecks, onClick }: ChecksOpenBannerProps) => {
   );
 };
 
+// ── Optional courses ─────────────────────────────────────
+
+/** Id of the Optional courses section; `/?section=optional` scrolls to it. */
+export const OPTIONAL_SECTION_ID = 'optional-courses';
+
+const ENROLL_ERROR_COPY: Record<OptionalEnrollErrorCode, string> = {
+  not_optional_for_learner: 'This course is no longer offered to you.',
+  enrollment_not_allowed: "You can't start this course yet.",
+  unknown: "We couldn't start this course. Check your connection and try again.",
+};
+
+interface OptionalCourseTileProps {
+  course: OptionalCourse;
+  /** This tile's enrollment is in flight. */
+  pending: boolean;
+  /** Another tile's enrollment is in flight. */
+  disabled: boolean;
+  onClick: () => void;
+}
+
+const OptionalCourseTile = ({
+  course, pending, disabled, onClick,
+}: OptionalCourseTileProps) => {
+  const [imgError, setImgError] = useState(false);
+  const { artSrc, tint } = getCourseArt(course.course_id);
+  const showImage = Boolean(course.image_url) && !imgError;
+  const category = course.groups[0]?.title;
+
+  let status = course.is_enrolled ? 'Enrolled' : 'Start';
+  if (pending) { status = 'Starting…'; }
+
+  return (
+    <button
+      type="button"
+      className="course-tile course-tile--optional"
+      onClick={onClick}
+      disabled={disabled || pending}
+      aria-busy={pending || undefined}
+      aria-label={`${course.is_enrolled ? 'Open' : 'Start'} ${course.display_name}`}
+    >
+      <div className={`course-tile__band${showImage ? '' : ` course-tile__band--${tint}`}`}>
+        {showImage ? (
+          <img
+            src={course.image_url!}
+            alt=""
+            className="course-tile__image"
+            aria-hidden="true"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <img src={artSrc} alt="" className="course-tile__art" aria-hidden="true" />
+        )}
+      </div>
+      <div className="course-tile__body">
+        <div className="course-tile__info">
+          {category && <span className="course-tile__category">{category}</span>}
+          <span className="course-tile__title">{course.display_name}</span>
+          {course.short_description && (
+            <span className="course-tile__desc">{course.short_description}</span>
+          )}
+        </div>
+        <div className="course-tile__footer">
+          <span className={`course-tile__status${course.is_enrolled && !pending ? ' course-tile__status--positive' : ''}`}>
+            {status}
+          </span>
+        </div>
+      </div>
+    </button>
+  );
+};
+
+interface OptionalCoursesSectionProps {
+  courses: OptionalCourse[];
+  pendingCourseId: string | null;
+  error: { course: OptionalCourse; code: OptionalEnrollErrorCode } | null;
+  onOpen: (course: OptionalCourse) => void;
+}
+
+const OptionalCoursesSection = React.forwardRef<HTMLElement, OptionalCoursesSectionProps>(({
+  courses, pendingCourseId, error, onOpen,
+}, ref) => (
+  <section
+    ref={ref}
+    id={OPTIONAL_SECTION_ID}
+    className="home-section"
+    aria-labelledby={`${OPTIONAL_SECTION_ID}-title`}
+  >
+    <div className="home-section-header home-section-header--padded">
+      <h2 id={`${OPTIONAL_SECTION_ID}-title`} className="home-section-header__title">Optional courses</h2>
+      <span className="home-section-header__meta">
+        {courses.length === 1 ? '1 course' : `${courses.length} courses`}
+      </span>
+    </div>
+    <div className="required-carousel" role="list">
+      {courses.map((course) => (
+        <div role="listitem" key={course.course_id}>
+          <OptionalCourseTile
+            course={course}
+            pending={pendingCourseId === course.course_id}
+            disabled={pendingCourseId !== null && pendingCourseId !== course.course_id}
+            onClick={() => onOpen(course)}
+          />
+        </div>
+      ))}
+    </div>
+    {error && (
+      <p className="home-inline-error" role="alert">
+        <span className="home-inline-error__title">{error.course.display_name}</span>
+        {' '}
+        {ENROLL_ERROR_COPY[error.code]}
+      </p>
+    )}
+  </section>
+));
+OptionalCoursesSection.displayName = 'OptionalCoursesSection';
+
 // ── All courses card ─────────────────────────────────────
 
 const AllCoursesCard = ({
@@ -666,6 +785,7 @@ const AllCoursesCard = ({
 
 export const CourseCatalog = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
 
   const {
@@ -675,8 +795,34 @@ export const CourseCatalog = () => {
   const {
     data: gamification, isLoading: gamificationLoading, isError: gamificationError,
   } = useGamification();
-  const { data: curriculums } = useCurriculums();
+  const { data: curriculums, isPending: curriculumsPending } = useCurriculums();
   const { data: badgesData } = useBadges();
+
+  // Optional courses offered by the learner's groups. A failure only hides the
+  // section: home must not break because of it.
+  const { data: optionalData, isPending: optionalPending } = useOptionalCourses();
+  const optionalCourses = optionalData ?? [];
+  const enrollOptional = useEnrollOptionalCourse();
+  const [enrollError, setEnrollError] = useState<
+  { course: OptionalCourse; code: OptionalEnrollErrorCode } | null
+  >(null);
+  const pendingOptionalId = enrollOptional.isPending ? (enrollOptional.variables ?? null) : null;
+
+  const openOptionalCourse = (course: OptionalCourse) => {
+    if (enrollOptional.isPending) { return; }
+    setEnrollError(null);
+    const coursePath = `/course/${course.course_id}`;
+    if (course.is_enrolled) {
+      navigate(coursePath, { state: { origin: '/' } });
+      return;
+    }
+    // Enroll first; the hook refetches the enrolled courses before this
+    // resolves, so the course overview sees the new enrollment.
+    enrollOptional.mutate(course.course_id, {
+      onSuccess: () => navigate(coursePath, { state: { origin: '/' } }),
+      onError: (error) => setEnrollError({ course, code: optionalEnrollErrorCode(error) }),
+    });
+  };
 
   // Catch-all for awards granted asynchronously: celebrate once per award per session.
   const celebration = useBadgeCelebration();
@@ -694,11 +840,15 @@ export const CourseCatalog = () => {
 
   // When there are no enrolled courses (and no API error), redirect to the
   // no-required-courses page — the driver has nothing assigned in their city.
+  // A driver with optional courses on offer stays on home to pick one, so the
+  // decision waits for the optional-courses query (a failure counts as none).
+  const hasNothingToShow = !isLoading && !isError && enrolledCourses.length === 0
+    && !optionalPending && optionalCourses.length === 0;
   useEffect(() => {
-    if (!isLoading && !isError && enrolledCourses.length === 0) {
+    if (hasNothingToShow) {
       navigate('/no-courses', { replace: true });
     }
-  }, [isLoading, isError, enrolledCourses.length, navigate]);
+  }, [hasNothingToShow, navigate]);
 
   // 30-day knowledge check: show only when the curriculum API confirms it is open.
 
@@ -710,6 +860,27 @@ export const CourseCatalog = () => {
     // On failure, fall back quickly to path-based selection instead of hiding the card through retries.
     retry: 1,
   });
+
+  // `/?section=optional` (a deep link, e.g. after a launch) scrolls the Optional
+  // courses section into view once, after the sections above it have loaded so
+  // it does not move afterwards, then drops the parameter (replace) so a
+  // refresh or back navigation does not scroll again.
+  const optionalSectionRef = useRef<HTMLElement>(null);
+  const sectionParamHandled = useRef(false);
+  const wantsOptionalSection = new URLSearchParams(location.search).get('section') === 'optional';
+  const aboveOptionalSettled = !isLoading && !isLastActivityPending && !gamificationLoading
+    && !curriculumsPending && !optionalPending;
+  useEffect(() => {
+    if (!wantsOptionalSection || sectionParamHandled.current || !aboveOptionalSettled || hasNothingToShow) {
+      return;
+    }
+    sectionParamHandled.current = true;
+    optionalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const params = new URLSearchParams(location.search);
+    params.delete('section');
+    const search = params.toString();
+    navigate({ search: search ? `?${search}` : '' }, { replace: true });
+  }, [wantsOptionalSection, aboveOptionalSettled, hasNothingToShow, location.search, navigate]);
 
   // Stat chip values from gamification API (fall back to 0 while loading)
   const pointsValue = String(gamification?.lifetime_points ?? 0);
@@ -1011,6 +1182,17 @@ export const CourseCatalog = () => {
               ))}
             </div>
           </>
+        )}
+
+        {/* Optional courses — hidden when none are offered or the request failed */}
+        {optionalCourses.length > 0 && (
+          <OptionalCoursesSection
+            ref={optionalSectionRef}
+            courses={optionalCourses}
+            pendingCourseId={pendingOptionalId}
+            error={enrollError}
+            onOpen={openOptionalCourse}
+          />
         )}
 
         {/* All courses card — only shown when there are enrolled courses */}

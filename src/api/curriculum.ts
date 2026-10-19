@@ -115,3 +115,29 @@ export async function getLastActivity(): Promise<LastActivityResponse> {
   );
   return data as LastActivityResponse;
 }
+
+// ── Search ────────────────────────────────────────────────────────────────────
+
+export interface SearchCourseResult {
+  course_id: string;
+  display_name: string;
+  org: string;
+  image_url: string | null;
+}
+
+export interface SearchResponse {
+  query: string;
+  curriculums: LearnerCurriculum[];
+  courses: SearchCourseResult[];
+}
+
+export async function searchLearnerContent(q: string): Promise<SearchResponse> {
+  const { data } = await getAuthenticatedHttpClient().get<SearchResponse>(
+    `${lmsBase()}/api/uber/curriculum/v1/learner/search/`,
+    { params: { q } },
+  );
+  if (!data || !Array.isArray(data.curriculums) || !Array.isArray(data.courses)) {
+    throw new Error(`Unexpected search response shape for q="${q}"`);
+  }
+  return data;
+}

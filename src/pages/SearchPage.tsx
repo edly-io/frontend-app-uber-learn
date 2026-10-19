@@ -1,11 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useLearnCourses, type LearnCourse } from '../hooks/useLearnCourses';
+import { useQuery } from '@tanstack/react-query';
+import {
+  searchLearnerContent,
+  type LearnerCurriculum,
+  type SearchCourseResult,
+} from '../api/curriculum';
+import { qk } from '../api/queries';
 
-import iconClockFilled from '../assets/icons/icon-clock-filled.svg';
-import iconDismiss from '../assets/icons/icon-dismiss.svg';
-import iconCircleX from '../assets/icons/icon-circle-x.svg';
-import courseArtBlue from '../assets/icons/course-art-blue.svg';
+import { ErrorView } from '../components/ui/ErrorView';
+
+import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
+import iconSearch from '../assets/icons/icon-search.svg';
+import iconClock from '../assets/icons/icon-clock-outlined.svg';
+import iconX from '../assets/icons/icon-x.svg';
+import iconBadgeCheck from '../assets/icons/icon-badge-check.svg';
+import searchNoResults from '../assets/icons/search-no-results.svg';
+import scenePhotoThumb from '../assets/images/scene-safety-education-thumb.png';
 
 import './search-page.scss';
 
@@ -16,42 +27,29 @@ const MAX_RECENT = 8;
 
 function getRecentSearches(): string[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
+    const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+    return Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === 'string') : [];
   } catch {
     return [];
   }
 }
 
 function saveRecentSearch(query: string) {
+  const list = getRecentSearches().filter((s) => s !== query);
+  list.unshift(query);
   try {
-    const list = getRecentSearches().filter((s) => s !== query);
-    list.unshift(query);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, MAX_RECENT)));
-  } catch { /* ignore */ }
+  } catch { /* storage blocked or full: recents are best-effort */ }
 }
 
 function removeRecentSearch(query: string) {
+  const list = getRecentSearches().filter((s) => s !== query);
   try {
-    const list = getRecentSearches().filter((s) => s !== query);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   } catch { /* ignore */ }
 }
 
 // ── Icons ─────────────────────────────────────────────────
-
-const SearchIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-    <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-  </svg>
-);
-
-const ArrowLeft = () => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-    <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
 
 const ChevronRight = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -59,29 +57,64 @@ const ChevronRight = () => (
   </svg>
 );
 
-// ── Search logic ──────────────────────────────────────────
-
-function searchCourses(courses: LearnCourse[], query: string) {
-  const q = query.toLowerCase().trim();
-  if (!q) { return []; }
-  return courses.filter(
-    (c) => c.title.toLowerCase().includes(q),
-  );
-}
-
 // ── Search result components ──────────────────────────────
 
-const CourseResult = ({ course, onClick }: { course: LearnCourse; onClick: () => void }) => (
-  <button type="button" className="sp-result-row" onClick={onClick}>
-    <div className="sp-result-row__art">
-      <img src={courseArtBlue} alt="" className="sp-result-row__art-img" aria-hidden="true" />
+const CourseResult = ({ course, onClick }: { course: SearchCourseResult; onClick: () => void }) => (
+  <button type="button" className="sp-course-card" onClick={onClick}>
+    <div className="sp-course-card__art">
+      <img
+        src={course.image_url || scenePhotoThumb}
+        alt=""
+        aria-hidden="true"
+        className="sp-course-card__art-img"
+        loading="eager"
+        width="64"
+        height="64"
+        onError={(e) => { e.currentTarget.src = scenePhotoThumb; }}
+      />
     </div>
-    <div className="sp-result-row__body">
-      <span className="sp-result-row__title">{course.title}</span>
+    <div className="sp-course-card__body">
+      {course.org && <span className="sp-course-card__kicker">{course.org}</span>}
+      <span className="sp-course-card__title">{course.display_name}</span>
     </div>
     <ChevronRight />
   </button>
 );
+
+const CurriculumResult = ({ curriculum, onClick }: { curriculum: LearnerCurriculum; onClick: () => void }) => {
+  const nextCourse = curriculum.courses?.find((c) => !c.finished);
+  const badgeUrl = curriculum.milestones?.complete?.badge?.image_url ?? null;
+  return (
+    <button type="button" className="sp-path-card" onClick={onClick}>
+      <div className="sp-path-card__seal">
+        <div className="sp-path-card__seal-inner">
+          <img
+            src={badgeUrl || iconBadgeCheck}
+            alt=""
+            className={`sp-path-card__seal-art${curriculum.courses_finished < curriculum.courses_total ? ' sp-path-card__seal-art--locked' : ''}`}
+            aria-hidden="true"
+            onError={(e) => {
+              if (e.currentTarget.dataset.fallback) { return; }
+              // eslint-disable-next-line no-param-reassign
+              e.currentTarget.dataset.fallback = '1';
+              e.currentTarget.src = iconBadgeCheck;
+            }}
+          />
+        </div>
+      </div>
+      <div className="sp-path-card__body">
+        <span className="sp-path-card__title">{curriculum.title}</span>
+        <div className="sp-path-card__meta">
+          <span className="sp-path-card__progress">{curriculum.courses_finished} of {curriculum.courses_total} courses done</span>
+          {nextCourse?.display_name && (
+            <span className="sp-path-card__next">Next: {nextCourse.display_name}</span>
+          )}
+        </div>
+      </div>
+      <ChevronRight />
+    </button>
+  );
+};
 
 // ── Main component ────────────────────────────────────────
 
@@ -90,31 +123,42 @@ export const SearchPage = () => {
   const location = useLocation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
-  const [submitted, setSubmitted] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [recents, setRecents] = useState<string[]>(() => getRecentSearches());
 
+  // Fire search 300ms after user stops typing; recents are saved only on deliberate submit
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setDebouncedQuery('');
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      setDebouncedQuery(trimmed);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
   const {
-    data: courses = [], isLoading: isCoursesLoading, isError: isCoursesError, refetch: refetchCourses,
-  } = useLearnCourses();
+    data, isLoading, isFetching, isError, refetch,
+  } = useQuery({
+    queryKey: qk.search(debouncedQuery),
+    queryFn: () => searchLearnerContent(debouncedQuery),
+    enabled: Boolean(debouncedQuery),
+    staleTime: 60_000,
+  });
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  const results = submitted ? searchCourses(courses, submitted) : [];
-
-  const handleSubmit = (q: string) => {
-    const trimmed = q.trim();
-    if (!trimmed) { return; }
-    saveRecentSearch(trimmed);
-    setRecents(getRecentSearches());
-    setQuery(trimmed);
-    setSubmitted(trimmed);
-  };
+  const curriculumResults = data?.curriculums ?? [];
+  const courseResults = data?.courses ?? [];
+  const totalResults = curriculumResults.length + courseResults.length;
 
   const handleClear = () => {
     setQuery('');
-    setSubmitted('');
+    setDebouncedQuery('');
     inputRef.current?.focus();
   };
 
@@ -123,22 +167,33 @@ export const SearchPage = () => {
     setRecents(getRecentSearches());
   };
 
-  const handleRecentClick = (s: string) => {
-    setQuery(s);
-    handleSubmit(s);
+  // Enter key: fire immediately without waiting for debounce
+  const handleEnter = () => {
+    const trimmed = query.trim();
+    if (!trimmed) { return; }
+    setDebouncedQuery(trimmed);
+    saveRecentSearch(trimmed);
+    setRecents(getRecentSearches());
   };
 
-  const isSearching = submitted.length > 0;
+  const handleRecentClick = (s: string) => {
+    setQuery(s);
+    setDebouncedQuery(s);
+    saveRecentSearch(s);
+    setRecents(getRecentSearches());
+  };
+
+  const isSearching = Boolean(debouncedQuery);
 
   return (
     <div className="sp-page">
       {/* Search bar */}
       <div className="sp-bar">
         <button type="button" className="sp-bar__back" aria-label="Go back" onClick={() => (location.key === 'default' ? navigate('/') : navigate(-1))}>
-          <ArrowLeft />
+          <img src={iconArrowLeft} alt="" aria-hidden="true" className="sp-bar__back-icon" />
         </button>
         <div className="sp-bar__field">
-          <SearchIcon />
+          <img src={iconSearch} alt="" aria-hidden="true" className="sp-bar__search-icon" />
           <input
             ref={inputRef}
             type="search"
@@ -146,12 +201,12 @@ export const SearchPage = () => {
             placeholder="Search paths and courses"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { handleSubmit(query); } }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { handleEnter(); } }}
             aria-label="Search paths and courses"
           />
           {query.length > 0 && (
             <button type="button" className="sp-bar__clear" aria-label="Clear" onClick={handleClear}>
-              <img src={iconCircleX} alt="" className="sp-bar__clear-icon" aria-hidden="true" />
+              <img src={iconX} alt="" className="sp-bar__clear-icon" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -159,53 +214,79 @@ export const SearchPage = () => {
 
       <div className="sp-body">
         {isSearching ? (
-          /* ── Results (with loading / error guards) ── */
+          /* ── Results ── */
           <>
-            {isCoursesLoading && (
+            {(isLoading || isFetching) && (
               <div className="sp-loading" aria-label="Loading…" aria-busy="true">
                 <div className="sp-loading__row" aria-hidden="true" />
                 <div className="sp-loading__row" aria-hidden="true" />
                 <div className="sp-loading__row" aria-hidden="true" />
               </div>
             )}
-            {isCoursesError && !isCoursesLoading && (
-              <div className="sp-error">
-                <p className="sp-error__message">Could not load courses</p>
-                <button type="button" className="sp-error__retry" onClick={() => refetchCourses()}>
-                  Try again
-                </button>
-              </div>
+            {isError && !isFetching && (
+              <ErrorView
+                title="Could not load results"
+                message="We couldn't search right now. Please try again."
+                onRetry={() => refetch()}
+              />
             )}
-            {!isCoursesLoading && !isCoursesError && (
+            {!isFetching && !isError && (
               <>
-                <p className="sp-results-count">
-                  {results.length} {results.length === 1 ? 'result' : 'results'}
+                <p className="sp-results-count" aria-live="polite" aria-atomic="true">
+                  {totalResults} {totalResults === 1 ? 'result' : 'results'}
                 </p>
-                {results.length > 0 ? (
+                {totalResults > 0 ? (
                   <>
-                    <h2 className="sp-section-title">Courses</h2>
-                    <div className="sp-results-list">
-                      {results.map((course) => (
-                        <CourseResult
-                          key={course.courseId}
-                          course={course}
-                          onClick={() => navigate(`/course/${course.courseId}`)}
-                        />
-                      ))}
-                    </div>
+                    {curriculumResults.length > 0 && (
+                      <section className="sp-section">
+                        <h2 className="sp-section-title">Learning paths</h2>
+                        <div className="sp-results-list">
+                          {curriculumResults.map((curriculum) => (
+                            <CurriculumResult
+                              key={curriculum.uuid}
+                              curriculum={curriculum}
+                              onClick={() => navigate(`/learning-path/${curriculum.uuid}`)}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                    {courseResults.length > 0 && (
+                      <section className="sp-section">
+                        <h2 className="sp-section-title">Courses</h2>
+                        <div className="sp-results-list">
+                          {courseResults.map((course) => (
+                            <CourseResult
+                              key={course.course_id}
+                              course={course}
+                              onClick={() => navigate(`/course/${course.course_id}`)}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    )}
                   </>
                 ) : (
-                  /* ── No results ── */
                   <div className="sp-empty">
-                    <p className="sp-empty__title">No results for &ldquo;{submitted}&rdquo;</p>
-                    <p className="sp-empty__sub">Try a different keyword.</p>
+                    <div className="sp-empty__spot">
+                      <img src={searchNoResults} alt="" className="sp-empty__spot-img" aria-hidden="true" />
+                    </div>
+                    <div className="sp-empty__text">
+                      <p className="sp-empty__title">No results for &ldquo;{debouncedQuery}&rdquo;</p>
+                      <p className="sp-empty__sub">Try another word, or browse every course.</p>
+                    </div>
+                    <div className="sp-empty__actions">
+                      <button type="button" className="sp-empty__cta" onClick={() => navigate('/courses')}>
+                        See all courses
+                      </button>
+                    </div>
                   </div>
                 )}
               </>
             )}
           </>
         ) : (
-          /* ── Pre-search (shown regardless of courses loading state) ── */
+          /* ── Pre-search ── */
           recents.length > 0 && (
             <section className="sp-section">
               <h2 className="sp-section-title">Recent</h2>
@@ -217,7 +298,7 @@ export const SearchPage = () => {
                       className="sp-recent-row__main"
                       onClick={() => handleRecentClick(s)}
                     >
-                      <img src={iconClockFilled} alt="" className="sp-recent-row__clock" aria-hidden="true" />
+                      <img src={iconClock} alt="" className="sp-recent-row__clock" aria-hidden="true" />
                       <span className="sp-recent-row__text">{s}</span>
                     </button>
                     <button
@@ -226,7 +307,7 @@ export const SearchPage = () => {
                       aria-label={`Remove ${s}`}
                       onClick={() => handleRemoveRecent(s)}
                     >
-                      <img src={iconDismiss} alt="" aria-hidden="true" />
+                      <img src={iconX} alt="" aria-hidden="true" />
                     </button>
                   </div>
                 ))}

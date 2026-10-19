@@ -65,7 +65,7 @@ export function parseSrtToParagraphs(srt: string): string[] {
  * can distinguish 404 (language not available) from other failures.
  */
 export async function fetchTranscriptText(url: string, signal?: AbortSignal): Promise<string[]> {
-  const resp = await fetch(url, { credentials: 'include', signal });
+  const resp = await fetch(url, { signal });
   if (!resp.ok) {
     throw new TranscriptFetchError(resp.status);
   }

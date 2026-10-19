@@ -37,8 +37,7 @@ export function useTranscript(usageId: string | null, courseId: string): Transcr
     }
 
     let cancelled = false;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    let currentController: AbortController | null = null;
     setState({ paragraphs: [], status: 'loading' });
 
     (async () => {
@@ -47,12 +46,21 @@ export function useTranscript(usageId: string | null, courseId: string): Transcr
         let paragraphs: string[] = [];
 
         for (const lang of langs) {
+          if (cancelled) { break; }
           try {
             const url = buildTranscriptUrl(courseId, usageId, lang);
-            // Sequential by design: only try fallback after confirming the preferred
-            // language is absent (404). eslint-disable-next-line is intentional.
-            // eslint-disable-next-line no-await-in-loop
-            paragraphs = await fetchTranscriptText(url, controller.signal);
+            const controller = new AbortController();
+            currentController = controller;
+            const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+            try {
+              // Sequential by design: only try fallback after confirming the preferred
+              // language is absent (404). eslint-disable-next-line is intentional.
+              // eslint-disable-next-line no-await-in-loop
+              paragraphs = await fetchTranscriptText(url, controller.signal);
+            } finally {
+              clearTimeout(timeoutId);
+              currentController = null;
+            }
             break;
           } catch (err) {
             const isNotFound = err instanceof TranscriptFetchError && err.status === 404;
@@ -63,14 +71,12 @@ export function useTranscript(usageId: string | null, courseId: string): Transcr
           }
         }
 
-        clearTimeout(timeoutId);
         if (cancelled) { return; }
         setState({
           paragraphs,
           status: paragraphs.length > 0 ? 'success' : 'error',
         });
       } catch {
-        clearTimeout(timeoutId);
         if (!cancelled) {
           setState({ paragraphs: [], status: 'error' });
         }
@@ -79,8 +85,7 @@ export function useTranscript(usageId: string | null, courseId: string): Transcr
 
     return () => {
       cancelled = true;
-      clearTimeout(timeoutId);
-      controller.abort();
+      currentController?.abort();
     };
   }, [usageId, courseId]);
 

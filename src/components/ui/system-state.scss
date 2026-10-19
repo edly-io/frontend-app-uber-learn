@@ -102,3 +102,33 @@
   outline: 2px solid var(--u-content-primary);
   outline-offset: 2px;
 }
+
+/* ── Dark variant (session ended) ────────────────────────────────── */
+.ss-page--dark {
+  background: var(--u-background-always-dark);
+
+  .ss-tile {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .ss-heading {
+    color: var(--u-content-on-color);
+  }
+
+  .ss-body {
+    color: var(--u-content-inverse-secondary);
+  }
+
+  .ss-footer {
+    background: var(--u-background-always-dark);
+  }
+
+  .ss-footer__btn {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--u-content-on-color);
+
+    &:focus-visible {
+      outline-color: var(--u-content-on-color);
+    }
+  }
+}

@@ -235,6 +235,7 @@ export const LessonCompletePage = () => {
   const currentLessonIdx = allLessons.findIndex((l) => l.sequenceId === sequenceId);
   const lessonNumber = currentLessonIdx >= 0 ? currentLessonIdx + 1 : 1;
   const courseTitle = outlineQuery.data?.title ?? '';
+  const currentLessonTitle = currentLessonIdx >= 0 ? (allLessons[currentLessonIdx]?.lessonTitle ?? '') : '';
   const lessonCount = allLessons.length;
   const nextLesson = currentLessonIdx >= 0 ? (allLessons[currentLessonIdx + 1] ?? null) : null;
   const nextSequenceId = nextLesson?.sequenceId ?? null;
@@ -328,7 +329,7 @@ export const LessonCompletePage = () => {
   const headingText = isCourseRefreshed ? 'Course refreshed' : 'Lesson complete';
   const subtitleText = isCourseRefreshed
     ? `${courseTitle} · all ${lessonCount} lessons`
-    : `${courseTitle} · Lesson ${lessonNumber} of ${lessonCount}`;
+    : `${currentLessonTitle || courseTitle} · Lesson ${lessonNumber} of ${lessonCount}`;
   const pointsLabel = isCourseRefreshed ? 'points earned again' : 'points earned';
   const progressRowLabel = isCourseRefreshed ? 'Lessons refreshed' : 'Course progress';
   const progressRowValue = isCourseRefreshed

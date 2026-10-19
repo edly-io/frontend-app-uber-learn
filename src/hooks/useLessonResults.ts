@@ -20,15 +20,15 @@ const settleInterval = (query: Query<LessonResults, Error>): number | false => {
 };
 
 /**
- * Results of one run of a lesson (points earned since `since`). Disabled until both the
- * sequence id and `since` are known.
+ * Results of one run of a lesson. `since` is optional — omitting it returns all-time
+ * results for the sequence. Disabled until `sequenceId` is known.
  */
-export const useLessonResults = (sequenceId: string | undefined, since: string | undefined) => useQuery<
+export const useLessonResults = (sequenceId: string | undefined, since?: string) => useQuery<
 LessonResults, Error
 >({
-  queryKey: qk.lessonResults(sequenceId ?? '', since ?? ''),
-  queryFn: () => getLessonResults(sequenceId!, since!),
-  enabled: Boolean(sequenceId) && Boolean(since),
+  queryKey: qk.lessonResults(sequenceId ?? '', since),
+  queryFn: () => getLessonResults(sequenceId!, since),
+  enabled: Boolean(sequenceId),
   staleTime: Infinity,
   refetchInterval: settleInterval,
   retry: 1,

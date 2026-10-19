@@ -117,11 +117,11 @@ export async function getLeaderboard(above: number, below: number): Promise<Lead
 
 export async function getLessonResults(
   sequenceKey: string,
-  since: string,
+  since?: string,
 ): Promise<LessonResults> {
   const { data } = await getAuthenticatedHttpClient().get(
     `${getConfig().LMS_BASE_URL}/api/uber/gamification/v1/lessons/${encodeURIComponent(sequenceKey)}/results/`,
-    { params: { since } },
+    since ? { params: { since } } : {},
   );
   return data as LessonResults;
 }

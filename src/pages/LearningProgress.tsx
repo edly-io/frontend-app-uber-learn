@@ -341,12 +341,15 @@ interface BadgesTabProps {
   curriculums?: LearnerCurriculum[];
   courses: LearnCourse[];
   isCoursesLoading?: boolean;
+  badgesData?: ReturnType<typeof useBadges>['data'];
+  badgesError?: boolean;
 }
 
-const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) => {
+const BadgesTab = ({
+  curriculums, courses, isCoursesLoading, badgesData, badgesError,
+}: BadgesTabProps) => {
   const [sheet, setSheet] = useState<SheetBadgeData | null>(null);
   const handleSheetClose = useCallback(() => setSheet(null), []);
-  const { data: badgesData, isError: badgesError, refetch: refetchBadges } = useBadges();
 
   // Memoized — rebuilt only when badgesData or courses change, not on sheet open/close.
   // Immutable construction avoids the forEach+set mutation pattern.
@@ -368,7 +371,6 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
       <ErrorView
         title="Could not load badges"
         message="We could not retrieve your badge data. Please try again."
-        onRetry={() => refetchBadges()}
       />
     );
   }
@@ -526,18 +528,16 @@ interface LeaderboardTabProps {
   apiData?: LeaderboardData;
   isLoading?: boolean;
   isError?: boolean;
-  onRetry?: () => void;
 }
 
 const LeaderboardTab = ({
-  apiData, isLoading = false, isError = false, onRetry,
+  apiData, isLoading = false, isError = false,
 }: LeaderboardTabProps) => {
   if (isError) {
     return (
       <ErrorView
         title="Leaderboard unavailable"
         message="We could not load the leaderboard. Please try again."
-        onRetry={onRetry}
       />
     );
   }
@@ -633,6 +633,7 @@ export const LearningProgress = () => {
   }, []);
 
   const { data: courses, isLoading: isCoursesLoading } = useLearnCourses();
+  const { data: badgesData, isError: badgesError, refetch: refetchBadges } = useBadges();
 
   const { data: lastActivity } = useQuery({
     queryKey: qk.lastActivity(),
@@ -671,6 +672,21 @@ export const LearningProgress = () => {
   };
 
   const handleClose = () => { navigate('/'); };
+
+  const isActiveTabError = (
+    (activeTab === 'Points' || activeTab === 'Streak') && gamificationError
+  ) || (activeTab === 'Leaderboard' && leaderboardError)
+    || (activeTab === 'Badges' && badgesError);
+
+  const handleFooterRetry = () => {
+    if (activeTab === 'Points' || activeTab === 'Streak') {
+      queryClient.invalidateQueries({ queryKey: qk.gamification() });
+    } else if (activeTab === 'Leaderboard') {
+      refetchLeaderboard();
+    } else if (activeTab === 'Badges') {
+      refetchBadges();
+    }
+  };
 
   return (
     <div className="lp-page">
@@ -723,7 +739,6 @@ export const LearningProgress = () => {
               <ErrorView
                 title="Could not load points"
                 message="We could not load your progress data. Please try again."
-                onRetry={() => queryClient.invalidateQueries({ queryKey: qk.gamification() })}
               />
             ) : (
               <PointsTab
@@ -742,7 +757,6 @@ export const LearningProgress = () => {
               <ErrorView
                 title="Could not load streak"
                 message="We could not load your streak data. Please try again."
-                onRetry={() => queryClient.invalidateQueries({ queryKey: qk.gamification() })}
               />
             ) : (
               <StreakTab apiSummary={gamification} />
@@ -751,7 +765,13 @@ export const LearningProgress = () => {
         )}
         {activeTab === 'Badges' && (
           <div role="tabpanel" id="panel-Badges" aria-labelledby="tab-Badges" tabIndex={0}>
-            <BadgesTab curriculums={curriculums} courses={enrolledCourses} isCoursesLoading={isCoursesLoading} />
+            <BadgesTab
+            curriculums={curriculums}
+            courses={enrolledCourses}
+            isCoursesLoading={isCoursesLoading}
+            badgesData={badgesData}
+            badgesError={badgesError}
+          />
           </div>
         )}
         {activeTab === 'Leaderboard' && (
@@ -760,18 +780,23 @@ export const LearningProgress = () => {
               apiData={leaderboardData}
               isLoading={leaderboardLoading}
               isError={leaderboardError}
-              onRetry={() => refetchLeaderboard()}
             />
           </div>
         )}
       </div>
 
-      {/* Sticky footer — only when enrolled in at least one course */}
-      {enrolledCourses.length > 0 && (
+      {/* Sticky footer — Try again on error, Continue learning otherwise */}
+      {(isActiveTabError || enrolledCourses.length > 0) && (
         <footer className="lp-footer">
-          <button type="button" className="btn-primary" onClick={handleContinue}>
-            Continue learning
-          </button>
+          {isActiveTabError ? (
+            <button type="button" className="btn-primary" onClick={handleFooterRetry}>
+              Try again
+            </button>
+          ) : (
+            <button type="button" className="btn-primary" onClick={handleContinue}>
+              Continue learning
+            </button>
+          )}
         </footer>
       )}
 

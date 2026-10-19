@@ -125,6 +125,12 @@
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+
+  // Error state: ss-page fills the tab body, not 100dvh
+  .ss-page {
+    height: 100%;
+    background: none;
+  }
 }
 
 /* ── Sticky footer ────────────────────────────────────── */

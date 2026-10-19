@@ -6,8 +6,8 @@ export interface ContinueSelectionInput {
   curriculums: LearnerCurriculum[];
   /** Course the learner last completed a block in (from the last-activity API), if any. */
   lastActivityCourseId: string | null;
-  /** Course-level progress fraction keyed by curriculum uuid (for curricula with no finished course yet). */
-  curriculumFraction?: Record<string, number>;
+  /** Progress fraction keyed by course ID — used to prefer in-progress courses over unstarted ones. */
+  courseFractions?: Record<string, number>;
   /** Course IDs to never surface in the continue card (e.g. knowledge-check courses). */
   excludeCourseIds?: Set<string>;
 }
@@ -24,9 +24,18 @@ const byAssignedDesc = (a: LearnerCurriculum, b: LearnerCurriculum) => (
 
 const isUnfinished = (c: LearnerCurriculum) => c.courses_total > 0 && c.courses_finished < c.courses_total;
 
-const firstUnfinishedCourseId = (c: LearnerCurriculum): string | null => (
-  c.courses.slice().sort((a, b) => a.position - b.position).find((course) => !course.finished)?.course_id ?? null
-);
+const firstUnfinishedCourseId = (c: LearnerCurriculum, courseFractions: Record<string, number>): string | null => {
+  const unfinished = c.courses.slice().sort((a, b) => a.position - b.position).filter((cc) => !cc.finished);
+  // Prefer the most advanced in-progress course over the first by position: handles the case
+  // where a learner was enrolled in a later course before the curriculum was assigned.
+  const inProgress = unfinished.filter((cc) => (courseFractions[cc.course_id] ?? 0) > 0);
+  if (inProgress.length > 0) {
+    return inProgress.reduce(
+      (best, cur) => ((courseFractions[cur.course_id] ?? 0) > (courseFractions[best.course_id] ?? 0) ? cur : best),
+    ).course_id;
+  }
+  return unfinished[0]?.course_id ?? null;
+};
 
 const containsCourse = (c: LearnerCurriculum, courseId: string) => (
   c.courses.some((course) => course.course_id === courseId) || c.knowledge_check?.course_id === courseId
@@ -45,12 +54,16 @@ const finishedCourseIdsOf = (curriculums: LearnerCurriculum[]): Set<string> => {
 /** Curriculum priority when there is no usable last activity: started paths first, newest assignment first. */
 const mostRelevantUnfinishedCurriculum = (
   unfinished: LearnerCurriculum[],
-  fraction: Record<string, number>,
+  courseFractions: Record<string, number>,
 ): LearnerCurriculum | null => {
   const sorted = unfinished.slice().sort(byAssignedDesc);
-  return sorted.find((c) => c.courses_finished > 0)
-    ?? sorted.find((c) => (fraction[c.uuid] ?? 0) > 0)
-    ?? sorted[0]
+  // Check if any unfinished course within a curriculum has been started (fraction > 0).
+  // This catches in-progress courses anywhere in the path, not just the first one.
+  const hasAnyProgress = (c: LearnerCurriculum) => (
+    c.courses.some((cc) => !cc.finished && (courseFractions[cc.course_id] ?? 0) > 0)
+  );
+  return sorted.find(hasAnyProgress)
+    ?? sorted.find((c) => c.courses_finished > 0)
     ?? null;
 };
 
@@ -69,7 +82,7 @@ export function selectContinueCourse({
   enrolledCourses,
   curriculums,
   lastActivityCourseId,
-  curriculumFraction = {},
+  courseFractions = {},
   excludeCourseIds = new Set(),
 }: ContinueSelectionInput): ContinueSelection {
   const enrolledById = new Map(enrolledCourses.map((c) => [c.courseId, c]));
@@ -81,7 +94,7 @@ export function selectContinueCourse({
     ?? null;
 
   const nextInPath = (path: LearnerCurriculum | null): ContinueSelection | null => {
-    const nextId = path ? firstUnfinishedCourseId(path) : null;
+    const nextId = path ? firstUnfinishedCourseId(path, courseFractions) : null;
     const course = nextId && !excludeCourseIds.has(nextId) ? enrolledById.get(nextId) : undefined;
     return course ? { course, curriculum: path } : null;
   };
@@ -96,11 +109,13 @@ export function selectContinueCourse({
     if (fromLastPath) { return fromLastPath; }
   }
 
-  const fromRelevantPath = nextInPath(mostRelevantUnfinishedCurriculum(unfinishedPaths, curriculumFraction));
+  const fromRelevantPath = nextInPath(mostRelevantUnfinishedCurriculum(unfinishedPaths, courseFractions));
   if (fromRelevantPath) { return fromRelevantPath; }
 
   const nonExcluded = enrolledCourses.filter((c) => !excludeCourseIds.has(c.courseId));
-  const fallback = nonExcluded.find((c) => !finished.has(c.courseId))
+  // Prefer standalone in-progress courses over completely new ones.
+  const fallback = nonExcluded.find((c) => !finished.has(c.courseId) && (courseFractions[c.courseId] ?? 0) > 0)
+    ?? nonExcluded.find((c) => !finished.has(c.courseId))
     ?? nonExcluded[nonExcluded.length - 1]
     ?? null;
   return { course: fallback, curriculum: fallback ? pathFor(fallback.courseId) : null };

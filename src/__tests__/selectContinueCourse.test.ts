@@ -124,4 +124,55 @@ describe('selectContinueCourse', () => {
     expect(selectContinueCourse({ enrolledCourses: [], curriculums: [], lastActivityCourseId: null }))
       .toEqual({ course: null, curriculum: null });
   });
+
+  it('prefers a curriculum with any in-progress course over a newer curriculum with no progress', () => {
+    // safety is newer (2026-09-30) but not started; conduct has CON101 in-progress (fraction 0.4)
+    const { course: picked, curriculum } = selectContinueCourse({
+      enrolledCourses: ALL,
+      curriculums: [conduct(false), safety],
+      lastActivityCourseId: null,
+      courseFractions: { [CON101.courseId]: 0.4 },
+    });
+    expect(picked).toBe(CON101);
+    expect(curriculum?.uuid).toBe('conduct');
+  });
+
+  it('picks the in-progress course within a curriculum even when an earlier course is also unfinished', () => {
+    // conduct = [CON101 (not finished, not started), CON102 (not finished, in-progress)]
+    // This models a learner enrolled in CON102 standalone before the curriculum was assigned.
+    const { course: picked } = selectContinueCourse({
+      enrolledCourses: ALL,
+      curriculums: [conduct(false)],
+      lastActivityCourseId: null,
+      courseFractions: { [CON102.courseId]: 0.5 },
+    });
+    expect(picked).toBe(CON102);
+  });
+
+  it('prefers a curriculum with an in-progress course over a newer curriculum that only has finished courses', () => {
+    // conduct is newer (2026-09-23 vs security 2026-09-14), has courses_finished=1 but next CON102 not started.
+    // security has SEC103 in-progress — should win even though conduct is newer.
+    const { course: picked, curriculum } = selectContinueCourse({
+      enrolledCourses: ALL,
+      curriculums: [conduct(true), security], // conduct: CON101 done, CON102 new; security: SEC103 in-progress
+      lastActivityCourseId: null,
+      courseFractions: { [SEC103.courseId]: 0.4 },
+    });
+    expect(picked).toBe(SEC103);
+    expect(curriculum?.uuid).toBe('security');
+  });
+
+  it('prefers standalone in-progress courses over unstarted curriculum courses when no path has activity', () => {
+    // safety is an unfinished curriculum but its first course (SAF101) has no progress.
+    // SEC103 is a standalone enrolled course with some progress.
+    // mostRelevantUnfinishedCurriculum returns null (no engagement on safety), so
+    // fromRelevantPath is null and the standalone in-progress fallback fires.
+    const { course: picked } = selectContinueCourse({
+      enrolledCourses: ALL,
+      curriculums: [safety],
+      lastActivityCourseId: null,
+      courseFractions: { [SEC103.courseId]: 0.3 },
+    });
+    expect(picked).toBe(SEC103);
+  });
 });

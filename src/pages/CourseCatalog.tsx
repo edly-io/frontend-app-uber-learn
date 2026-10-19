@@ -822,6 +822,17 @@ export const CourseCatalog = () => {
     ...completedPathsForHome,
   ].slice(0, HOME_PATHS_LIMIT);
 
+  // Courses are critical — take over the full screen if they fail to load
+  if (isError) {
+    return (
+      <ErrorView
+        title="Could not load courses"
+        message="We could not retrieve your enrolled courses. Please try again."
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
   return (
     <div className="home-page">
       {/* Discovery header */}
@@ -865,16 +876,8 @@ export const CourseCatalog = () => {
 
         {isLoading && <LoadingSkeleton />}
 
-        {isError && (
-          <ErrorView
-            title="Could not load courses"
-            message="We could not retrieve your enrolled courses. Please try again."
-            onRetry={() => refetch()}
-          />
-        )}
-
         {/* Top card — every-path-done, new-path, or normal continue */}
-        {!isLoading && !isError && enrolledCourses.length > 0 && (
+        {!isLoading && enrolledCourses.length > 0 && (
           <>
             {allPathsDone && curriculums && (
               <EveryPathDoneCard
@@ -966,11 +969,16 @@ export const CourseCatalog = () => {
           </div>
         )}
         {gamificationError && !gamificationLoading && (
-          <ErrorView
-            title="Could not load streak"
-            message="We could not retrieve your streak data. Please try again."
-            onRetry={() => queryClient.invalidateQueries({ queryKey: qk.gamification() })}
-          />
+          <div className="home-section-error">
+            <span className="home-section-error__text">Could not load streak data.</span>
+            <button
+              type="button"
+              className="home-section-error__retry"
+              onClick={() => queryClient.invalidateQueries({ queryKey: qk.gamification() })}
+            >
+              Try again
+            </button>
+          </div>
         )}
         {!gamificationLoading && !gamificationError && (
           <ThisWeekCard

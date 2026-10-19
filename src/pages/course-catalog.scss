@@ -1011,3 +1011,35 @@
   width: 24px;
   height: 24px;
 }
+
+/* ── Inline section error (non-critical, e.g. streak) ──────── */
+.home-section-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--u-background-secondary);
+  border-radius: 12px;
+  margin: 0 16px;
+}
+
+.home-section-error__text {
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+}
+
+.home-section-error__retry {
+  font-family: var(--u-font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  min-height: auto;
+  min-width: auto;
+}

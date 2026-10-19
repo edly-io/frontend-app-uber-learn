@@ -136,7 +136,11 @@ export const LaunchPage = ({ launch }: LaunchPageProps) => {
     return (
       <main className="launch-page">
         <div className="launch-page__loading" role="status" aria-busy="true">
-          <LoadingSkeleton />
+          {/* The skeleton is a status region of its own; hide it so the status
+              line below is the only one assistive technology reads. */}
+          <div className="launch-page__skeleton" aria-hidden="true">
+            <LoadingSkeleton />
+          </div>
           <p className="launch-page__status">Opening your course…</p>
         </div>
       </main>

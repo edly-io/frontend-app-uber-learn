@@ -4,8 +4,9 @@
  * src/index.jsx renders this page instead of <App /> on the launch path, and
  * boots it without requiring a signed-in user. The page sends the signed
  * launch string to the LMS once. On success the LMS has signed the learner in
- * and enrolled them, and the page leaves with a full page load to the course,
- * where the app boots again with the new session.
+ * (and enrolled them when the link names a course), and the page leaves with a
+ * full page load to the app path the LMS chose (`next`), where the app boots
+ * again with the new session.
  *
  * No router and no react-query: there is one request, no cache to share, and
  * the page must never send the single-use link twice by itself.
@@ -15,7 +16,9 @@ import React, {
 } from 'react';
 import { getAuthenticatedUser, redirectToLogout } from '@edx/frontend-platform/auth';
 import { postLaunch, toLaunchError, type LaunchErrorCode } from '../api/launch';
-import { appBasePath, coursePathFor, leavePage } from '../lib/launch';
+import {
+  appBasePath, appPathFor, coursePathFor, leavePage,
+} from '../lib/launch';
 import { ErrorView } from '../components/ui/ErrorView';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
 import './launch-page.css';
@@ -111,14 +114,12 @@ export const LaunchPage = ({ launch }: LaunchPageProps) => {
     if (!launch) { return; }
     setState({ status: 'loading' });
     postLaunch(launch)
-      .then(({ courseId }) => {
-        const coursePath = coursePathFor(courseId);
-        if (coursePath) {
-          // Stay in the loading state while the browser navigates away.
-          leavePage(coursePath);
-          return;
-        }
-        setState({ status: 'error', code: 'try_again', userMessage: null });
+      .then(({ next, courseId }) => {
+        // The learner is signed in now, so there is always somewhere to go:
+        // `next` when it is a safe app path, else the course when there is a
+        // valid one (an LMS that predates `next`), else the app home. The page
+        // stays in the loading state while the browser navigates away.
+        leavePage(appPathFor(next) ?? coursePathFor(courseId) ?? appBasePath());
       })
       .catch((error: unknown) => {
         const { code, userMessage } = toLaunchError(error);
@@ -141,7 +142,7 @@ export const LaunchPage = ({ launch }: LaunchPageProps) => {
           <div className="launch-page__skeleton" aria-hidden="true">
             <LoadingSkeleton />
           </div>
-          <p className="launch-page__status">Opening your course…</p>
+          <p className="launch-page__status">Signing you in…</p>
         </div>
       </main>
     );

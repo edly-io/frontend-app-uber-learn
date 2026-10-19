@@ -4,7 +4,9 @@
 import { mergeConfig } from '@edx/frontend-platform';
 import {
   LAUNCH_PARAMS_MAX,
+  NEXT_PATH_MAX,
   appBasePath,
+  appPathFor,
   coursePathFor,
   isLaunchPath,
   takeLaunchParams,
@@ -174,5 +176,78 @@ describe('coursePathFor', () => {
     [['course-v1:Uber+DRV101+2026_Q4']],
   ])('rejects the non-string %p', (courseId) => {
     expect(coursePathFor(courseId)).toBeNull();
+  });
+});
+
+describe('appPathFor', () => {
+  it.each([
+    ['/', '/uber-learn/'],
+    ['/course/course-v1:Uber+DRV101+2026_Q4', '/uber-learn/course/course-v1:Uber+DRV101+2026_Q4'],
+    ['/?section=optional', '/uber-learn/?section=optional'],
+    ['/learning-paths', '/uber-learn/learning-paths'],
+    ['/courses?a=1&b=2', '/uber-learn/courses?a=1&b=2'],
+  ])('maps %p to %p under the app base path', (next, expected) => {
+    expect(appPathFor(next)).toBe(expected);
+  });
+
+  it('uses the given public path', () => {
+    expect(appPathFor('/?section=optional', '/')).toBe('/?section=optional');
+    expect(appPathFor('/course/course-v1:Uber+DRV101+2026_Q4', '/learn'))
+      .toBe('/learn/course/course-v1:Uber+DRV101+2026_Q4');
+  });
+
+  it.each([
+    // Another origin, or a scheme.
+    'https://evil.example/',
+    'http:/evil.example',
+    // eslint-disable-next-line no-script-url
+    'javascript:alert(1)',
+    '//evil.example',
+    '///evil.example',
+    '/\\evil.example',
+    '/\\/evil.example',
+    '/course\\x',
+    // Not rooted at the app.
+    '',
+    'course/x',
+    '?section=optional',
+    '.',
+    // Dot segments that would leave the base path.
+    '/../logout',
+    '/course/../../logout',
+    '/./courses',
+    '/%2e%2e/logout',
+    '/%2E%2E/logout',
+    // Whitespace, control characters, fragments and characters a browser re-encodes.
+    '/ course',
+    '/course\tx',
+    '/\n//evil.example',
+    '/course\u0000',
+    '/#section=optional',
+    '/courses#x',
+    '/caf\u00e9',
+    '/?',
+    // The launch page itself would loop.
+    '/launch',
+    '/launch/',
+    '/launch?x=1',
+  ])('rejects %p', (next) => {
+    expect(appPathFor(next)).toBeNull();
+  });
+
+  it('rejects a path longer than NEXT_PATH_MAX', () => {
+    const longest = `/?q=${'a'.repeat(NEXT_PATH_MAX - 4)}`;
+    expect(appPathFor(longest)).toBe(`/uber-learn${longest}`);
+    expect(appPathFor(`${longest}a`)).toBeNull();
+  });
+
+  it.each([
+    [null],
+    [undefined],
+    [42],
+    [{ toString: () => '/' }],
+    [['/']],
+  ])('rejects the non-string %p', (next) => {
+    expect(appPathFor(next)).toBeNull();
   });
 });

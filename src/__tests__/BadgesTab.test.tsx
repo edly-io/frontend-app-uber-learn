@@ -16,6 +16,9 @@
  *   - BT-SHEET-OPENS: tapping a path badge item opens the detail sheet
  *   - BT-SHEET-CLOSES: tapping backdrop closes the sheet
  *   - BT-NEW-CHIP: unseen badge award gets "New" chip
+ *
+ * N+1 note: progress data comes from the batched learnCourses API (LearnCourse.progress,
+ * LearnCourse.lessonCount) — no per-course outline fetches needed.
  */
 import React from 'react';
 import {

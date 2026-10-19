@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getResumeBlock } from '../api/courseware';
 import { qk } from '../api/queries';
 import { useCourseOutline } from '../hooks/useCourseOutline';
+import { useSequence } from '../hooks/useSequence';
 import { mapOutlineToLessons, findNextLessonIndex } from '../lib/outline-mapper';
 import type { LessonDescriptor } from '../lib/outline-mapper';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
@@ -260,6 +261,17 @@ export const CourseOverview = () => {
   const outlineQuery = useCourseOutline(courseId);
   const isSlowLoad = useSlowLoad(outlineQuery.isLoading || resumeQuery.isLoading);
 
+  // Resolve the continue target sequence BEFORE early returns so useSequence can be called
+  // unconditionally (hooks cannot follow conditional returns). During loading, outlineQuery.data
+  // is undefined → earlyLessons is [] → continueSeqId is '' → useSequence is disabled.
+  const earlyLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
+  const earlyNextIdx = findNextLessonIndex(earlyLessons);
+  const continueSeqId = earlyNextIdx >= 0
+    ? earlyLessons[earlyNextIdx].sequenceId
+    : (resumeQuery.data?.sectionId ?? earlyLessons[0]?.sequenceId ?? '');
+  const { units: continueUnits, isLoading: continueUnitsLoading } = useSequence(continueSeqId);
+  const continueStepIdx = Math.max(0, continueUnits.findIndex((u) => !u.complete));
+
   const stateRaw = location.state as { origin?: string; parentOrigin?: string } | null;
   const origin = stateRaw?.origin ?? null;
   const parentOrigin = stateRaw?.parentOrigin ?? null;
@@ -326,8 +338,7 @@ export const CourseOverview = () => {
     );
   }
 
-  const outline = outlineQuery.data;
-  const lessons = outline ? mapOutlineToLessons(outline) : [];
+  const lessons = earlyLessons;
   const sections = groupBySection(lessons);
 
   const apiResumeSequenceId = resumeQuery.data?.sectionId ?? null;
@@ -343,7 +354,7 @@ export const CourseOverview = () => {
   const completedLessons = courseComplete
     ? totalLessons
     : lessons.filter((l) => l.complete).length;
-  const nextLessonIdx = findNextLessonIndex(lessons);
+  const nextLessonIdx = earlyNextIdx;
 
   const lessonState = origin ? { origin } : undefined;
 
@@ -355,13 +366,14 @@ export const CourseOverview = () => {
     // When the learner has progress, the LMS resume block may still point to an already-completed
     // lesson because BlockCompletion is only written when a unit's Continue is clicked. Jump to the
     // first lesson the outline reports as incomplete instead.
+    // continueStepIdx is the first incomplete unit in that lesson (computed above via useSequence).
     if ((fraction > 0 || completedLessons > 0) && nextLessonIdx >= 0) {
       const targetLesson = lessons[nextLessonIdx];
-      navigate(`/course/${courseId}/lesson/${targetLesson.sequenceId}/step/0`, { state: lessonState });
+      navigate(`/course/${courseId}/lesson/${targetLesson.sequenceId}/step/${continueStepIdx}`, { state: lessonState });
       return;
     }
     if (resumeSequenceId) {
-      navigate(`/course/${courseId}/lesson/${resumeSequenceId}/step/0`, { state: lessonState });
+      navigate(`/course/${courseId}/lesson/${resumeSequenceId}/step/${continueStepIdx}`, { state: lessonState });
       return;
     }
     const firstLesson = lessons[0];
@@ -399,7 +411,7 @@ export const CourseOverview = () => {
           {/* Heading block */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {kicker && <p className="cd-kicker">{kicker}</p>}
-            <h1 className="cd-title">{outline?.title ?? 'Course'}</h1>
+            <h1 className="cd-title">{outlineQuery.data?.title ?? 'Course'}</h1>
             {courseDescription && <p className="cd-lead">{courseDescription}</p>}
           </div>
 
@@ -449,19 +461,15 @@ export const CourseOverview = () => {
               (lesson) => getLessonState(lesson, resumeSequenceId, lessons, courseComplete),
             );
             const unitState = getUnitState(section.lessons, sectionLessonStates);
-            const showUnitBanner = sections.length >= 1;
-
             return (
               <div key={section.sectionId} className="cp-unit-section">
-                {showUnitBanner && (
-                  <UnitBanner
-                    index={sectionIdx}
-                    title={section.sectionTitle}
-                    state={unitState}
-                    lessonStates={sectionLessonStates}
-                    totalLessons={section.lessons.length}
-                  />
-                )}
+                <UnitBanner
+                  index={sectionIdx}
+                  title={section.sectionTitle}
+                  state={unitState}
+                  lessonStates={sectionLessonStates}
+                  totalLessons={section.lessons.length}
+                />
                 {section.lessons.map((lesson, lessonIdx) => {
                   const stepState = sectionLessonStates[lessonIdx];
                   const lineAbove = lessonIdx > 0;
@@ -497,8 +505,13 @@ export const CourseOverview = () => {
               Try final check again
             </button>
           ) : (
-            <button type="button" className="course-footer__primary" onClick={handleContinue}>
-              {ctaLabel}
+            <button
+              type="button"
+              className="course-footer__primary"
+              onClick={handleContinue}
+              disabled={!courseComplete && continueUnitsLoading}
+            >
+              {!courseComplete && continueUnitsLoading ? 'Loading…' : ctaLabel}
             </button>
           )}
         </footer>

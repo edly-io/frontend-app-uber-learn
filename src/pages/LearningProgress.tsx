@@ -1,5 +1,5 @@
 import React, {
-  useState, useCallback, useRef, useEffect,
+  useState, useCallback, useRef, useEffect, useMemo,
 } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -348,6 +348,21 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
   const handleSheetClose = useCallback(() => setSheet(null), []);
   const { data: badgesData, isError: badgesError, refetch: refetchBadges } = useBadges();
 
+  // Memoized — rebuilt only when badgesData or courses change, not on sheet open/close.
+  // Immutable construction avoids the forEach+set mutation pattern.
+  const courseAwardMap = useMemo(
+    () => new Map(
+      (badgesData?.course_badges ?? [])
+        .filter((a): a is BadgeEntry & { source: { type: 'course'; course_id: string; display_name: string | null } } => a.source.type === 'course')
+        .map((a) => [a.source.course_id, a] as const),
+    ),
+    [badgesData],
+  );
+  const badgedCourses = useMemo(
+    () => courses.filter((c) => courseAwardMap.has(c.courseId)),
+    [courses, courseAwardMap],
+  );
+
   if (badgesError) {
     return (
       <ErrorView
@@ -362,17 +377,6 @@ const BadgesTab = ({ curriculums, courses, isCoursesLoading }: BadgesTabProps) =
     ...(badgesData?.course_badges.filter((b) => b.awarded) ?? []),
   ];
   const totalBadges = earnedAwards.length;
-
-  // Build map of course_id → BadgeEntry for quick lookup (all badge entries, not just earned)
-  const courseAwardMap = new Map<string, BadgeEntry>();
-  (badgesData?.course_badges ?? []).forEach((a) => {
-    if (a.source.type === 'course') {
-      courseAwardMap.set(a.source.course_id, a);
-    }
-  });
-
-  // Only show courses that have a badge configured in the API
-  const badgedCourses = courses.filter((c) => courseAwardMap.has(c.courseId));
 
   const handlePathClick = (curriculum: LearnerCurriculum) => {
     setSheet({ kind: 'path', curriculum });

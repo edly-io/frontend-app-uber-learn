@@ -158,14 +158,14 @@ const LmsJumpToRedirect = () => {
   // Escape hatch: if the sequence fetch hangs (no error, no response) for 8 s,
   // bail to course overview so the user is never stuck on a spinner.
   useEffect(() => {
-    if (!isLoading) return;
+    if (!isLoading) { return undefined; }
     const tid = window.setTimeout(() => navigate(`/course/${courseId}`, { replace: true }), 8000);
     return () => window.clearTimeout(tid);
   }, [isLoading, courseId, navigate]);
 
-  if (isLoading) return <LoadingSkeleton />;
+  if (isLoading) { return <LoadingSkeleton />; }
   // On error or empty sequence fall back to course overview rather than silently landing on step/0.
-  if (isError || units.length === 0) return <Navigate to={`/course/${courseId}`} replace />;
+  if (isError || units.length === 0) { return <Navigate to={`/course/${courseId}`} replace />; }
   const idx = units.findIndex((u) => u.id === unitId);
   return <Navigate to={`/course/${courseId}/lesson/${sequenceId}/step/${idx >= 0 ? idx : 0}`} replace />;
 };

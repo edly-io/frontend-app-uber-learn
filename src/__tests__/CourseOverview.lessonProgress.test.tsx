@@ -149,8 +149,12 @@ describe('CourseOverview lesson progress (CON101 regression)', () => {
 
     // Resolve units → button becomes interactive.
     resolveUnits({
-      sequence: { id: 'sequential3', title: 'Raising Concerns', unitIds: ['u1'], activeUnitIndex: 0 },
-      units: [{ id: 'u1', sequenceId: 'sequential3', title: 'Step', complete: false, contentType: 'html', graded: false }],
+      sequence: {
+        id: 'sequential3', title: 'Raising Concerns', unitIds: ['u1'], activeUnitIndex: 0,
+      },
+      units: [{
+        id: 'u1', sequenceId: 'sequential3', title: 'Step', complete: false, contentType: 'html', graded: false,
+      }],
     });
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Continue course' })).not.toBeDisabled();

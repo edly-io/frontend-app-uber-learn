@@ -35,17 +35,17 @@ jest.mock('@edx/frontend-platform', () => ({
 
 describe('parseSrtToParagraphs', () => {
   test('SRT-BASIC: strips cue numbers and timing lines', () => {
-    const srt = `1\n00:00:00,000 --> 00:00:02,000\nHello world.\n\n2\n00:00:02,000 --> 00:00:04,000\nFoo bar.`;
+    const srt = '1\n00:00:00,000 --> 00:00:02,000\nHello world.\n\n2\n00:00:02,000 --> 00:00:04,000\nFoo bar.';
     expect(parseSrtToParagraphs(srt)).toEqual(['Hello world.', 'Foo bar.']);
   });
 
   test('SRT-MULTI-LINE: joins multi-line captions within a block', () => {
-    const srt = `1\n00:00:00,000 --> 00:00:03,000\nLine one\nLine two`;
+    const srt = '1\n00:00:00,000 --> 00:00:03,000\nLine one\nLine two';
     expect(parseSrtToParagraphs(srt)).toEqual(['Line one Line two']);
   });
 
   test('SRT-EMPTY-BLOCKS: skips empty blocks', () => {
-    const srt = `1\n00:00:00,000 --> 00:00:01,000\nA\n\n\n\n2\n00:00:01,000 --> 00:00:02,000\nB`;
+    const srt = '1\n00:00:00,000 --> 00:00:01,000\nA\n\n\n\n2\n00:00:01,000 --> 00:00:02,000\nB';
     expect(parseSrtToParagraphs(srt)).toEqual(['A', 'B']);
   });
 
@@ -59,12 +59,12 @@ describe('parseSrtToParagraphs', () => {
   });
 
   test('SRT-NUMERIC-TEXT: digit-only text content on a non-first line is preserved', () => {
-    const srt = `1\n00:00:00,000 --> 00:00:02,000\n42`;
+    const srt = '1\n00:00:00,000 --> 00:00:02,000\n42';
     expect(parseSrtToParagraphs(srt)).toEqual(['42']);
   });
 
   test('SRT-ZERO-CUE: SRT with cue index starting from 0 parses correctly', () => {
-    const srt = `0\n00:00:00,000 --> 00:00:02,500\nFirst line.\n\n1\n00:00:03,000 --> 00:00:06,000\nSecond line.`;
+    const srt = '0\n00:00:00,000 --> 00:00:02,500\nFirst line.\n\n1\n00:00:03,000 --> 00:00:06,000\nSecond line.';
     expect(parseSrtToParagraphs(srt)).toEqual(['First line.', 'Second line.']);
   });
 });

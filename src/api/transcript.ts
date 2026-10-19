@@ -43,17 +43,19 @@ export function buildTranscriptUrl(
  *
  * Also handles plain-text transcript format (no cue numbers or timing lines).
  */
+function parseSrtBlock(block: string): string {
+  return block
+    .split(/\r?\n/)
+    .filter((line, lineIdx) => !(lineIdx === 0 && /^\d+$/.test(line.trim())))
+    .filter((line) => !/\d{1,2}:\d{2}.*-->/.test(line))
+    .join(' ')
+    .trim();
+}
+
 export function parseSrtToParagraphs(srt: string): string[] {
   return srt
     .split(/\r?\n\r?\n+/)
-    .map((block) =>
-      block
-        .split(/\r?\n/)
-        .filter((line, lineIdx) => !(lineIdx === 0 && /^\d+$/.test(line.trim())))
-        .filter((line) => !/\d{1,2}:\d{2}.*-->/.test(line))
-        .join(' ')
-        .trim(),
-    )
+    .map(parseSrtBlock)
     .filter(Boolean);
 }
 

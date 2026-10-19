@@ -57,10 +57,9 @@ export function useTranscript(usageId: string | null, courseId: string): Transcr
           } catch (err) {
             const isNotFound = err instanceof TranscriptFetchError && err.status === 404;
             const isLastLang = lang === langs[langs.length - 1];
-            if (isNotFound && !isLastLang) {
-              continue; // try next language
+            if (!isNotFound || isLastLang) {
+              throw err; // non-404, or last language exhausted
             }
-            throw err; // non-404, or last language exhausted
           }
         }
 

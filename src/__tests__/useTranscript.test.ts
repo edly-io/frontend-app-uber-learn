@@ -131,6 +131,6 @@ test('UT-CANCEL: state is not updated after unmount', async () => {
   unmount();
   resolve!(PARAGRAPHS);
 
-  await new Promise((r) => setTimeout(r, 0));
+  await new Promise((r) => { setTimeout(r, 0); });
   expect(result.current.status).toBe('loading'); // never updated after unmount
 });

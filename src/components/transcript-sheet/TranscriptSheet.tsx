@@ -112,7 +112,8 @@ export const TranscriptSheet = ({
         <div
           ref={bodyRef}
           className="ts-body"
-          tabIndex={0}
+          role="region"
+          tabIndex={-1}
           aria-label="Transcript text, scrollable"
           onTouchStart={handleBodyTouchStart}
           onTouchEnd={handleBodyTouchEnd}

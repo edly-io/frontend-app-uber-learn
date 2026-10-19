@@ -252,5 +252,4 @@ describe('BadgesTab inside LearningProgress', () => {
       expect(screen.getByText('New')).toBeInTheDocument();
     });
   });
-
 });

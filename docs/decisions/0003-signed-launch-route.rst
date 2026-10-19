@@ -53,7 +53,7 @@ The MFE never parses, decodes, validates, stores or logs it. It reads the raw
 text after ``#`` (or, when the fragment is empty, after ``?``), and sends it as
 ``{"launch": "<raw>"}``. Only the LMS knows the scheme, so Uber's final scheme
 needs a new verifier class and a settings change on the LMS, and no MFE change.
-Strings longer than 2048 characters are not sent (the LMS has the same limit).
+Strings longer than 4096 characters are not sent (the LMS has the same limit).
 
 The fragment is preferred because browsers never send it to a server or put it
 in a ``Referer``: the signed data does not reach the MFE host's access logs or

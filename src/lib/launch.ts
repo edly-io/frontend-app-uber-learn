@@ -12,7 +12,7 @@
 import { getConfig } from '@edx/frontend-platform';
 
 /** Longest launch string the page forwards; the LMS applies the same limit. */
-export const LAUNCH_PARAMS_MAX = 2048;
+export const LAUNCH_PARAMS_MAX = 4096;
 
 const COURSE_ID_PATTERN = /^course-v1:[A-Za-z0-9._~:+-]+$/;
 

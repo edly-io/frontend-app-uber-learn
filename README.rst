@@ -185,7 +185,7 @@ Situation                                    Page
 ============================================ ====================================================
 Waiting for the LMS                          "Signing you in…"
 Success                                      The page named by ``next``
-No launch string, or longer than 2048 chars  "This link is incomplete"
+No launch string, or longer than 4096 chars  "This link is incomplete"
 Bad signature, syntax, TTL or course key     "This link isn't valid"
 Expired                                      "This link has expired"
 Opened a second time                         "This link was already used"

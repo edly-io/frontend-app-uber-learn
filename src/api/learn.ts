@@ -13,6 +13,8 @@ export interface LearnNextLesson {
   title: string | null;
   /** 0-based index of the first incomplete unit within that lesson. */
   nextStep: number;
+  /** Total number of units (verticals) in that lesson. */
+  unitCount: number;
 }
 
 /** One actively enrolled course with the learner's progress in it. */
@@ -45,6 +47,7 @@ interface RawNextLesson {
   sequence_key: string;
   title: string | null;
   next_step: number;
+  unit_count: number;
 }
 
 /**
@@ -82,7 +85,12 @@ function toLearnCourse(row: RawLearnCourse): LearnCourse {
     completedLessons: row.completed_lessons ?? 0,
     progress: row.progress ?? 0,
     nextLesson: row.next_lesson
-      ? { sequenceKey: row.next_lesson.sequence_key, title: row.next_lesson.title ?? null, nextStep: row.next_lesson.next_step ?? 0 }
+      ? {
+          sequenceKey: row.next_lesson.sequence_key,
+          title: row.next_lesson.title ?? null,
+          nextStep: row.next_lesson.next_step ?? 0,
+          unitCount: row.next_lesson.unit_count ?? 0,
+        }
       : null,
     status: row.status,
     curriculum: row.curriculum ?? null,

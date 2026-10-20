@@ -249,8 +249,9 @@ const ConnectedContinueCard = ({
   const lessonPosition = totalLessons > 0
     ? `Lesson ${nextLessonIdx + 1} of ${totalLessons}`
     : 'Start course';
+  const unitCount = firstCourse?.nextLesson?.unitCount;
   const courseMeta = firstCourse
-    ? `${firstCourse.title} · ${totalLessons} lessons`
+    ? `${firstCourse.title} · ${unitCount != null && unitCount > 0 ? `${unitCount} ${unitCount === 1 ? 'step' : 'steps'}` : `${totalLessons} lessons`}`
     : '';
 
   if (!firstCourse) { return null; }

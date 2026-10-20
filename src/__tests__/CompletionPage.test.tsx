@@ -543,7 +543,12 @@ describe('CourseCompletePage', () => {
         current_streak_weeks: 0,
         longest_streak_weeks: 0,
         last_learning_date: null,
-        courses: [{ course_key: COURSE_ID, points: 0, quick_check: null, final_check: null }],
+        courses: [{
+          course_key: COURSE_ID,
+          points: 0,
+          quick_check: null,
+          final_check: null,
+        }],
         this_week: null,
         recent_weeks: [],
         server_time: '2026-10-20T00:00:00Z',

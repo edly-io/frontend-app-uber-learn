@@ -5,8 +5,9 @@
  *   - LAUNCH-01: no launch string -> "incomplete" state, nothing is sent
  *   - LAUNCH-02: loading state while the LMS answers
  *   - LAUNCH-03: exactly one POST, even under StrictMode
- *   - LAUNCH-04: success leaves for the course overview with a full page load
- *   - LAUNCH-05: a course_id that is not a course-v1 key is never navigated to
+ *   - LAUNCH-04: success leaves for `next` with a full page load
+ *   - LAUNCH-05: an unsafe `next` or course_id is never navigated to; the
+ *                page falls back to the course, then to the app home
  *   - LAUNCH-06: every outcome renders its title and copy
  *   - LAUNCH-07: secondary actions (Try again, Sign out, Go to my courses)
  *   - LAUNCH-08: layout: one <main>, and every action in the ErrorView footer
@@ -79,7 +80,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mergeConfig({ PUBLIC_PATH: '/uber-learn/' });
   jest.mocked(getAuthenticatedUser).mockReturnValue(null);
-  jest.mocked(postLaunch).mockResolvedValue({ courseId: COURSE_ID });
+  jest.mocked(postLaunch).mockResolvedValue({ next: `/course/${COURSE_ID}`, courseId: COURSE_ID });
 });
 
 // ---------------------------------------------------------------------------
@@ -108,7 +109,7 @@ describe('LaunchPage', () => {
 
       const status = screen.getByRole('status');
       expect(status).toHaveAttribute('aria-busy', 'true');
-      expect(status).toHaveTextContent('Opening your course…');
+      expect(status).toHaveTextContent('Signing you in…');
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
   });
@@ -136,7 +137,7 @@ describe('LaunchPage', () => {
   });
 
   describe('LAUNCH-04: success', () => {
-    it('leaves for the course overview and keeps showing the loading state', async () => {
+    it('leaves for `next` (a course) and keeps showing the loading state', async () => {
       renderPage();
 
       await waitFor(() => expect(leavePage).toHaveBeenCalledTimes(1));
@@ -144,23 +145,61 @@ describe('LaunchPage', () => {
       expect(screen.getByRole('status')).toBeInTheDocument();
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
+
+    it.each([
+      ['/', null, '/uber-learn/'],
+      ['/?section=optional', null, '/uber-learn/?section=optional'],
+      ['/?section=optional', COURSE_ID, '/uber-learn/?section=optional'],
+    ])('follows next=%p (course_id %p) to %p', async (next, courseId, expected) => {
+      jest.mocked(postLaunch).mockResolvedValue({ next, courseId });
+
+      renderPage();
+
+      await waitFor(() => expect(leavePage).toHaveBeenCalledWith(expected));
+      expect(leavePage).toHaveBeenCalledTimes(1);
+    });
   });
 
-  describe('LAUNCH-05: unsafe course_id', () => {
+  describe('LAUNCH-05: unsafe or missing next, and the fallbacks', () => {
+    const UNSAFE_NEXT = [
+      'https://evil.example',
+      '//evil.example/',
+      '/\\evil.example',
+      '/../logout',
+      '/launch',
+      'course/x',
+    ];
+
+    it.each([null, ...UNSAFE_NEXT])('next=%p falls back to the course', async (next) => {
+      jest.mocked(postLaunch).mockResolvedValue({ next, courseId: COURSE_ID });
+
+      renderPage();
+
+      await waitFor(() => expect(leavePage).toHaveBeenCalledWith(`/uber-learn/course/${COURSE_ID}`));
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it.each([null, ...UNSAFE_NEXT])('next=%p without a course falls back to the app home', async (next) => {
+      jest.mocked(postLaunch).mockResolvedValue({ next, courseId: null });
+
+      renderPage();
+
+      await waitFor(() => expect(leavePage).toHaveBeenCalledWith('/uber-learn/'));
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
     it.each([
       'https://evil.example',
       '//evil.example/course-v1:Uber+DRV101+2026_Q4',
       'course-v1:a/../../logout',
       '',
-    ])('does not navigate to %p and shows try_again', async (courseId) => {
-      jest.mocked(postLaunch).mockResolvedValue({ courseId });
+    ])('never navigates to the unsafe course_id %p; goes to the app home', async (courseId) => {
+      jest.mocked(postLaunch).mockResolvedValue({ next: null, courseId });
 
       renderPage();
 
-      expect(await findAlert()).toBeInTheDocument();
-      expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
-      expect(leavePage).not.toHaveBeenCalled();
+      await waitFor(() => expect(leavePage).toHaveBeenCalledTimes(1));
+      expect(leavePage).toHaveBeenCalledWith('/uber-learn/');
     });
   });
 
@@ -235,7 +274,7 @@ describe('LaunchPage', () => {
     it('"Try again" goes to the course when the retry succeeds', async () => {
       jest.mocked(postLaunch)
         .mockRejectedValueOnce(new LaunchError('try_again', null, 503))
-        .mockResolvedValueOnce({ courseId: COURSE_ID });
+        .mockResolvedValueOnce({ next: `/course/${COURSE_ID}`, courseId: COURSE_ID });
       renderPage();
       fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
 

@@ -19,15 +19,21 @@
  *   - CC-PATHS-SHOWN:   "Your learning paths" section visible when curriculums is non-empty
  *   - CC-PATHS-HIDDEN:  "Your learning paths" section absent when curriculums is empty
  *   - CC-THIS-WEEK:     "This week" section always visible
+ *   - CC-OPTIONAL:      Optional courses section (hidden when empty or failed,
+ *                       cards, open/enroll on tap, enroll errors,
+ *                       `?section=optional` scroll, no /no-courses redirect
+ *                       while optional courses are on offer)
  */
 import React from 'react';
 import {
-  render, screen, fireEvent, waitFor,
+  render, screen, fireEvent, waitFor, within,
 } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CourseCatalog } from '../pages/CourseCatalog';
 import type { LearnerCurriculum } from '../api/curriculum';
 import type { LearnCourse } from '../api/learn';
+import type { OptionalCourse } from '../api/optionalCourses';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -54,6 +60,15 @@ jest.mock('../api/courseware', () => ({
 const mockGetLastActivity = jest.fn();
 jest.mock('../api/curriculum', () => ({
   getLastActivity: (...args: unknown[]) => mockGetLastActivity(...args),
+}));
+
+// Optional courses API — the list and the enroll POST; the error-code reader stays real
+const mockGetOptionalCourses = jest.fn();
+const mockEnrollInOptionalCourse = jest.fn();
+jest.mock('../api/optionalCourses', () => ({
+  ...jest.requireActual('../api/optionalCourses'),
+  getOptionalCourses: (...args: unknown[]) => mockGetOptionalCourses(...args),
+  enrollInOptionalCourse: (...args: unknown[]) => mockEnrollInOptionalCourse(...args),
 }));
 
 // Mock the three hook-based data sources used in the page header/body
@@ -126,11 +141,13 @@ const makeQueryClient = () => new QueryClient({
   defaultOptions: { queries: { retry: false, gcTime: 0 } },
 });
 
-function renderComponent(qc = makeQueryClient()) {
+function renderComponent(qc = makeQueryClient(), initialEntry = '/') {
   return render(
-    <QueryClientProvider client={qc}>
-      <CourseCatalog />
-    </QueryClientProvider>,
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <QueryClientProvider client={qc}>
+        <CourseCatalog />
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -147,6 +164,8 @@ function setDefaultMocks() {
   mockUseCourseOutline.mockReturnValue({ data: null });
   mockUseSequence.mockReturnValue({ units: [] });
   mockGetLastActivity.mockResolvedValue({ course: null });
+  mockGetOptionalCourses.mockResolvedValue([]);
+  mockEnrollInOptionalCourse.mockResolvedValue(undefined);
 }
 
 const makeCourse = (courseId: string, title: string): LearnCourse => ({
@@ -395,5 +414,238 @@ describe('CourseCatalog', () => {
       });
       expect(screen.getByText('This week')).toBeInTheDocument();
     });
+  });
+});
+
+describe('CC-OPTIONAL: Optional courses section', () => {
+  const OPTIONAL_NEW: OptionalCourse = {
+    course_id: 'course-v1:Uber+OPT101+2026',
+    display_name: 'Night driving tips',
+    short_description: 'Stay safe after dark.',
+    image_url: null,
+    is_enrolled: false,
+    groups: [{ slug: 'night', title: 'Night drivers' }],
+  };
+  const OPTIONAL_ENROLLED: OptionalCourse = {
+    course_id: 'course-v1:Uber+OPT102+2026',
+    display_name: 'Airport pickups',
+    short_description: 'Find riders fast at the airport.',
+    image_url: 'https://cdn.example/airport.png',
+    is_enrolled: true,
+    groups: [],
+  };
+
+  /** An axios-style error carrying an HTTP response. */
+  const httpError = (status: number, data: unknown) => Object.assign(
+    new Error(`Request failed with status code ${status}`),
+    { response: { status, data } },
+  );
+
+  const findSection = async () => {
+    await screen.findByRole('heading', { name: 'Optional courses' });
+    return document.getElementById('optional-courses') as HTMLElement;
+  };
+
+  const scrollIntoView = jest.fn();
+  let originalScrollIntoView: typeof Element.prototype.scrollIntoView;
+
+  beforeAll(() => {
+    originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+  });
+
+  afterAll(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
+
+  beforeEach(() => {
+    scrollIntoView.mockClear();
+    getLearnMock().getLearnCourses.mockResolvedValue([COURSE]);
+  });
+
+  it('is hidden when no optional courses are offered', async () => {
+    renderComponent();
+    await waitFor(() => expect(mockGetOptionalCourses).toHaveBeenCalled());
+    await screen.findByRole('button', { name: /^(Continue|Start)$/ });
+    expect(screen.queryByText('Optional courses')).not.toBeInTheDocument();
+    expect(document.getElementById('optional-courses')).toBeNull();
+  });
+
+  it('is hidden, and home still renders, when the request fails', async () => {
+    mockGetOptionalCourses.mockRejectedValue(new Error('Network failure'));
+    renderComponent();
+    await screen.findByRole('button', { name: /^(Continue|Start)$/ });
+    await waitFor(() => expect(mockGetOptionalCourses).toHaveBeenCalled());
+    expect(screen.queryByText('Optional courses')).not.toBeInTheDocument();
+    expect(screen.getByText('This week')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'See all courses' })).toBeInTheDocument();
+  });
+
+  it('renders a card for every optional course, with its status', async () => {
+    mockGetOptionalCourses.mockResolvedValue([OPTIONAL_NEW, OPTIONAL_ENROLLED]);
+    renderComponent();
+    const section = await findSection();
+
+    expect(section).toHaveAttribute('id', 'optional-courses');
+    expect(within(section).getAllByRole('listitem')).toHaveLength(2);
+    const startCard = within(section).getByRole('button', { name: 'Start Night driving tips' });
+    expect(startCard).toHaveTextContent('Night drivers');
+    expect(startCard).toHaveTextContent('Stay safe after dark.');
+    expect(startCard).toHaveTextContent('Start');
+    const enrolledCard = within(section).getByRole('button', { name: 'Open Airport pickups' });
+    expect(enrolledCard).toHaveTextContent('Enrolled');
+    expect(enrolledCard.querySelector('img.course-tile__image')).toHaveAttribute('src', OPTIONAL_ENROLLED.image_url);
+    // No image: falls back to the deterministic course art.
+    expect(startCard.querySelector('img.course-tile__art')).not.toBeNull();
+  });
+
+  it('is placed after the learning paths and before the All courses card', async () => {
+    mockUseCurriculums.mockReturnValue({ data: [CURRICULUM] });
+    mockGetOptionalCourses.mockResolvedValue([OPTIONAL_NEW]);
+    renderComponent();
+    const section = await findSection();
+
+    const paths = screen.getByText('Your learning paths');
+    const allCourses = screen.getByRole('button', { name: 'See all courses' });
+    // eslint-disable-next-line no-bitwise
+    expect(paths.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // eslint-disable-next-line no-bitwise
+    expect(section.compareDocumentPosition(allCourses) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('opens an enrolled course without enrolling', async () => {
+    mockGetOptionalCourses.mockResolvedValue([OPTIONAL_ENROLLED]);
+    renderComponent();
+    await findSection();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Airport pickups' }));
+
+    expect(mockNavigate).toHaveBeenCalledWith(`/course/${OPTIONAL_ENROLLED.course_id}`, { state: { origin: '/' } });
+    expect(mockEnrollInOptionalCourse).not.toHaveBeenCalled();
+  });
+
+  it('enrolls in a course that is not enrolled, refetches, then opens it', async () => {
+    mockGetOptionalCourses.mockResolvedValue([OPTIONAL_NEW]);
+    let finishEnroll: () => void = () => {};
+    mockEnrollInOptionalCourse.mockReturnValue(new Promise<void>((resolve) => { finishEnroll = resolve; }));
+    renderComponent();
+    await findSection();
+    const learnCalls = getLearnMock().getLearnCourses.mock.calls.length;
+    const optionalCalls = mockGetOptionalCourses.mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start Night driving tips' }));
+
+    // Pending: the tapped card says so and cannot be tapped again.
+    const card = await screen.findByRole('button', { name: 'Start Night driving tips' });
+    await waitFor(() => expect(card).toHaveTextContent('Starting…'));
+    expect(card).toHaveAttribute('aria-busy', 'true');
+    expect(card).toBeDisabled();
+    expect(mockEnrollInOptionalCourse).toHaveBeenCalledTimes(1);
+    expect(mockEnrollInOptionalCourse.mock.calls[0][0]).toBe(OPTIONAL_NEW.course_id);
+    expect(mockNavigate).not.toHaveBeenCalledWith(`/course/${OPTIONAL_NEW.course_id}`, expect.anything());
+
+    finishEnroll();
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(`/course/${OPTIONAL_NEW.course_id}`, { state: { origin: '/' } });
+    });
+    // The enrolled courses and the optional courses were refetched first.
+    expect(getLearnMock().getLearnCourses.mock.calls.length).toBeGreaterThan(learnCalls);
+    expect(mockGetOptionalCourses.mock.calls.length).toBeGreaterThan(optionalCalls);
+  });
+
+  it.each([
+    [httpError(404, { error_code: 'not_optional_for_learner' }), 'This course is no longer offered to you.'],
+    [httpError(403, { error_code: 'enrollment_not_allowed' }), "You can't start this course yet."],
+    [httpError(500, '<html></html>'), "We couldn't start this course. Check your connection and try again."],
+  ])('shows an inline error and stays on home when enrolling fails (%#)', async (error, message) => {
+    mockGetOptionalCourses.mockResolvedValue([OPTIONAL_NEW]);
+    mockEnrollInOptionalCourse.mockRejectedValue(error);
+    renderComponent();
+    const section = await findSection();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start Night driving tips' }));
+
+    const alert = await within(section).findByRole('alert');
+    expect(alert).toHaveTextContent('Night driving tips');
+    expect(alert).toHaveTextContent(message);
+    expect(mockNavigate).not.toHaveBeenCalledWith(`/course/${OPTIONAL_NEW.course_id}`, expect.anything());
+    // The card is usable again.
+    expect(screen.getByRole('button', { name: 'Start Night driving tips' })).toBeEnabled();
+  });
+
+  it('scrolls the section into view once on ?section=optional and drops the parameter', async () => {
+    mockGetOptionalCourses.mockResolvedValue([OPTIONAL_NEW]);
+    renderComponent(makeQueryClient(), '/?section=optional');
+    const section = await findSection();
+
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+    expect(scrollIntoView.mock.contexts[0]).toBe(section);
+    expect(mockNavigate).toHaveBeenCalledWith({ search: '' }, { replace: true });
+
+    // Later renders (e.g. a refetch) do not scroll again.
+    fireEvent.click(screen.getByRole('button', { name: 'Start Night driving tips' }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(
+      `/course/${OPTIONAL_NEW.course_id}`,
+      { state: { origin: '/' } },
+    ));
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps other query parameters when it drops section', async () => {
+    mockGetOptionalCourses.mockResolvedValue([OPTIONAL_NEW]);
+    renderComponent(makeQueryClient(), '/?utm=uber&section=optional');
+    await findSection();
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith({ search: '?utm=uber' }, { replace: true }));
+  });
+
+  it('does not scroll without ?section=optional', async () => {
+    mockGetOptionalCourses.mockResolvedValue([OPTIONAL_NEW]);
+    renderComponent();
+    await findSection();
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ search: expect.anything() }),
+      expect.anything(),
+    );
+  });
+
+  it('does not redirect to /no-courses when optional courses are offered', async () => {
+    getLearnMock().getLearnCourses.mockResolvedValue([]);
+    mockGetOptionalCourses.mockResolvedValue([OPTIONAL_NEW]);
+    renderComponent(makeQueryClient(), '/?section=optional');
+    const section = await findSection();
+
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+    expect(section).toBeInTheDocument();
+    expect(mockNavigate).not.toHaveBeenCalledWith('/no-courses', expect.anything());
+  });
+
+  it('waits for the optional courses before redirecting to /no-courses', async () => {
+    getLearnMock().getLearnCourses.mockResolvedValue([]);
+    let resolveOptional: (courses: OptionalCourse[]) => void = () => {};
+    mockGetOptionalCourses.mockReturnValue(new Promise((resolve) => { resolveOptional = resolve; }));
+    renderComponent();
+    await waitFor(() => expect(getLearnMock().getLearnCourses).toHaveBeenCalled());
+    await screen.findByText('This week');
+    expect(mockNavigate).not.toHaveBeenCalledWith('/no-courses', expect.anything());
+
+    resolveOptional([]);
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/no-courses', { replace: true }));
+  });
+
+  it('still redirects to /no-courses when the optional-courses request fails', async () => {
+    getLearnMock().getLearnCourses.mockResolvedValue([]);
+    mockGetOptionalCourses.mockRejectedValue(new Error('Network failure'));
+    renderComponent();
+
+    // useOptionalCourses retries once (after about a second) before failing.
+    await waitFor(
+      () => expect(mockNavigate).toHaveBeenCalledWith('/no-courses', { replace: true }),
+      { timeout: 4000 },
+    );
   });
 });

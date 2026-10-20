@@ -52,8 +52,14 @@ export class LaunchError extends Error {
 }
 
 export interface LaunchResult {
-  /** The canonical course key the learner was enrolled in. */
-  courseId: string;
+  /**
+   * Where to go next, as an app path relative to the MFE's base path ('/',
+   * '/course/<course key>', '/?section=optional'), or null when the LMS sent
+   * none. Untrusted: the page checks it before following it.
+   */
+  next: string | null;
+  /** The course key the learner was enrolled in, or null when the launch named no course. */
+  courseId: string | null;
 }
 
 interface ErrorResponseShape {
@@ -94,7 +100,7 @@ export function toLaunchError(error: unknown): LaunchError {
 /**
  * Sends the signed launch string to the LMS, which verifies it, signs the
  * learner in (setting the session and JWT cookies), enrolls them, and answers
- * with the course to open.
+ * with the page to open (`next`) and the course, if any (`course_id`).
  *
  * The launch string is opaque here and is never logged.
  */
@@ -105,8 +111,11 @@ export async function postLaunch(launch: string): Promise<LaunchResult> {
     // interceptor still runs for this POST and adds X-CSRFToken, and the
     // client sends cookies (withCredentials) so the LMS can set new ones.
     const { data } = await getAuthenticatedHttpClient().post(url, { launch }, { isPublic: true });
-    const courseId = (data as { course_id?: unknown } | null)?.course_id;
-    return { courseId: typeof courseId === 'string' ? courseId : '' };
+    const { next, course_id: courseId } = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>;
+    return {
+      next: typeof next === 'string' ? next : null,
+      courseId: typeof courseId === 'string' ? courseId : null,
+    };
   } catch (error) {
     throw toLaunchError(error);
   }

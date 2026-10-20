@@ -153,11 +153,14 @@ How it works
    same tab, the page reloads so that the new link goes through this step too.
 2. ``LaunchPage`` posts ``{"launch": "<string>"}`` once to
    ``POST {LMS_BASE_URL}/api/uber/launch/v1/`` (with CSRF, cookies included).
-3. The LMS signs the learner in (session and JWT cookies), enrolls them, and
-   answers ``{"course_id": "..."}``.
-4. The page does a full page load of ``/uber-learn/course/<course_id>``, where
-   the app boots again with the new session. A returning learner (same
-   External ID) gets the same account and resumes the course.
+3. The LMS signs the learner in (session and JWT cookies), enrolls them when
+   the link names a course, and answers ``{"next": "<app path>", "course_id":
+   "<course key>" | null}``.
+4. The page does a full page load of ``/uber-learn`` + ``next`` (see `Deep
+   links`_), where the app boots again with the new session. ``next`` is
+   followed only when it is a safe in-app path; otherwise the page opens the
+   course (when ``course_id`` is valid) or the app home. A returning learner
+   (same External ID) gets the same account and resumes the course.
 
 Trying it locally
 =================
@@ -180,9 +183,9 @@ What the learner sees
 ============================================ ====================================================
 Situation                                    Page
 ============================================ ====================================================
-Waiting for the LMS                          "Opening your course…"
-Success                                      The course overview
-No launch string, or longer than 2048 chars  "This link is incomplete"
+Waiting for the LMS                          "Signing you in…"
+Success                                      The page named by ``next``
+No launch string, or longer than 4096 chars  "This link is incomplete"
 Bad signature, syntax, TTL or course key     "This link isn't valid"
 Expired                                      "This link has expired"
 Opened a second time                         "This link was already used"
@@ -194,6 +197,41 @@ Browser signed in to another account         "You're signed in to a different ac
 Feature off (no secret on the LMS)           "Course links aren't available right now"
 Network, server or CSRF error                "Something went wrong" + Try again
 ============================================ ====================================================
+
+Optional courses and deep links
+*******************************
+
+Optional courses
+================
+
+Home has an *Optional courses* section (``id="optional-courses"``), after the
+learning paths, listing the courses the learner's groups offer
+(``GET {LMS_BASE_URL}/api/uber/optional-courses/v1/courses/``). It is hidden
+when the list is empty or the request fails. Tapping an enrolled course opens
+it; otherwise the page enrolls the learner first
+(``POST .../optional-courses/v1/courses/enroll/`` with ``{"course_id"}``),
+refetches the enrolled and optional courses, and then opens the course. If the
+enrollment is refused, the section shows an inline error and home stays put.
+
+Home normally sends a learner with no enrolled courses to ``/no-courses``; it
+does not while optional courses are on offer, so a driver with only optional
+courses can pick one.
+
+Deep links
+==========
+
+These app paths (relative to ``/uber-learn``) are what the LMS answers a
+signed launch with as ``next``, and can also be opened directly:
+
+====================== ==========================================================
+Path                   Page
+====================== ==========================================================
+``/``                  Home.
+``/course/<key>``      The course overview.
+``/?section=optional`` Home, scrolled to the Optional courses section once it
+                       has loaded; ``section`` is then removed from the URL (with
+                       ``replace``), so a refresh does not scroll again.
+====================== ==========================================================
 
 Getting Help
 ************

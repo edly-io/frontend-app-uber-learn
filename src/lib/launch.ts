@@ -12,7 +12,7 @@
 import { getConfig } from '@edx/frontend-platform';
 
 /** Longest launch string the page forwards; the LMS applies the same limit. */
-export const LAUNCH_PARAMS_MAX = 2048;
+export const LAUNCH_PARAMS_MAX = 4096;
 
 const COURSE_ID_PATTERN = /^course-v1:[A-Za-z0-9._~:+-]+$/;
 
@@ -75,6 +75,49 @@ export function coursePathFor(
     return null;
   }
   return `${appBasePath(publicPath)}course/${courseId}`;
+}
+
+/** Longest `next` path the page follows; app paths are far shorter. */
+export const NEXT_PATH_MAX = 512;
+
+/** One leading '/' (not '//'), then no backslash, whitespace or fragment. */
+const NEXT_PATH_PATTERN = /^\/(?![/\\])[^\\\s#]*$/;
+
+/** Placeholder origin used only to check how a browser would resolve `next`. */
+const PROBE_ORIGIN = 'https://app.invalid';
+
+/**
+ * The full MFE URL for `next`, the app path the LMS answers a launch with
+ * ('/', '/course/<course key>', '/?section=optional'), or null when it is not a
+ * safe in-app path.
+ *
+ * `next` is relative to the app's base path, so '/course/x' becomes
+ * '/uber-learn/course/x'. It must start with a single '/', contain no
+ * backslash, whitespace or fragment, and resolve to itself: dot segments
+ * ('/../logout', '/%2e%2e/logout') would leave the app and characters a browser
+ * would re-encode would change it, so both are refused, as is the launch page.
+ */
+export function appPathFor(
+  next: unknown,
+  publicPath: string = getConfig().PUBLIC_PATH,
+): string | null {
+  if (typeof next !== 'string' || next.length > NEXT_PATH_MAX || !NEXT_PATH_PATTERN.test(next)) {
+    return null;
+  }
+  let resolved: URL;
+  try {
+    resolved = new URL(next, PROBE_ORIGIN);
+  } catch {
+    return null;
+  }
+  if (resolved.origin !== PROBE_ORIGIN || `${resolved.pathname}${resolved.search}` !== next) {
+    return null;
+  }
+  const path = `${appBasePath(publicPath)}${next.slice(1)}`;
+  if (isLaunchPath(path.split('?')[0], publicPath)) {
+    return null;
+  }
+  return path;
 }
 
 /**

@@ -55,21 +55,42 @@ describe('postLaunch', () => {
     );
   });
 
-  it('maps course_id to courseId', async () => {
+  it('maps next and course_id', async () => {
+    mockPost.mockResolvedValue({
+      data: { next: '/course/course-v1:Uber+DRV101+2026_Q4', course_id: 'course-v1:Uber+DRV101+2026_Q4' },
+    });
+
+    await expect(postLaunch(LAUNCH)).resolves.toEqual({
+      next: '/course/course-v1:Uber+DRV101+2026_Q4',
+      courseId: 'course-v1:Uber+DRV101+2026_Q4',
+    });
+  });
+
+  it('maps a launch without a course', async () => {
+    mockPost.mockResolvedValue({ data: { next: '/?section=optional', course_id: null } });
+
+    await expect(postLaunch(LAUNCH)).resolves.toEqual({ next: '/?section=optional', courseId: null });
+  });
+
+  it('maps a body without next (an older LMS)', async () => {
     mockPost.mockResolvedValue({ data: { course_id: 'course-v1:Uber+DRV101+2026_Q4' } });
 
-    await expect(postLaunch(LAUNCH)).resolves.toEqual({ courseId: 'course-v1:Uber+DRV101+2026_Q4' });
+    await expect(postLaunch(LAUNCH)).resolves.toEqual({
+      next: null,
+      courseId: 'course-v1:Uber+DRV101+2026_Q4',
+    });
   });
 
   it.each([
     [{}],
-    [{ course_id: 42 }],
+    [{ next: 42, course_id: 42 }],
+    [{ next: ['/'], course_id: {} }],
     [null],
     ['<html></html>'],
-  ])('returns an empty courseId when the 200 body is %p', async (data) => {
+  ])('returns null next and courseId when the 200 body is %p', async (data) => {
     mockPost.mockResolvedValue({ data });
 
-    await expect(postLaunch(LAUNCH)).resolves.toEqual({ courseId: '' });
+    await expect(postLaunch(LAUNCH)).resolves.toEqual({ next: null, courseId: null });
   });
 
   const SERVER_CODES: Array<[LaunchErrorCode, number]> = [

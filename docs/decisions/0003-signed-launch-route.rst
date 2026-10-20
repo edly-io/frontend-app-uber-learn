@@ -19,7 +19,8 @@ When the learner comes back with the same External ID, the course resumes.
 
 The LMS half lives in the ``uber-features`` plugin (``uber_features.launch``):
 ``POST /api/uber/launch/v1/`` verifies the link, signs the learner in, sets the
-session and JWT cookies, enrolls them, and answers ``{"course_id": ...}``. The
+session and JWT cookies, enrolls them when the link names a course, and answers
+``{"next": "<app path>", "course_id": "<course key>" | null}``. The
 LMS picks the signing scheme with ``UBER_LAUNCH_VERIFIER``; the dummy scheme
 for now is an HMAC-SHA256 over the five fields.
 
@@ -52,7 +53,7 @@ The MFE never parses, decodes, validates, stores or logs it. It reads the raw
 text after ``#`` (or, when the fragment is empty, after ``?``), and sends it as
 ``{"launch": "<raw>"}``. Only the LMS knows the scheme, so Uber's final scheme
 needs a new verifier class and a settings change on the LMS, and no MFE change.
-Strings longer than 2048 characters are not sent (the LMS has the same limit).
+Strings longer than 4096 characters are not sent (the LMS has the same limit).
 
 The fragment is preferred because browsers never send it to a server or put it
 in a ``Referer``: the signed data does not reach the MFE host's access logs or
@@ -87,10 +88,23 @@ and the CSRF interceptor still fetches a token from ``/csrf/api/v1/token`` and
 adds ``X-CSRFToken``. Cookies are sent, so the LMS can see an existing session
 (for its conflict rule) and set the new one.
 
-**5. The page leaves with a full page load.**
+**5. The page leaves with a full page load, to the path the LMS chose.**
 
-On success the page calls ``window.location.replace(PUBLIC_PATH + 'course/' +
-course_id)`` and keeps showing its loading state. A full load is required:
+The LMS decides where the learner lands and answers it as ``next``, an app path
+relative to ``PUBLIC_PATH``:
+
+====================== ==============================================================
+``next``               Page
+====================== ==============================================================
+``/course/<key>``      The course overview (the link named a course).
+``/``                  The app home.
+``/?section=optional`` The app home, scrolled to the *Optional courses* section; the
+                       home page then removes ``section`` from the URL.
+====================== ==============================================================
+
+On success the page calls ``window.location.replace(PUBLIC_PATH +
+next.slice(1))`` and keeps showing its loading state ("Signing you in…", since
+the destination is not always a course). A full load is required:
 
 * the page booted without a user, and frontend-platform holds the anonymous
   user and the CSRF token (which the LMS login just rotated) in memory;
@@ -98,9 +112,19 @@ course_id)`` and keeps showing its loading state. A full load is required:
   the new JWT cookie (or calling ``/login_refresh`` with the new session);
 * ``replace`` keeps the spent launch URL out of the back stack.
 
-The ``course_id`` from the response is used only when it matches
-``^course-v1:[A-Za-z0-9._~:+-]+$``, so the redirect can never point at another
-origin or path. Anything else is shown as ``try_again``.
+``next`` is untrusted input to a redirect, so it is followed only when it is a
+safe in-app path (``appPathFor`` in ``src/lib/launch.ts``): a string of at most
+512 characters that starts with a single ``/`` (not ``//``), has no backslash,
+whitespace or fragment, and resolves to itself against a placeholder origin.
+That last check refuses another origin, dot segments (``/../logout``,
+``/%2e%2e/logout``, which would leave ``PUBLIC_PATH``) and anything a browser
+would re-encode. ``/launch`` is refused too, as it would loop.
+
+When ``next`` is missing or refused, the page falls back to the course overview
+when ``course_id`` matches ``^course-v1:[A-Za-z0-9._~:+-]+$`` (an LMS that
+predates ``next`` answers only ``{"course_id"}``), and otherwise to the app home.
+The learner is signed in by then, so a success never ends on an error state,
+and the redirect can never point at another origin or outside the app.
 
 **6. Every failure has a learner-facing state.**
 
@@ -126,7 +150,7 @@ State                      Title                                   Notes
 ========================== ======================================= ============================================
 
 ``try_again`` also covers network errors, 5xx, DRF ``{"detail"}`` errors (CSRF,
-415, 405), unknown codes and a 200 with an unsafe ``course_id``. The LMS rolls
+415, 405) and unknown codes. The LMS rolls
 those back, so re-sending the same link is safe; the other codes are final for
 that link. **Go to my courses** (a full load of ``PUBLIC_PATH``) is offered on
 error states when the browser already has a signed-in user, except for
@@ -163,6 +187,8 @@ Consequences
   ``incomplete_link``; the learner opens the course again from the Uber app.
 * When Uber's real scheme arrives, the MFE changes only if the URL format
   changes (for example, a different path or a body that is not a single string).
+* Where a launch lands is decided by the LMS. A new destination needs an LMS
+  change only, as long as it is an existing app path.
 * The copy is plain English, like the rest of the app; translation is a
   follow-up for the whole MFE.
 

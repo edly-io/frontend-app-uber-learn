@@ -18,12 +18,15 @@
  *   LCP-NAVIGATE-NEXT:  clicking primary CTA navigates to next lesson route
  *   LCP-REPEAT:         already_completed_before (last lesson) → heading says "Course refreshed"
  *
- *   CCP-RENDERS:        "Course complete" kicker always present
- *   CCP-BADGE-VISIBLE:  earned date shown when complete milestone reached_at is set
- *   CCP-BADGE-HIDDEN:   badge row absent when no badge image_url
- *   CCP-BADGE-RING:     earned course badge item gets --earned class (blue ring via CSS)
- *   CCP-POINTS:         course points > 0 → points chip renders
- *   CCP-NAV-PROGRESS:   "See your badges" navigates to /progress with Badges tab
+ *   CCP-RENDERS:         "Course complete" kicker always present
+ *   CCP-BADGE-VISIBLE:   earned date shown when complete milestone reached_at is set
+ *   CCP-BADGE-HIDDEN:    badge row absent when no badge image_url
+ *   CCP-BADGE-RING:      earned course badge item gets --earned class (blue ring via CSS)
+ *   CCP-POINTS:          course points > 0 → points chip renders
+ *   CCP-NAV-PROGRESS:    "See your badges" navigates to /progress with Badges tab
+ *   CCP-CHECK-BOTH:      quick_check + final_check both present → both score cards render
+ *   CCP-CHECK-IMPROVEMENT: final > quick → improvement chip shows positive delta
+ *   CCP-CHECK-NULL:      both null → check grid absent
  *
  *   RIP-CHECK-OPEN:     check is open → "Still with you?" heading + "Start 30-day check" button
  *   RIP-CHECK-NOT-OPEN: check not open → "Come back in 30 days" heading shown
@@ -474,6 +477,83 @@ describe('CourseCompletePage', () => {
     wrap(<CourseCompletePage />);
     fireEvent.click(screen.getByRole('button', { name: /see your badges/i }));
     expect(mockNavigate).toHaveBeenCalledWith('/progress', { state: { tab: 'Badges' } });
+  });
+
+  it('CCP-CHECK-BOTH: quick check and final check cards render with correct scores', () => {
+    mockUseGamification.mockReturnValue({
+      data: {
+        lifetime_points: 100,
+        month_points: 50,
+        month: '2026-10',
+        current_streak_weeks: 0,
+        longest_streak_weeks: 0,
+        last_learning_date: null,
+        courses: [{
+          course_key: COURSE_ID,
+          points: 0,
+          quick_check: { correct: 6, total: 10, at: '2026-10-01T00:00:00Z' },
+          final_check: { correct: 9, total: 10, passed_at: '2026-10-15T00:00:00Z' },
+        }],
+        this_week: null,
+        recent_weeks: [],
+        server_time: '2026-10-20T00:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+    });
+    wrap(<CourseCompletePage />);
+    expect(screen.getByText('Quick check')).toBeInTheDocument();
+    expect(screen.getByText('Final check')).toBeInTheDocument();
+    expect(screen.getByText(/6\s+of\s+10/)).toBeInTheDocument();
+    expect(screen.getByText(/9\s+of\s+10/)).toBeInTheDocument();
+  });
+
+  it('CCP-CHECK-IMPROVEMENT: improvement chip shows positive delta when final > quick', () => {
+    mockUseGamification.mockReturnValue({
+      data: {
+        lifetime_points: 0,
+        month_points: 0,
+        month: '2026-10',
+        current_streak_weeks: 0,
+        longest_streak_weeks: 0,
+        last_learning_date: null,
+        courses: [{
+          course_key: COURSE_ID,
+          points: 0,
+          quick_check: { correct: 6, total: 10, at: '2026-10-01T00:00:00Z' },
+          final_check: { correct: 9, total: 10, passed_at: '2026-10-15T00:00:00Z' },
+        }],
+        this_week: null,
+        recent_weeks: [],
+        server_time: '2026-10-20T00:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+    });
+    wrap(<CourseCompletePage />);
+    expect(screen.getByText('+3')).toBeInTheDocument();
+  });
+
+  it('CCP-CHECK-NULL: check grid absent when both quick_check and final_check are null', () => {
+    mockUseGamification.mockReturnValue({
+      data: {
+        lifetime_points: 0,
+        month_points: 0,
+        month: '2026-10',
+        current_streak_weeks: 0,
+        longest_streak_weeks: 0,
+        last_learning_date: null,
+        courses: [{ course_key: COURSE_ID, points: 0, quick_check: null, final_check: null }],
+        this_week: null,
+        recent_weeks: [],
+        server_time: '2026-10-20T00:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+    });
+    wrap(<CourseCompletePage />);
+    expect(screen.queryByText('Quick check')).not.toBeInTheDocument();
+    expect(screen.queryByText('Final check')).not.toBeInTheDocument();
   });
 });
 

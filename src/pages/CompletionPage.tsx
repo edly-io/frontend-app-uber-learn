@@ -505,6 +505,27 @@ export const CourseCompletePage = () => {
   const handleContinue = () => navigate('/');
   const handleSeeBadges = () => navigate('/progress', { state: { tab: 'Badges' } });
 
+  if (gamificationQuery.isLoading || courseOutlineQuery.isLoading) {
+    return (
+      <div className="cp-page">
+        <LoadingSkeleton />
+      </div>
+    );
+  }
+
+  if (gamificationQuery.isError) {
+    return (
+      <div className="cp-page">
+        <ErrorView
+          title="Could not load results"
+          message="Please try again."
+          embedded
+          onRetry={() => gamificationQuery.refetch()}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="cp-page cp-page--fixed">
       <div className="cp-scroll-area">

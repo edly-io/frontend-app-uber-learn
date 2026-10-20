@@ -338,7 +338,6 @@ describe('ActivityView', () => {
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith(
           `/course/${COURSE_ID}/lesson-complete/${SEQ_ID}`,
-          { state: { since: expect.any(String) } },
         );
       });
     });

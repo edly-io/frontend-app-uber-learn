@@ -289,6 +289,17 @@ export const CourseOverview = () => {
     ? earlyLessons[earlyNextIdx].sequenceId
     : (resumeQuery.data?.sectionId ?? earlyLessons[0]?.sequenceId ?? '');
 
+  // Pre-fetch the continue sequence's unit list so handleContinue can jump to the first
+  // incomplete step without an extra round-trip on click. The button shows "Loading…" while
+  // this is in-flight, acting as a race guard against tapping before units are ready.
+  const continueSeqMetaQuery = useQuery({
+    queryKey: qk.sequence(continueSeqId),
+    queryFn: () => getSequenceMetadata(continueSeqId),
+    enabled: Boolean(continueSeqId),
+    staleTime: 5 * 60_000,
+  });
+  const isSequenceMetaLoading = continueSeqMetaQuery.isLoading && Boolean(continueSeqId);
+
   const stateRaw = location.state as { origin?: string; parentOrigin?: string } | null;
   const origin = stateRaw?.origin ?? null;
   const parentOrigin = stateRaw?.parentOrigin ?? null;
@@ -381,16 +392,15 @@ export const CourseOverview = () => {
 
   const lessonState = origin ? { origin } : undefined;
 
-  const getStepIdx = async (seqId: string): Promise<number> => {
-    const data = await queryClient.ensureQueryData({
-      queryKey: qk.sequence(seqId),
-      queryFn: () => getSequenceMetadata(seqId),
-      staleTime: 5 * 60_000,
-    });
-    return Math.max(0, (data?.units ?? []).findIndex((u: { complete: boolean }) => !u.complete));
+  const getStepIdxFromMeta = (seqId: string): number => {
+    // Use pre-fetched data when available (same query key); fall back to 0.
+    const cached = queryClient.getQueryData<{ units: { complete: boolean }[] }>(qk.sequence(seqId));
+    const units = cached?.units ?? [];
+    const firstIncomplete = units.findIndex((u) => !u.complete);
+    return Math.max(0, firstIncomplete);
   };
 
-  const handleContinue = async () => {
+  const handleContinue = () => {
     if (courseComplete) {
       navigate(`/course/${courseId}/complete`);
       return;
@@ -401,12 +411,13 @@ export const CourseOverview = () => {
     if ((fraction > 0 || completedLessons > 0) && nextLessonIdx >= 0) {
       const targetLesson = lessons[nextLessonIdx];
       // nextStep is pre-computed by the backend batch API — no sequence API call needed.
-      const stepIdx = learnCourse?.nextLesson?.nextStep ?? await getStepIdx(targetLesson.sequenceId);
+      const backendStep = learnCourse?.nextLesson?.nextStep;
+      const stepIdx = backendStep != null ? backendStep : getStepIdxFromMeta(targetLesson.sequenceId);
       navigate(`/course/${courseId}/lesson/${targetLesson.sequenceId}/step/${stepIdx}`, { state: lessonState });
       return;
     }
     if (resumeSequenceId) {
-      const stepIdx = await getStepIdx(resumeSequenceId);
+      const stepIdx = getStepIdxFromMeta(resumeSequenceId);
       navigate(`/course/${courseId}/lesson/${resumeSequenceId}/step/${stepIdx}`, { state: lessonState });
       return;
     }
@@ -541,10 +552,11 @@ export const CourseOverview = () => {
           ) : (
             <button
               type="button"
-              className="course-footer__primary"
+              className={`course-footer__primary${isSequenceMetaLoading ? ' course-footer__primary--loading' : ''}`}
               onClick={handleContinue}
+              disabled={isSequenceMetaLoading}
             >
-              {ctaLabel}
+              {isSequenceMetaLoading ? 'Loading…' : ctaLabel}
             </button>
           )}
         </footer>

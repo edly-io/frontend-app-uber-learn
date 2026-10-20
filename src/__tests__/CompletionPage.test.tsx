@@ -323,24 +323,17 @@ describe('LessonCompletePage', () => {
     expect(mockNavigate).toHaveBeenCalledWith(`/course/${COURSE_ID}`);
   });
 
-  it('LCP-NO-SINCE: without router state since, points/score stats are hidden and page still renders', async () => {
-    // since is absent (no router state) — the resultsQuery should be disabled and
-    // the points chip and correct-count row must not appear.
+  it('LCP-RENDERS: page renders when router state has no sequenceId override', async () => {
+    // Router state is absent — the page still renders correctly using the sequenceId from params.
     mockUseLocation.mockReturnValue({ state: null, pathname: '/completion' });
     mockUseCourseOutline.mockReturnValue({ data: OUTLINE_TWO_LESSONS, isLoading: false });
-    // getLessonResults must NOT be called when since is absent.
-    getLessonResultsMock().getLessonResults.mockClear();
     wrap(<LessonCompletePage />);
-    // Page renders without loading state (query is disabled, not in-flight).
+    // Page renders.
     await waitFor(() => {
       expect(screen.getByText('Lesson complete')).toBeInTheDocument();
     });
-    // Points chip absent.
-    expect(screen.queryByText(/\+\d/)).not.toBeInTheDocument();
-    // "Right first time" row absent (only shown when since is provided).
-    expect(screen.queryByText(/right first time/i)).not.toBeInTheDocument();
-    // The results API was never called.
-    expect(getLessonResultsMock().getLessonResults).not.toHaveBeenCalled();
+    // Results are always fetched regardless of router state (since removal).
+    expect(getLessonResultsMock().getLessonResults).toHaveBeenCalled();
   });
 
   it('LCP-POINTS-SETTLE: re-reads results so points awarded after the first read are shown', async () => {

@@ -11,6 +11,8 @@ export interface LearnNextLesson {
   /** Usage key of the sequential (lesson) the learner should do next. */
   sequenceKey: string;
   title: string | null;
+  /** 0-based index of the first incomplete unit within that lesson. */
+  nextStep: number;
 }
 
 /** One actively enrolled course with the learner's progress in it. */
@@ -42,6 +44,7 @@ export interface LearnCourse {
 interface RawNextLesson {
   sequence_key: string;
   title: string | null;
+  next_step: number;
 }
 
 /**
@@ -79,7 +82,7 @@ function toLearnCourse(row: RawLearnCourse): LearnCourse {
     completedLessons: row.completed_lessons ?? 0,
     progress: row.progress ?? 0,
     nextLesson: row.next_lesson
-      ? { sequenceKey: row.next_lesson.sequence_key, title: row.next_lesson.title ?? null }
+      ? { sequenceKey: row.next_lesson.sequence_key, title: row.next_lesson.title ?? null, nextStep: row.next_lesson.next_step ?? 0 }
       : null,
     status: row.status,
     curriculum: row.curriculum ?? null,

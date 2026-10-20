@@ -67,7 +67,7 @@ const COURSE_A: LearnCourse = {
   lessonCount: 1,
   completedLessons: 0,
   progress: 0,
-  nextLesson: { sequenceKey: 'seq-1', title: 'Getting started' },
+  nextLesson: { sequenceKey: 'seq-1', title: 'Getting started', nextStep: 0 },
   status: 'not_started',
   curriculum: null,
   lastActivity: null,
@@ -287,7 +287,7 @@ describe('CourseLibrary', () => {
         completedLessons: 1,
         progress: 1 / 6,
         status: 'in_progress',
-        nextLesson: { sequenceKey: 'seq-2', title: 'Lesson two' },
+        nextLesson: { sequenceKey: 'seq-2', title: 'Lesson two', nextStep: 0 },
       }]);
       renderComponent();
       await waitFor(() => {
@@ -332,7 +332,7 @@ describe('CourseLibrary', () => {
         completedLessons: 1,
         progress: 0.5,
         status: 'in_progress',
-        nextLesson: { sequenceKey: 'seq-2', title: 'Lesson two' },
+        nextLesson: { sequenceKey: 'seq-2', title: 'Lesson two', nextStep: 0 },
       }]);
       renderComponent();
       await waitFor(() => {

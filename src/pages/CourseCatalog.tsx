@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { useLearnCourses, type LearnCourse } from '../hooks/useLearnCourses';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
-import { useSequence } from '../hooks/useSequence';
 import { qk } from '../api/queries';
 import { getLastActivity } from '../api/curriculum';
 import { selectContinueCourse } from '../lib/selectContinueCourse';
@@ -231,7 +230,6 @@ const ConnectedContinueCard = ({
   course: firstCourse, onContinue, variant = 'lesson', finalCheckMeta = null, imageUrl = null,
 }: ConnectedContinueCardProps) => {
   const courseId = firstCourse?.courseId ?? '';
-
   const outlineQuery = useCourseOutline(courseId);
 
   const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
@@ -243,12 +241,8 @@ const ConnectedContinueCard = ({
   const completedLessons = allLessons.filter((l) => l.complete).length;
   const nextLesson = allLessons.find((l) => !l.complete) ?? allLessons[0];
 
-  // Fetch units for the next lesson: used for step count in subtitle and to
-  // find the first incomplete unit so Continue resumes at the right step.
-  const { units: nextUnits, isLoading: unitsLoading } = useSequence(nextLesson?.sequenceId ?? '');
-  const hasStarted = completedLessons > 0 || nextUnits.some((u) => u.complete);
-  const stepCount = nextUnits.length;
-  const resumeStepIdx = Math.max(0, nextUnits.findIndex((u) => !u.complete));
+  // status from the batched learn API is immediately available (staleTime 5min) — no jerk.
+  const hasStarted = firstCourse?.status !== 'not_started';
 
   const nextLessonIdx = nextLesson ? allLessons.indexOf(nextLesson) : 0;
   const lessonTitle = nextLesson?.lessonTitle ?? firstCourse?.title ?? 'Start learning';
@@ -256,10 +250,18 @@ const ConnectedContinueCard = ({
     ? `Lesson ${nextLessonIdx + 1} of ${totalLessons}`
     : 'Start course';
   const courseMeta = firstCourse
-    ? `${firstCourse.title}${stepCount > 0 ? ` · ${stepCount} step${stepCount !== 1 ? 's' : ''}` : ` · ${totalLessons} lessons`}`
+    ? `${firstCourse.title} · ${totalLessons} lessons`
     : '';
 
   if (!firstCourse) { return null; }
+
+  const handleContinue = () => {
+    const seqId = nextLesson?.sequenceId ?? null;
+    if (!seqId) { onContinue(firstCourse.courseId, null, 0); return; }
+    // nextLesson.nextStep is pre-computed by the backend — no sequence API call needed.
+    const stepIdx = firstCourse?.nextLesson?.nextStep ?? 0;
+    onContinue(firstCourse.courseId, seqId, stepIdx);
+  };
 
   return (
     <ContinueCard
@@ -269,9 +271,7 @@ const ConnectedContinueCard = ({
       completedLessons={completedLessons}
       totalLessons={totalLessons}
       hasStarted={hasStarted}
-      onContinue={() => onContinue(firstCourse.courseId, nextLesson?.sequenceId ?? null, resumeStepIdx)}
-      disabled={unitsLoading}
-      loading={unitsLoading}
+      onContinue={handleContinue}
       variant={variant}
       finalCheckMeta={finalCheckMeta}
       imageUrl={imageUrl}

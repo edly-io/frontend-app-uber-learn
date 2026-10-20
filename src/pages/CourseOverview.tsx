@@ -2,12 +2,11 @@ import React from 'react';
 import {
   useParams, useNavigate, useLocation, Navigate,
 } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { getResumeBlock } from '../api/courseware';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getResumeBlock, getSequenceMetadata } from '../api/courseware';
 import { getCourseMaxPoints } from '../api/gamification';
 import { qk } from '../api/queries';
 import { useCourseOutline } from '../hooks/useCourseOutline';
-import { useSequence } from '../hooks/useSequence';
 import { mapOutlineToLessons, findNextLessonIndex } from '../lib/outline-mapper';
 import type { LessonDescriptor } from '../lib/outline-mapper';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
@@ -239,8 +238,10 @@ export const CourseOverview = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
 
   const { data: enrolledCourses, isLoading: enrolledLoading } = useLearnCourses();
+  const learnCourse = enrolledCourses?.find((c) => c.courseId === courseId);
   const isEnrolled = enrolledLoading || (enrolledCourses?.some((c) => c.courseId === courseId) ?? true);
   const isOffline = useOffline();
 
@@ -282,16 +283,11 @@ export const CourseOverview = () => {
   const outlineQuery = useCourseOutline(courseId);
   const isSlowLoad = useSlowLoad(outlineQuery.isLoading || resumeQuery.isLoading);
 
-  // Resolve the continue target sequence BEFORE early returns so useSequence can be called
-  // unconditionally (hooks cannot follow conditional returns). During loading, outlineQuery.data
-  // is undefined → earlyLessons is [] → continueSeqId is '' → useSequence is disabled.
   const earlyLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
   const earlyNextIdx = findNextLessonIndex(earlyLessons);
   const continueSeqId = earlyNextIdx >= 0
     ? earlyLessons[earlyNextIdx].sequenceId
     : (resumeQuery.data?.sectionId ?? earlyLessons[0]?.sequenceId ?? '');
-  const { units: continueUnits, isLoading: continueUnitsLoading } = useSequence(continueSeqId);
-  const continueStepIdx = Math.max(0, continueUnits.findIndex((u) => !u.complete));
 
   const stateRaw = location.state as { origin?: string; parentOrigin?: string } | null;
   const origin = stateRaw?.origin ?? null;
@@ -385,7 +381,16 @@ export const CourseOverview = () => {
 
   const lessonState = origin ? { origin } : undefined;
 
-  const handleContinue = () => {
+  const getStepIdx = async (seqId: string): Promise<number> => {
+    const data = await queryClient.ensureQueryData({
+      queryKey: qk.sequence(seqId),
+      queryFn: () => getSequenceMetadata(seqId),
+      staleTime: 5 * 60_000,
+    });
+    return Math.max(0, (data?.units ?? []).findIndex((u: { complete: boolean }) => !u.complete));
+  };
+
+  const handleContinue = async () => {
     if (courseComplete) {
       navigate(`/course/${courseId}/complete`);
       return;
@@ -393,14 +398,16 @@ export const CourseOverview = () => {
     // When the learner has progress, the LMS resume block may still point to an already-completed
     // lesson because BlockCompletion is only written when a unit's Continue is clicked. Jump to the
     // first lesson the outline reports as incomplete instead.
-    // continueStepIdx is the first incomplete unit in that lesson (computed above via useSequence).
     if ((fraction > 0 || completedLessons > 0) && nextLessonIdx >= 0) {
       const targetLesson = lessons[nextLessonIdx];
-      navigate(`/course/${courseId}/lesson/${targetLesson.sequenceId}/step/${continueStepIdx}`, { state: lessonState });
+      // nextStep is pre-computed by the backend batch API — no sequence API call needed.
+      const stepIdx = learnCourse?.nextLesson?.nextStep ?? await getStepIdx(targetLesson.sequenceId);
+      navigate(`/course/${courseId}/lesson/${targetLesson.sequenceId}/step/${stepIdx}`, { state: lessonState });
       return;
     }
     if (resumeSequenceId) {
-      navigate(`/course/${courseId}/lesson/${resumeSequenceId}/step/${continueStepIdx}`, { state: lessonState });
+      const stepIdx = await getStepIdx(resumeSequenceId);
+      navigate(`/course/${courseId}/lesson/${resumeSequenceId}/step/${stepIdx}`, { state: lessonState });
       return;
     }
     const firstLesson = lessons[0];
@@ -421,7 +428,7 @@ export const CourseOverview = () => {
   };
 
   let ctaLabel = 'Start course';
-  if (courseComplete) { ctaLabel = 'Review course'; } else if (fraction > 0 || resumeSequenceId) { ctaLabel = 'Continue course'; }
+  if (courseComplete) { ctaLabel = 'Review course'; } else if (learnCourse?.status !== 'not_started' || fraction > 0 || resumeSequenceId) { ctaLabel = 'Continue course'; }
 
   const showProgress = true;
   const isKnowledgeCheckCourse = parentCurriculum?.knowledge_check?.course_id === courseId;
@@ -536,9 +543,8 @@ export const CourseOverview = () => {
               type="button"
               className="course-footer__primary"
               onClick={handleContinue}
-              disabled={!courseComplete && continueUnitsLoading}
             >
-              {!courseComplete && continueUnitsLoading ? 'Loading…' : ctaLabel}
+              {ctaLabel}
             </button>
           )}
         </footer>

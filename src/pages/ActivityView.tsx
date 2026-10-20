@@ -299,7 +299,13 @@ export const ActivityView = () => {
 
   // Content load failure: navigate to the video-error screen (Figma: "This video could not load")
   if (isContentError) {
-    return <Navigate to={`/course/${courseId}/lesson/${sequenceId}/video-error`} replace />;
+    return (
+      <Navigate
+        to={`/course/${courseId}/lesson/${sequenceId}/video-error`}
+        state={{ unitIdx }}
+        replace
+      />
+    );
   }
 
   const buttonLabel = unitIdx < units.length - 1 ? 'Continue' : 'Finish';

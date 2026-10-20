@@ -19,25 +19,13 @@ jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
   useParams: () => mockUseParams(),
+  useLocation: () => ({
+    state: null, key: 'test', pathname: '/', search: '', hash: '',
+  }),
 }));
-
-const originalReload = window.location.reload;
-beforeAll(() => {
-  Object.defineProperty(window, 'location', {
-    writable: true,
-    value: { ...window.location, reload: jest.fn() },
-  });
-});
-afterAll(() => {
-  Object.defineProperty(window, 'location', {
-    writable: true,
-    value: { ...window.location, reload: originalReload },
-  });
-});
 
 beforeEach(() => {
   mockNavigate.mockClear();
-  (window.location.reload as jest.Mock).mockClear();
   mockUseParams.mockReturnValue({ courseId: 'course-v1:Uber+Safety+2026', sequenceId: 'block-v1:seq1' });
 });
 
@@ -53,10 +41,13 @@ test('VCLP-BACK: back arrow click navigates to course overview', () => {
   expect(mockNavigate).toHaveBeenCalledWith('/course/course-v1:Uber+Safety+2026');
 });
 
-test('VCLP-RETRY: "Try again" button reloads the page', () => {
+test('VCLP-RETRY: "Try again" navigates back to the lesson step', () => {
   render(<VideoCouldntLoadPage />);
   fireEvent.click(screen.getByRole('button', { name: /try again/i }));
-  expect(window.location.reload).toHaveBeenCalledTimes(1);
+  expect(mockNavigate).toHaveBeenCalledWith(
+    '/course/course-v1:Uber+Safety+2026/lesson/block-v1:seq1/step/0',
+    { replace: true },
+  );
 });
 
 test('VCLP-CONTINUE-SEQ: "Continue" with sequenceId navigates to lesson step', () => {

@@ -64,7 +64,7 @@ const ChevronRight = () => (
 // ── Search result components ──────────────────────────────
 
 const CourseResult = ({ course, onClick }: { course: SearchCourseResult; onClick: () => void }) => (
-  <button type="button" className="sp-course-card" onClick={onClick} aria-label={course.display_name}>
+  <button type="button" className="sp-course-card" onClick={onClick}>
     <div className="sp-course-card__art">
       <img
         src={course.image_url || scenePhotoThumb}
@@ -96,7 +96,7 @@ const CurriculumResult = ({ curriculum, onClick }: { curriculum: LearnerCurricul
   const nextCourse = curriculum.courses?.find((c) => !c.finished);
   const badgeUrl = curriculum.milestones?.complete?.badge?.image_url ?? null;
   return (
-    <button type="button" className="sp-path-card" onClick={onClick} aria-label={curriculum.title}>
+    <button type="button" className="sp-path-card" onClick={onClick}>
       <div className="sp-path-card__seal">
         <div className="sp-path-card__seal-inner">
           <img

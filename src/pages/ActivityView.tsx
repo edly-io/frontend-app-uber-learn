@@ -1,7 +1,7 @@
 import React, {
   useState, useCallback, useEffect, useRef, useMemo,
 } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { getConfig } from '@edx/frontend-platform';
 import { useBlockCompletion } from '../hooks/useBlockCompletion';
@@ -97,7 +97,6 @@ export const ActivityView = () => {
     setIsContentError(false);
   }, [sequenceId, unitIdx]);
 
-  const retryKey = 0;
   const handleContentError = useCallback(() => {
     setIsContentError(true);
   }, []);
@@ -298,8 +297,7 @@ export const ActivityView = () => {
 
   // Content load failure: navigate to the video-error screen (Figma: "This video could not load")
   if (isContentError) {
-    navigate(`/course/${courseId}/lesson/${sequenceId}/video-error`, { replace: true });
-    return null;
+    return <Navigate to={`/course/${courseId}/lesson/${sequenceId}/video-error`} replace />;
   }
 
   const buttonLabel = unitIdx < units.length - 1 ? 'Continue' : 'Finish';
@@ -325,7 +323,7 @@ export const ActivityView = () => {
         )}
 
         <ContentIFrame
-          key={`${currentUnit.id}-${retryKey}`}
+          key={currentUnit.id}
           usageKey={currentUnit.id}
           onContentReady={isLightweightMode ? handleContentShown : undefined}
           onLoad={handleContentShown}

@@ -303,9 +303,11 @@ export const LearningPathView = () => {
           className="lpv-nav__back"
           aria-label="Go back"
           onClick={() => {
-            const origin = (location.state as { origin?: string } | null)?.origin;
-            if (origin) {
-              navigate(origin);
+            const rawOrigin = (location.state as { origin?: string } | null)?.origin;
+            // Validate origin is an internal path before navigating to it.
+            const safeOrigin = typeof rawOrigin === 'string' && rawOrigin.startsWith('/') ? rawOrigin : null;
+            if (safeOrigin) {
+              navigate(safeOrigin);
             } else if (location.key === 'default') {
               navigate('/');
             } else {

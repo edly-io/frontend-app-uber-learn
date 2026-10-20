@@ -304,9 +304,14 @@ export const CourseOverview = () => {
   const origin = stateRaw?.origin ?? null;
   const parentOrigin = stateRaw?.parentOrigin ?? null;
 
+  // Validate that origin and parentOrigin are internal paths (start with '/') before
+  // passing them to navigate(). Defense-in-depth against a tampered location.state.
+  const safeOrigin = typeof origin === 'string' && origin.startsWith('/') ? origin : null;
+  const safeParentOrigin = typeof parentOrigin === 'string' && parentOrigin.startsWith('/') ? parentOrigin : null;
+
   const handleBack = () => {
-    if (origin) {
-      navigate(origin, parentOrigin ? { state: { origin: parentOrigin } } : undefined);
+    if (safeOrigin) {
+      navigate(safeOrigin, safeParentOrigin ? { state: { origin: safeParentOrigin } } : undefined);
     } else {
       navigate('/');
     }

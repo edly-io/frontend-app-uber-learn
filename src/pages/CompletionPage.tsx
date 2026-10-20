@@ -223,7 +223,6 @@ const StatsRow = ({
 export const LessonCompletePage = () => {
   const { courseId = '', sequenceId = '' } = useParams<{ courseId: string; sequenceId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const outlineQuery = useCourseOutline(courseId);
   const { data: gamificationData } = useGamification();
@@ -733,10 +732,12 @@ const RetentionScoreRing = ({ score, total }: RetentionScoreRingProps) => {
           transform={`rotate(-90 ${c} ${c})`}
         />
       )}
-      <circle cx={c} cy={c} r={27} fill="black" />
+      {/* Inner filled circle: r = c * 0.75 stays proportional to size */}
+      <circle cx={c} cy={c} r={Math.round(c * 0.75)} style={{ fill: 'var(--u-background-always-dark)' }} />
+      {/* Checkmark path: coordinates derived from c = size/2 = 36 */}
       <path
-        d="M29 36 L34 41 L43 29"
-        stroke="white"
+        d={`M${c - 7} ${c} L${c - 2} ${c + 5} L${c + 7} ${c - 7}`}
+        style={{ stroke: 'var(--u-content-on-color)' }}
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -876,7 +877,7 @@ export const RetentionCheckResultPage = () => {
 
   const scoreForRing = score ?? 0;
   const totalForRing = total > 0 ? total : 5;
-  const passThreshold = totalForRing - 1;
+  const passThreshold = parentCurriculum?.knowledge_check?.pass_threshold ?? (totalForRing - 1);
 
   return (
     <div className="cp-page cp-page--scrollable">

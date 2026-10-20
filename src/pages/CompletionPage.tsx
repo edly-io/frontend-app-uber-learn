@@ -366,7 +366,7 @@ export const LessonCompletePage = () => {
 
         {/* Stats card */}
         <div className="cp-stats-card">
-          {since && correctPercent !== null && questions > 0 && (
+          {since && !isRepeat && correctPercent !== null && questions > 0 && (
             <StatsRow
               icon={iconCircleCheck}
               iconAlt="Right first time"

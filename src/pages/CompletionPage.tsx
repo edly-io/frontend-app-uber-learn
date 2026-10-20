@@ -469,7 +469,12 @@ export const CourseCompletePage = () => {
 
   const parentCurriculum = curriculums?.find((c) => c.courses.some((course) => course.course_id === courseId));
   const completeMilestone = parentCurriculum?.milestones.complete ?? null;
-  const earnedAt = completeMilestone?.reached_at ?? null;
+  // For curriculum courses use the path milestone date; for standalone courses use the course badge date.
+  const earnedAt = completeMilestone?.reached_at
+    ?? badgesData?.course_badges.find(
+      (b) => b.source.type === 'course' && b.source.course_id === courseId,
+    )?.awarded_at
+    ?? null;
   const earnedDate = earnedAt
     ? new Date(earnedAt).toLocaleDateString('en-GB', {
       day: 'numeric', month: 'long', year: 'numeric',
@@ -518,42 +523,42 @@ export const CourseCompletePage = () => {
           )}
         </div>
 
-        {/* Curriculum progress card (only when in a path) */}
+        {/* Quick check / Final check grid */}
+        {finalCheckScore !== null && finalCheckQuestions > 0 && (
+          <div className="cpc-check-grid">
+            <div className="cpc-check-card">
+              <p className="cpc-check-card__label">Final check</p>
+              <p className="cpc-check-card__score">
+                {finalCheckScore}
+                {' '}
+                of
+                {' '}
+                {finalCheckQuestions}
+              </p>
+              <p className="cpc-check-card__sub">After the lessons</p>
+            </div>
+          </div>
+        )}
+
+        {/* Curriculum progress card */}
         {parentCurriculum && coursesTotal > 0 && (
           <div className="cp-stats-card">
             <div className="cpc-path-head">
               <p className="cpc-path-name">{parentCurriculum.title}</p>
               <p className="cpc-path-count">
-                {coursesFinished}
-                {' '}
-                of
-                {' '}
-                {coursesTotal}
-                {' '}
-                courses
+                {`${coursesFinished} of ${coursesTotal} courses`}
               </p>
             </div>
             <CourseBadgeRow curriculum={parentCurriculum} badges={badgesData} />
           </div>
         )}
 
-        {/* Results stats card */}
-        <div className="cp-stats-card">
-          {finalCheckScore !== null && finalCheckQuestions > 0 && (
-            <StatsRow
-              icon={iconCircleCheck}
-              label="Final check"
-              value={`${finalCheckScore} of ${finalCheckQuestions}`}
-            />
-          )}
-          {totalPoints > 0 && (
-            <StatsRow
-              icon={iconLightning}
-              label="Points"
-              value={`+${totalPoints}`}
-            />
-          )}
-        </div>
+        {/* Points */}
+        {totalPoints > 0 && (
+          <div className="cp-stats-card">
+            <StatsRow icon={iconLightning} label="Points" value={`+${totalPoints}`} />
+          </div>
+        )}
 
       </main>
 

@@ -495,6 +495,59 @@
   text-align: center;
 }
 
+/* ── Course Complete: Quick/Final check grid ─────────────────────────────── */
+.cpc-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.cpc-check-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  background: var(--u-background-secondary);
+  border-radius: 16px;
+}
+
+.cpc-check-card__label {
+  font-family: var(--u-font-body);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.38;
+  margin: 0;
+}
+
+.cpc-check-card__score {
+  font-family: var(--u-font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.2;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.cpc-check-card__improvement {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--u-content-positive);
+  margin-left: 4px;
+}
+
+.cpc-check-card__sub {
+  font-family: var(--u-font-body);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.38;
+  margin: 0;
+}
+
 /* ── Course Complete: path progress card head ────────────────────────────── */
 .cpc-path-head {
   display: flex;

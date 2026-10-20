@@ -27,12 +27,12 @@ const makeQC = () => new QueryClient({
 
 // ── useGamification ───────────────────────────────────────────────────────────
 
-function GamificationConsumer() {
+const GamificationConsumer = () => {
   const { data, isError } = useGamification();
-  if (isError) return <span>error</span>;
-  if (!data) return <span>loading</span>;
+  if (isError) { return <span>error</span>; }
+  if (!data) { return <span>loading</span>; }
   return <span>{data.lifetime_points} pts</span>;
-}
+};
 
 describe('useGamification', () => {
   it('QH-GAMIFICATION: renders data returned by getGamificationSummary', async () => {
@@ -55,12 +55,12 @@ describe('useGamification', () => {
 
 // ── useLeaderboard ────────────────────────────────────────────────────────────
 
-function LeaderboardConsumer({ above, below }: { above: number; below: number }) {
+const LeaderboardConsumer = ({ above, below }: { above: number; below: number }) => {
   const { data, isError } = useLeaderboard(above, below);
-  if (isError) return <span>error</span>;
-  if (!data) return <span>loading</span>;
+  if (isError) { return <span>error</span>; }
+  if (!data) { return <span>loading</span>; }
   return <span>rank {data.my_rank}</span>;
-}
+};
 
 describe('useLeaderboard', () => {
   it('QH-LEADERBOARD: renders data returned by getLeaderboard with correct params', async () => {

@@ -15,7 +15,7 @@
  */
 import React from 'react';
 import {
-  render, screen, waitFor, fireEvent, act,
+  render, screen, waitFor, fireEvent,
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { mergeConfig } from '@edx/frontend-platform';
@@ -66,7 +66,6 @@ jest.mock('../hooks/useLearnCourses', () => ({
 
 const COURSE_ID = 'course-v1:Uber+L2024';
 const SEQ_ID = 'block-v1:Uber+L2024+type@sequential+block@seq1';
-const SEQ_ID_2 = 'block-v1:Uber+L2024+type@sequential+block@seq2';
 
 const SEQUENCE_DATA = {
   sequence: {

@@ -698,6 +698,54 @@ export const RetentionInvitePage = () => {
   );
 };
 
+// ── Retention score ring (amber arc + black circle + white checkmark) ─────
+
+interface RetentionScoreRingProps { score: number; total: number; }
+
+const RetentionScoreRing = ({ score, total }: RetentionScoreRingProps) => {
+  const size = 72;
+  const sw = 4;
+  const r = (size - sw) / 2;
+  const c = size / 2;
+  const circ = 2 * Math.PI * r;
+  const fraction = total > 0 ? Math.min(score / total, 1) : 0;
+  const offset = circ * (1 - fraction);
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      aria-hidden="true"
+      className="cpl-done-mark"
+    >
+      <circle cx={c} cy={c} r={r} stroke="var(--u-border-opaque)" strokeWidth={sw} fill="none" />
+      {score > 0 && (
+        <circle
+          cx={c}
+          cy={c}
+          r={r}
+          stroke="var(--u-background-warning)"
+          strokeWidth={sw}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${c} ${c})`}
+        />
+      )}
+      <circle cx={c} cy={c} r={27} fill="black" />
+      <path
+        d="M29 36 L34 41 L43 29"
+        stroke="white"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+};
+
 // ── Retention Check Result Page ────────────────────────────────────────────
 
 const POLL_INTERVAL_MS = 2000;
@@ -712,6 +760,7 @@ export const RetentionCheckResultPage = () => {
   const parentCurriculum = curriculumsQuery.data?.find(
     (c) => c.knowledge_check.course_id === courseId,
   );
+  const pathTitle = parentCurriculum?.title ?? null;
 
   const correctPercent = resultsQuery.data?.correct_percent ?? null;
   const total = resultsQuery.data?.questions ?? 0;
@@ -803,13 +852,7 @@ export const RetentionCheckResultPage = () => {
             <p className="cpl-kicker">Badge earned</p>
             <h1 className="cpl-title">30-day check</h1>
             <p className="cpl-lead">
-              You got
-              {' '}
-              {scoreLabel}
-              {' '}
-              right.
-              {' '}
-              What you learned stayed with you.
+              {`You got ${scoreLabel} right${pathTitle ? ` on the ${pathTitle} check` : ''}. What you learned stayed with you.`}
             </p>
             {earnedDate && (
               <p className="cpl-date">
@@ -831,30 +874,44 @@ export const RetentionCheckResultPage = () => {
     );
   }
 
+  const scoreForRing = score ?? 0;
+  const totalForRing = total > 0 ? total : 5;
+  const passThreshold = totalForRing - 1;
+
   return (
     <div className="cp-page cp-page--scrollable">
-      <WhiteArtPanel artSrc={badgeArtRetained} earned={false} tintClass="cp-badge-seal--blue" />
+      <SimpleNavBar onBack={handleReviewCourse} />
 
       <main className="cp-content cp-content--centered">
-        <div className="cpc-words">
-          <p className="cpl-kicker">30-day check</p>
+        <div className="cpl-top">
+          <RetentionScoreRing score={scoreForRing} total={totalForRing} />
           <h1 className="cpl-title">Worth another look</h1>
           <p className="cpl-lead">
-            You got
-            {' '}
-            {scoreLabel}
-            {' '}
-            right. Review the missed topics, then try again, as often as you need.
+            {score !== null && total > 0
+              ? `${scoreLabel} right. You need ${passThreshold} to earn the badge.`
+              : 'Review the missed topics, then try again.'}
           </p>
         </div>
+
+        {score !== null && total > 0 && (
+          <div className="cpc-score-breakdown">
+            <div className="cpc-score-col">
+              <span className="cpc-score-col__value cpc-score-col__value--right">{score}</span>
+              <span className="cpc-score-col__label">right</span>
+            </div>
+            <div className="cpc-score-col">
+              <span className="cpc-score-col__value cpc-score-col__value--review">{total - score}</span>
+              <span className="cpc-score-col__label">to review</span>
+            </div>
+          </div>
+        )}
       </main>
 
-      <Footer
-        primaryLabel="Review course"
-        secondaryLabel="Try again"
-        onPrimary={handleReviewCourse}
-        onSecondary={handleTryAgain}
-      />
+      <footer className="cp-footer">
+        <button type="button" className="cp-footer__primary" onClick={handleTryAgain}>
+          Try again now
+        </button>
+      </footer>
     </div>
   );
 };

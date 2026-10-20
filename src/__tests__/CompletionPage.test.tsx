@@ -37,7 +37,7 @@
  *   RCRP-FAIL:          correct_percent < 80 → "Worth another look" heading
  *   RCRP-SCORE-LABEL:   score label "N of M" rendered in lead paragraph
  *   RCRP-NAV-BADGE:     PASS state: clicking "See your badges" navigates to /progress with tab
- *   RCRP-NAV-RETRY:     FAIL state: clicking "Try again" navigates to /course/:id/retention
+ *   RCRP-NAV-RETRY:     FAIL state: clicking "Try again now" navigates to /course/:id/retention
  */
 import React from 'react';
 import {
@@ -759,7 +759,7 @@ describe('RetentionCheckResultPage', () => {
     jest.useRealTimers();
   });
 
-  it('RCRP-NULL-PERCENT: correct_percent null + poll expired → score label shows dash "—" in fail lead', async () => {
+  it('RCRP-NULL-PERCENT: correct_percent null + poll expired → fallback lead shown (no score)', async () => {
     jest.useFakeTimers();
     getGamificationMock().getLessonResults.mockResolvedValue({
       sequence_key: SEQ_ID_1,
@@ -777,8 +777,8 @@ describe('RetentionCheckResultPage', () => {
     // Advance past poll timeout so the fail state renders.
     act(() => { jest.advanceTimersByTime(11000); });
     expect(screen.getByText(/worth another look/i)).toBeInTheDocument();
-    const lead = screen.getByText(/you got/i);
-    expect(lead.textContent).toContain('—');
+    // When score is unavailable, the lead shows the fallback copy (no "X of Y right").
+    expect(screen.getByText(/review the missed topics/i)).toBeInTheDocument();
     jest.useRealTimers();
   });
 });

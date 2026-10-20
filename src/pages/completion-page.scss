@@ -680,6 +680,49 @@
   outline-offset: 2px;
 }
 
+/* ── Retention score breakdown (2-col: X right / Y to review) ───────────── */
+.cpc-score-breakdown {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--u-background-secondary);
+  border-radius: 16px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.cpc-score-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 20px 16px;
+}
+
+.cpc-score-col + .cpc-score-col {
+  border-left: 1px solid var(--u-border-opaque);
+}
+
+.cpc-score-col__value {
+  font-family: var(--u-font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.cpc-score-col__value--right  { color: var(--u-content-positive); }
+.cpc-score-col__value--review { color: var(--u-content-warning); }
+
+.cpc-score-col__label {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}
+
 /* ── Reduced motion ──────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .cp-simple-nav__back,

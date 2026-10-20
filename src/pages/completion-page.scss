@@ -184,7 +184,47 @@
   margin: 0;
 }
 
-/* ── Stat grid — 2-up colored cards (Figma: points + accuracy side by side) ─ */
+/* ── Points — centered inline (Figma: ⚡ +25 / points earned, no card bg) ─── */
+.cpl-points {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.cpl-points__figure {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cpl-points__icon {
+  width: 28px;
+  height: 28px;
+  display: block;
+  flex-shrink: 0;
+}
+
+.cpl-points__value {
+  font-family: var(--u-font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.cpl-points__label {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+/* ── Stat grid — 2-up colored cards (kept for legacy, replaced by cpl-points) ─ */
 .cpl-stat-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

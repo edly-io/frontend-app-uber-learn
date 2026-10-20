@@ -350,38 +350,30 @@ export const LessonCompletePage = () => {
           )}
         </div>
 
-        {/* Stat cards grid — 2-up colored cards (Figma spec: points + accuracy side by side) */}
-        {since && (pointsEarned > 0 || correctPercent !== null) && (
-          <div className="cpl-stat-grid">
-            {pointsEarned > 0 && (
-              <div className="cpl-stat-card cpl-stat-card--points">
-                <div className="cpl-stat-card__figure">
-                  <img src={iconLightning} alt="" aria-hidden="true" className="cpl-stat-card__icon" />
-                  <span className="cpl-stat-card__value">
-                    +
-                    {pointsEarned}
-                  </span>
-                </div>
-                <p className="cpl-stat-card__label">{pointsLabel}</p>
-              </div>
-            )}
-            {correctPercent !== null && questions > 0 && (
-              <div className="cpl-stat-card cpl-stat-card--correct">
-                <div className="cpl-stat-card__figure">
-                  <img src={iconCircleCheck} alt="" aria-hidden="true" className="cpl-stat-card__icon" />
-                  <span className="cpl-stat-card__value">
-                    {correctPercent}
-                    %
-                  </span>
-                </div>
-                <p className="cpl-stat-card__label">correct</p>
-              </div>
-            )}
+        {/* Points — centered inline display */}
+        {since && pointsEarned > 0 && (
+          <div className="cpl-points">
+            <div className="cpl-points__figure">
+              <img src={iconLightning} alt="" aria-hidden="true" className="cpl-points__icon" />
+              <span className="cpl-points__value">
+                +
+                {pointsEarned}
+              </span>
+            </div>
+            <p className="cpl-points__label">{pointsLabel}</p>
           </div>
         )}
 
         {/* Stats card */}
         <div className="cp-stats-card">
+          {since && correctPercent !== null && questions > 0 && (
+            <StatsRow
+              icon={iconCircleCheck}
+              iconAlt="Right first time"
+              label="Right first time"
+              value={`${Math.round(questions * correctPercent / 100)} of ${questions}`}
+            />
+          )}
           {isRepeat && (
             <StatsRow
               icon={iconLightning}

@@ -452,7 +452,14 @@ export const CourseCompletePage = () => {
   // Fetch final check results when we came from a final check sequence.
   const finalCheckResultsQuery = useLessonResults(finalCheckSequenceId);
 
+  // Derive quick check sequence: first sequence in the course, only if distinct from the final check.
+  const allSeq = courseOutlineQuery.data ? mapOutlineToLessons(courseOutlineQuery.data) : [];
+  const firstSeqId = allSeq[0]?.sequenceId ?? null;
+  const quickCheckSeqId = (firstSeqId && firstSeqId !== finalCheckSequenceId) ? firstSeqId : null;
+  const quickCheckResultsQuery = useLessonResults(quickCheckSeqId ?? undefined);
+
   const courseTitle = courseOutlineQuery.data?.title ?? '';
+  const courseDescription = courseOutlineQuery.data?.shortDescription ?? null;
   const totalPoints = gamificationQuery.data?.courses?.find(
     (c) => c.course_key === courseId,
   )?.points ?? 0;
@@ -461,6 +468,16 @@ export const CourseCompletePage = () => {
   const finalCheckQuestions = finalCheckResultsQuery.data?.questions ?? 0;
   const finalCheckScore = finalCheckCorrectPct !== null && finalCheckQuestions > 0
     ? Math.round((finalCheckCorrectPct / 100) * finalCheckQuestions)
+    : null;
+
+  const quickCheckCorrectPct = quickCheckResultsQuery.data?.correct_percent ?? null;
+  const quickCheckQuestions = quickCheckResultsQuery.data?.questions ?? 0;
+  const quickCheckScore = quickCheckCorrectPct !== null && quickCheckQuestions > 0
+    ? Math.round((quickCheckCorrectPct / 100) * quickCheckQuestions)
+    : null;
+
+  const improvementDelta = quickCheckScore !== null && finalCheckScore !== null
+    ? finalCheckScore - quickCheckScore
     : null;
 
   const parentCurriculum = curriculums?.find((c) => c.courses.some((course) => course.course_id === courseId));
@@ -520,19 +537,40 @@ export const CourseCompletePage = () => {
         </div>
 
         {/* Quick check / Final check grid */}
-        {finalCheckScore !== null && finalCheckQuestions > 0 && (
+        {(quickCheckScore !== null || (finalCheckScore !== null && finalCheckQuestions > 0)) && (
           <div className="cpc-check-grid">
-            <div className="cpc-check-card">
-              <p className="cpc-check-card__label">Final check</p>
-              <p className="cpc-check-card__score">
-                {finalCheckScore}
-                {' '}
-                of
-                {' '}
-                {finalCheckQuestions}
-              </p>
-              <p className="cpc-check-card__sub">After the lessons</p>
-            </div>
+            {quickCheckScore !== null && quickCheckQuestions > 0 && (
+              <div className="cpc-check-card">
+                <p className="cpc-check-card__label">Quick check</p>
+                <p className="cpc-check-card__score">
+                  {quickCheckScore}
+                  {' '}
+                  of
+                  {' '}
+                  {quickCheckQuestions}
+                </p>
+                <p className="cpc-check-card__sub">Before the lessons</p>
+              </div>
+            )}
+            {finalCheckScore !== null && finalCheckQuestions > 0 && (
+              <div className="cpc-check-card">
+                <p className="cpc-check-card__label">Final check</p>
+                <p className="cpc-check-card__score">
+                  {finalCheckScore}
+                  {' '}
+                  of
+                  {' '}
+                  {finalCheckQuestions}
+                  {improvementDelta !== null && improvementDelta > 0 && (
+                    <span className="cpc-check-card__improvement">
+                      +
+                      {improvementDelta}
+                    </span>
+                  )}
+                </p>
+                <p className="cpc-check-card__sub">After the lessons</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -553,6 +591,14 @@ export const CourseCompletePage = () => {
         {totalPoints > 0 && (
           <div className="cp-stats-card">
             <StatsRow icon={iconLightning} label="Points" value={`+${totalPoints}`} />
+          </div>
+        )}
+
+        {/* Commitment card — shown when the course provides a short description */}
+        {courseDescription && (
+          <div className="cpc-commitment">
+            <p className="cpc-commitment__title">Your commitment</p>
+            <p className="cpc-commitment__body">{courseDescription}</p>
           </div>
         )}
 

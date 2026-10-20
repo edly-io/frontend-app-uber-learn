@@ -224,12 +224,11 @@ export const LessonCompletePage = () => {
   const { courseId = '', sequenceId = '' } = useParams<{ courseId: string; sequenceId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const since = (location.state as { since?: string } | null)?.since as string | undefined;
 
   const outlineQuery = useCourseOutline(courseId);
   const { data: gamificationData } = useGamification();
 
-  const resultsQuery = useLessonResults(sequenceId, since);
+  const resultsQuery = useLessonResults(sequenceId);
 
   const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
   const currentLessonIdx = allLessons.findIndex((l) => l.sequenceId === sequenceId);
@@ -283,10 +282,7 @@ export const LessonCompletePage = () => {
   // Course/curriculum badges only make sense after the last lesson — don't show mid-course.
   const showCelebration = isLastLesson && celebration !== null;
 
-  // Guard against heading flash: "Lesson complete" → "Course refreshed" on repeat completion.
-  // Only wait for results when `since` is provided — without it the query is disabled and
-  // we show the page immediately with default (non-repeat) state.
-  if (since && resultsQuery.isLoading) {
+  if (resultsQuery.isLoading) {
     return <LoadingSkeleton />;
   }
 
@@ -351,7 +347,7 @@ export const LessonCompletePage = () => {
         </div>
 
         {/* Points — centered inline display */}
-        {since && pointsEarned > 0 && (
+        {pointsEarned > 0 && (
           <div className="cpl-points">
             <div className="cpl-points__figure">
               <img src={iconLightning} alt="" aria-hidden="true" className="cpl-points__icon" />
@@ -366,7 +362,7 @@ export const LessonCompletePage = () => {
 
         {/* Stats card */}
         <div className="cp-stats-card">
-          {since && !isRepeat && correctPercent !== null && questions > 0 && (
+          {!isRepeat && correctPercent !== null && questions > 0 && (
             <StatsRow
               icon={iconCircleCheck}
               iconAlt="Right first time"
@@ -444,8 +440,8 @@ export const CourseCompletePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { finalCheckSequenceId, since } = (
-    location.state as { finalCheckSequenceId?: string; since?: string } | null
+  const { finalCheckSequenceId } = (
+    location.state as { finalCheckSequenceId?: string } | null
   ) ?? {};
 
   const courseOutlineQuery = useCourseOutline(courseId);
@@ -454,7 +450,7 @@ export const CourseCompletePage = () => {
   const { data: badgesData } = useBadges();
 
   // Fetch final check results when we came from a final check sequence.
-  const finalCheckResultsQuery = useLessonResults(finalCheckSequenceId, since);
+  const finalCheckResultsQuery = useLessonResults(finalCheckSequenceId);
 
   const courseTitle = courseOutlineQuery.data?.title ?? '';
   const totalPoints = gamificationQuery.data?.courses?.find(
@@ -664,10 +660,7 @@ const POLL_TIMEOUT_MS = 10000;
 export const RetentionCheckResultPage = () => {
   const { courseId = '', sequenceId = '' } = useParams<{ courseId: string; sequenceId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
-  const since = (location.state as { since?: string } | null)?.since as string | undefined;
-
-  const resultsQuery = useLessonResults(sequenceId, since);
+  const resultsQuery = useLessonResults(sequenceId);
 
   const curriculumsQuery = useCurriculums();
   const parentCurriculum = curriculumsQuery.data?.find(
@@ -726,9 +719,8 @@ export const RetentionCheckResultPage = () => {
   const handleReviewCourse = () => navigate(`/course/${courseId}`);
   const handleTryAgain = () => navigate(`/course/${courseId}/retention`);
 
-  // Wait for lesson results when `since` is provided.
-  // On error, fall through with score = null so the result page still shows pass/fail.
-  if (since && resultsQuery.isLoading) {
+  // Wait for lesson results before showing pass/fail — on error, fall through with score = null.
+  if (resultsQuery.isLoading) {
     return <LoadingSkeleton />;
   }
 

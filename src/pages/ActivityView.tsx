@@ -14,7 +14,6 @@ import { mapOutlineToLessons, markSequenceComplete } from '../lib/outline-mapper
 import type { CourseOutline } from '../api/courseware';
 import { getLmsOrigin } from '../lib/lms';
 import { saveSequencePosition } from '../api/progress';
-import { getGamificationSummary } from '../api/gamification';
 import { qk } from '../api/queries';
 import { ContentIFrame } from '../components/content-iframe/ContentIFrame';
 import { TranscriptSheet } from '../components/transcript-sheet/TranscriptSheet';
@@ -48,28 +47,7 @@ export const ActivityView = () => {
   // shownVisit: visit number of the step whose iframe content is currently on screen.
   const [shownVisit, setShownVisit] = useState<number | null>(null);
 
-  // Capture server_time once when the lesson mounts (not on every window focus) so the
-  // `since` value for the lesson results endpoint stays stable for the duration of the lesson.
-  // Using server_time (not device clock) prevents a fast device clock from making a first run
-  // look like a repeat.
-  const serverTimeRef = useRef<string | null>(null);
-  useEffect(() => {
-    serverTimeRef.current = null; // reset on new lesson
-    queryClient.fetchQuery({
-      queryKey: qk.gamification(),
-      queryFn: getGamificationSummary,
-      staleTime: 0,
-    }).then((data) => {
-      if (serverTimeRef.current === null && data?.server_time) {
-        serverTimeRef.current = data.server_time;
-      }
-    }).catch(() => {
-      // Falls back to device clock — serverTimeRef stays null,
-      // CompletionPage will skip the results query when since is absent.
-    });
-  }, [sequenceId, queryClient]); // re-fetch when a new lesson loads
-
-  // Content load failure (iframe onError — 4xx/5xx from LMS, broken XBlock, etc.)
+// Content load failure (iframe onError — 4xx/5xx from LMS, broken XBlock, etc.)
   const [isContentError, setIsContentError] = useState(false);
 
   // Network availability — drives the offline error screen
@@ -207,29 +185,16 @@ export const ActivityView = () => {
 
         if (isRetentionCourse && !nextLesson) {
           // Last lesson of a retention check course: go to the result page.
-          navigate(
-            `/course/${courseId}/retention-result/${sequenceId}`,
-            serverTimeRef.current ? { state: { since: serverTimeRef.current } } : undefined,
-          );
+          navigate(`/course/${courseId}/retention-result/${sequenceId}`);
         } else if (isFinalCheckSequence) {
-          // Final check complete: go to course-complete screen, passing the sequence
-          // id and timestamp so results can be scoped to this attempt.
+          // Final check complete: go to course-complete screen.
           navigate(
             `/course/${courseId}/complete`,
-            {
-              state: {
-                finalCheckSequenceId: sequenceId,
-                since: serverTimeRef.current ?? undefined,
-              },
-            },
+            { state: { finalCheckSequenceId: sequenceId } },
           );
         } else {
-          // Regular lesson: navigate to lesson-complete and pass `since` so results
-          // are scoped to this attempt (not a previous one by the same learner).
-          navigate(
-            `/course/${courseId}/lesson-complete/${sequenceId}`,
-            serverTimeRef.current ? { state: { since: serverTimeRef.current } } : undefined,
-          );
+          // Regular lesson: navigate to lesson-complete screen.
+          navigate(`/course/${courseId}/lesson-complete/${sequenceId}`);
         }
       }
     } finally {

@@ -11,7 +11,7 @@ export const qk = {
   leaderboard: (above: number, below: number) => ['gamification', 'leaderboard', above, below] as const,
   /** Prefix key for invalidating ALL leaderboard queries regardless of neighbor count. */
   leaderboardAll: () => ['gamification', 'leaderboard'] as const,
-  lessonResults: (sequenceKey: string, since?: string) => ['gamification', 'lesson-results', sequenceKey, since ?? ''] as const,
+  lessonResults: (sequenceKey: string) => ['gamification', 'lesson-results', sequenceKey] as const,
   curriculums: () => ['curriculum', 'learner'] as const,
   badges: (unseen?: boolean) => ['curriculum', 'badges', unseen ?? false] as const,
   courseProgress: (courseId: string) => ['course-progress', courseId] as const,

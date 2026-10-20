@@ -176,7 +176,9 @@ describe('getLearnerBadges', () => {
   });
 
   it('CUR-BADGES-UNSEEN: unseen=true appends ?unseen=true to URL', async () => {
-    const { get } = mockHttp({ get: jest.fn().mockResolvedValue({ data: { curriculum_badges: [], course_badges: [] } }) });
+    const { get } = mockHttp({
+      get: jest.fn().mockResolvedValue({ data: { curriculum_badges: [], course_badges: [] } }),
+    });
     await getLearnerBadges(true);
     expect(get).toHaveBeenCalledWith(
       `${LMS}/api/uber/curriculum/v1/learner/badges/?unseen=true`,

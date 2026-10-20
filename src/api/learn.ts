@@ -86,11 +86,11 @@ function toLearnCourse(row: RawLearnCourse): LearnCourse {
     progress: row.progress ?? 0,
     nextLesson: row.next_lesson
       ? {
-          sequenceKey: row.next_lesson.sequence_key,
-          title: row.next_lesson.title ?? null,
-          nextStep: row.next_lesson.next_step ?? 0,
-          unitCount: row.next_lesson.unit_count ?? 0,
-        }
+        sequenceKey: row.next_lesson.sequence_key,
+        title: row.next_lesson.title ?? null,
+        nextStep: row.next_lesson.next_step ?? 0,
+        unitCount: row.next_lesson.unit_count ?? 0,
+      }
       : null,
     status: row.status,
     curriculum: row.curriculum ?? null,

@@ -1,7 +1,9 @@
 import React, {
   useState, useCallback, useEffect, useRef, useMemo,
 } from 'react';
-import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import {
+  useParams, useNavigate, useLocation, Navigate,
+} from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { getConfig } from '@edx/frontend-platform';
 import { useBlockCompletion } from '../hooks/useBlockCompletion';
@@ -47,7 +49,7 @@ export const ActivityView = () => {
   // shownVisit: visit number of the step whose iframe content is currently on screen.
   const [shownVisit, setShownVisit] = useState<number | null>(null);
 
-// Content load failure (iframe onError — 4xx/5xx from LMS, broken XBlock, etc.)
+  // Content load failure (iframe onError — 4xx/5xx from LMS, broken XBlock, etc.)
   const [isContentError, setIsContentError] = useState(false);
 
   // Network availability — drives the offline error screen

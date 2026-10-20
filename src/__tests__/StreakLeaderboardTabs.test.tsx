@@ -263,7 +263,9 @@ describe('LeaderboardTab inside LearningProgress', () => {
   });
 
   it('LT-ERROR: shows error view when leaderboard fetch fails', () => {
-    mockUseLeaderboard.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch: jest.fn() });
+    mockUseLeaderboard.mockReturnValue({
+      data: undefined, isLoading: false, isError: true, refetch: jest.fn(),
+    });
     renderProgress();
     switchToTab('Leaderboard');
     expect(screen.getByText(/Leaderboard unavailable/i)).toBeInTheDocument();

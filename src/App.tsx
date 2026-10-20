@@ -19,6 +19,13 @@ import { NoRequiredCoursesPage } from './pages/NoRequiredCoursesPage';
 import { VideoCouldntLoadPage } from './pages/VideoCouldntLoadPage';
 import { CourseNotAvailablePage } from './pages/CourseNotAvailablePage';
 
+import { useSequence } from './hooks/useSequence';
+import { LoadingSkeleton } from './components/ui/LoadingSkeleton';
+
+import './styles/tokens.scss';
+import './styles/typography.scss';
+import './styles/global.scss';
+
 // Heavy pages — code-split so they don't inflate the initial bundle
 const LearningProgress = React.lazy(() => import('./pages/LearningProgress').then((m) => ({ default: m.LearningProgress })));
 const AllLearningPathsPage = React.lazy(() => import('./pages/AllLearningPathsPage').then((m) => ({ default: m.AllLearningPathsPage })));
@@ -28,13 +35,6 @@ const LessonCompletePage = React.lazy(() => import('./pages/CompletionPage').the
 const CourseCompletePage = React.lazy(() => import('./pages/CompletionPage').then((m) => ({ default: m.CourseCompletePage })));
 const RetentionInvitePage = React.lazy(() => import('./pages/CompletionPage').then((m) => ({ default: m.RetentionInvitePage })));
 const RetentionCheckResultPage = React.lazy(() => import('./pages/CompletionPage').then((m) => ({ default: m.RetentionCheckResultPage })));
-
-import { useSequence } from './hooks/useSequence';
-import { LoadingSkeleton } from './components/ui/LoadingSkeleton';
-
-import './styles/tokens.scss';
-import './styles/typography.scss';
-import './styles/global.scss';
 
 // Forces ActivityView to remount when the lesson changes so all state
 // (completion, iframe, step progress) resets cleanly for the new sequence.

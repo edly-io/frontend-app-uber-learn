@@ -110,7 +110,9 @@ describe('LearningPathView', () => {
   });
 
   it('LPV-ERROR: shows error view with retry when curricula fail', () => {
-    mockUseCurriculums.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch: jest.fn() });
+    mockUseCurriculums.mockReturnValue({
+      data: undefined, isLoading: false, isError: true, refetch: jest.fn(),
+    });
     wrap(<LearningPathView />);
     expect(screen.getByText(/could not load learning path/i)).toBeInTheDocument();
   });

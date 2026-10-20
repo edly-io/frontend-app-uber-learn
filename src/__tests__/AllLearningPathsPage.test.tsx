@@ -17,7 +17,7 @@
  */
 import React from 'react';
 import {
-  render, screen, fireEvent, waitFor,
+  render, screen, fireEvent,
 } from '@testing-library/react';
 import { AllLearningPathsPage } from '../pages/AllLearningPathsPage';
 import type { LearnerCurriculum } from '../api/curriculum';

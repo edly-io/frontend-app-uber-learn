@@ -766,12 +766,12 @@ export const LearningProgress = () => {
         {activeTab === 'Badges' && (
           <div role="tabpanel" id="panel-Badges" aria-labelledby="tab-Badges" tabIndex={0}>
             <BadgesTab
-            curriculums={curriculums}
-            courses={enrolledCourses}
-            isCoursesLoading={isCoursesLoading}
-            badgesData={badgesData}
-            badgesError={badgesError}
-          />
+              curriculums={curriculums}
+              courses={enrolledCourses}
+              isCoursesLoading={isCoursesLoading}
+              badgesData={badgesData}
+              badgesError={badgesError}
+            />
           </div>
         )}
         {activeTab === 'Leaderboard' && (

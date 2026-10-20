@@ -366,7 +366,7 @@ export const LessonCompletePage = () => {
               icon={iconCircleCheck}
               iconAlt="Right first time"
               label="Right first time"
-              value={`${Math.round(questions * correctPercent / 100)} of ${questions}`}
+              value={`${Math.round((questions * correctPercent) / 100)} of ${questions}`}
             />
           )}
           {isRepeat && (

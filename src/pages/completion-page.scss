@@ -10,6 +10,17 @@
   overflow-y: auto;
 }
 
+.cp-page--fixed {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.cp-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
 /* ── Simple nav bar (back arrow only) ───────────────────────────────────── */
 .cp-simple-nav {
   display: flex;
@@ -45,7 +56,7 @@
 
 /* ── White art panel (badge seal ring) ───────────────────────────────────── */
 .cp-white-panel {
-  height: 340px;
+  height: 280px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -54,11 +65,11 @@
   overflow: hidden;
 }
 
-/* Badge ring composite: 240×240 with ring overlays and centered seal */
+/* Badge ring composite: 200×200 with ring overlays and centered seal */
 .cp-badge-ring {
   position: relative;
-  width: 240px;
-  height: 240px;
+  width: 200px;
+  height: 200px;
   flex-shrink: 0;
 }
 
@@ -66,20 +77,20 @@
 .cp-badge-ring__fill {
   position: absolute;
   inset: 0;
-  width: 240px;
-  height: 240px;
+  width: 200px;
+  height: 200px;
   display: block;
 }
 
-/* Seal: centered 190px circle with colored bg + art */
+/* Seal: centered 158px circle with colored bg + art */
 .cp-badge-seal {
   position: absolute;
-  top: 25px;
-  left: 25px;
-  width: 190px;
-  height: 190px;
-  border-radius: 95px;
-  border: 10px solid var(--u-background-primary);
+  top: 21px;
+  left: 21px;
+  width: 158px;
+  height: 158px;
+  border-radius: 79px;
+  border: 8px solid var(--u-background-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -99,8 +110,8 @@
 }
 
 .cp-badge-seal__art {
-  width: 137px;
-  height: 137px;
+  width: 114px;
+  height: 114px;
   object-fit: contain;
   display: block;
 }
@@ -532,11 +543,17 @@
 }
 
 .cpc-check-card__improvement {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  background: var(--u-background-positive-light);
+  border-radius: 6px;
   font-family: var(--u-font-body);
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--u-content-positive);
-  margin-left: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
 }
 
 .cpc-check-card__sub {
@@ -630,7 +647,7 @@
   background: var(--u-background-always-dark);
   color: var(--u-content-on-color);
   border: none;
-  border-radius: 8px;
+  border-radius: 14px;
   cursor: pointer;
   font-family: var(--u-font-body);
   font-size: 1.125rem;

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { BadgeSlot, LearnerCurriculum, BadgesResponse } from '../api/curriculum';
+import type { QuickCheckResult, FinalCheckResult } from '../api/gamification';
 import { useBadgeCelebration, goToBadgeCelebration } from '../hooks/useBadgeCelebration';
 import { useBadges } from '../hooks/useBadges';
 import { useCourseOutline } from '../hooks/useCourseOutline';
@@ -437,43 +438,30 @@ export const LessonCompletePage = () => {
 export const CourseCompletePage = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const { finalCheckSequenceId } = (
-    location.state as { finalCheckSequenceId?: string } | null
-  ) ?? {};
 
   const courseOutlineQuery = useCourseOutline(courseId);
   const gamificationQuery = useGamification();
   const { data: curriculums } = useCurriculums();
   const { data: badgesData } = useBadges();
 
-  // Fetch final check results when we came from a final check sequence.
-  const finalCheckResultsQuery = useLessonResults(finalCheckSequenceId);
-
-  // Derive quick check sequence: first sequence in the course, only if distinct from the final check.
-  const allSeq = courseOutlineQuery.data ? mapOutlineToLessons(courseOutlineQuery.data) : [];
-  const firstSeqId = allSeq[0]?.sequenceId ?? null;
-  const quickCheckSeqId = (firstSeqId && firstSeqId !== finalCheckSequenceId) ? firstSeqId : null;
-  const quickCheckResultsQuery = useLessonResults(quickCheckSeqId ?? undefined);
-
   const courseTitle = courseOutlineQuery.data?.title ?? '';
   const courseDescription = courseOutlineQuery.data?.shortDescription ?? null;
-  const totalPoints = gamificationQuery.data?.courses?.find(
+
+  const courseGamification = gamificationQuery.data?.courses?.find(
     (c) => c.course_key === courseId,
-  )?.points ?? 0;
+  ) ?? null;
+  const totalPoints = courseGamification?.points ?? 0;
 
-  const finalCheckCorrectPct = finalCheckResultsQuery.data?.correct_percent ?? null;
-  const finalCheckQuestions = finalCheckResultsQuery.data?.questions ?? 0;
-  const finalCheckScore = finalCheckCorrectPct !== null && finalCheckQuestions > 0
-    ? Math.round((finalCheckCorrectPct / 100) * finalCheckQuestions)
-    : null;
+  // Use the summary API's quick_check / final_check directly — more reliable than
+  // deriving the sequence IDs from navigation state and hitting the lesson results API.
+  const rawFinalCheck: FinalCheckResult | null = courseGamification?.final_check ?? null;
+  const rawQuickCheck: QuickCheckResult | null = courseGamification?.quick_check ?? null;
 
-  const quickCheckCorrectPct = quickCheckResultsQuery.data?.correct_percent ?? null;
-  const quickCheckQuestions = quickCheckResultsQuery.data?.questions ?? 0;
-  const quickCheckScore = quickCheckCorrectPct !== null && quickCheckQuestions > 0
-    ? Math.round((quickCheckCorrectPct / 100) * quickCheckQuestions)
-    : null;
+  const finalCheckScore = rawFinalCheck !== null ? rawFinalCheck.correct : null;
+  const finalCheckTotal = rawFinalCheck !== null ? rawFinalCheck.total : 0;
+
+  const quickCheckScore = rawQuickCheck !== null ? rawQuickCheck.correct : null;
+  const quickCheckTotal = rawQuickCheck !== null ? rawQuickCheck.total : 0;
 
   const improvementDelta = quickCheckScore !== null && finalCheckScore !== null
     ? finalCheckScore - quickCheckScore
@@ -518,27 +506,28 @@ export const CourseCompletePage = () => {
   const handleSeeBadges = () => navigate('/progress', { state: { tab: 'Badges' } });
 
   return (
-    <div className="cp-page cp-page--scrollable">
-      <WhiteArtPanel artSrc={courseArtBook} earned tintClass="cp-badge-seal--blue" />
+    <div className="cp-page cp-page--fixed">
+      <div className="cp-scroll-area">
+        <WhiteArtPanel artSrc={courseArtBook} earned tintClass="cp-badge-seal--blue" />
 
-      <main className="cp-content cp-content--centered">
-        {/* Heading */}
-        <div className="cpc-words">
-          <p className="cpl-kicker">Course complete</p>
-          <h1 className="cpl-title">{courseTitle}</h1>
-          {earnedDate && (
+        <main className="cp-content cp-content--centered">
+          {/* Heading */}
+          <div className="cpc-words">
+            <p className="cpl-kicker">Course complete</p>
+            <h1 className="cpl-title">{courseTitle}</h1>
+            {earnedDate && (
             <p className="cpl-date">
               Earned
               {' '}
               {earnedDate}
             </p>
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* Quick check / Final check grid */}
-        {(quickCheckScore !== null || (finalCheckScore !== null && finalCheckQuestions > 0)) && (
+          {/* Quick check / Final check grid */}
+          {(quickCheckScore !== null || finalCheckScore !== null) && (
           <div className="cpc-check-grid">
-            {quickCheckScore !== null && quickCheckQuestions > 0 && (
+            {quickCheckScore !== null && quickCheckTotal > 0 && (
               <div className="cpc-check-card">
                 <p className="cpc-check-card__label">Quick check</p>
                 <p className="cpc-check-card__score">
@@ -546,12 +535,12 @@ export const CourseCompletePage = () => {
                   {' '}
                   of
                   {' '}
-                  {quickCheckQuestions}
+                  {quickCheckTotal}
                 </p>
                 <p className="cpc-check-card__sub">Before the lessons</p>
               </div>
             )}
-            {finalCheckScore !== null && finalCheckQuestions > 0 && (
+            {finalCheckScore !== null && finalCheckTotal > 0 && (
               <div className="cpc-check-card">
                 <p className="cpc-check-card__label">Final check</p>
                 <p className="cpc-check-card__score">
@@ -559,7 +548,7 @@ export const CourseCompletePage = () => {
                   {' '}
                   of
                   {' '}
-                  {finalCheckQuestions}
+                  {finalCheckTotal}
                   {improvementDelta !== null && improvementDelta > 0 && (
                     <span className="cpc-check-card__improvement">
                       +
@@ -571,10 +560,10 @@ export const CourseCompletePage = () => {
               </div>
             )}
           </div>
-        )}
+          )}
 
-        {/* Curriculum progress card */}
-        {parentCurriculum && coursesTotal > 0 && (
+          {/* Curriculum progress card */}
+          {parentCurriculum && coursesTotal > 0 && (
           <div className="cp-stats-card">
             <div className="cpc-path-head">
               <p className="cpc-path-name">{parentCurriculum.title}</p>
@@ -584,24 +573,25 @@ export const CourseCompletePage = () => {
             </div>
             <CourseBadgeRow curriculum={parentCurriculum} badges={badgesData} />
           </div>
-        )}
+          )}
 
-        {/* Points */}
-        {totalPoints > 0 && (
+          {/* Points */}
+          {totalPoints > 0 && (
           <div className="cp-stats-card">
             <StatsRow icon={iconLightning} label="Points" value={`+${totalPoints}`} />
           </div>
-        )}
+          )}
 
-        {/* Commitment card — shown when the course provides a short description */}
-        {courseDescription && (
+          {/* Commitment card — shown when the course provides a short description */}
+          {courseDescription && (
           <div className="cpc-commitment">
             <p className="cpc-commitment__title">Your commitment</p>
             <p className="cpc-commitment__body">{courseDescription}</p>
           </div>
-        )}
+          )}
 
-      </main>
+        </main>
+      </div>
 
       <Footer
         primaryLabel="Continue"

@@ -739,6 +739,7 @@ export const LearningProgress = () => {
               <ErrorView
                 title="Could not load points"
                 message="We could not load your progress data. Please try again."
+                embedded
               />
             ) : (
               <PointsTab
@@ -757,6 +758,7 @@ export const LearningProgress = () => {
               <ErrorView
                 title="Could not load streak"
                 message="We could not load your streak data. Please try again."
+                embedded
               />
             ) : (
               <StreakTab apiSummary={gamification} />

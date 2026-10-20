@@ -331,6 +331,7 @@ export const LearningPathView = () => {
             title="Could not load learning path"
             message="Please try again."
             onRetry={() => { refetch(); }}
+            embedded
           />
         </div>
       )}
@@ -341,6 +342,7 @@ export const LearningPathView = () => {
             title="Learning path not found"
             message="This path may no longer be available."
             onRetry={() => navigate('/')}
+            embedded
           />
         </div>
       )}

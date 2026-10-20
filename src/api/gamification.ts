@@ -32,9 +32,23 @@ export interface GamificationRecentWeek {
   learning_days: number;
 }
 
+export interface QuickCheckResult {
+  correct: number;
+  total: number;
+  at: string;
+}
+
+export interface FinalCheckResult {
+  correct: number;
+  total: number;
+  passed_at: string;
+}
+
 export interface GamificationCoursePoints {
   course_key: string;
   points: number;
+  quick_check: QuickCheckResult | null;
+  final_check: FinalCheckResult | null;
 }
 
 export interface GamificationSummary {

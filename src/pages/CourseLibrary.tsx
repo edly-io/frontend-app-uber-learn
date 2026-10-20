@@ -446,7 +446,7 @@ export const CourseLibrary = () => {
           <ErrorView
             title="Could not load courses"
             message="We could not retrieve your courses. Please try again."
-            onRetry={() => refetch()}
+            embedded
           />
         )}
 
@@ -537,9 +537,15 @@ export const CourseLibrary = () => {
       </main>
 
       <footer className="cl-footer">
-        <button type="button" className="cl-footer__btn" onClick={() => navigate('/')}>
-          Back to learning home
-        </button>
+        {isError ? (
+          <button type="button" className="cl-footer__btn" onClick={() => refetch()}>
+            Try again
+          </button>
+        ) : (
+          <button type="button" className="cl-footer__btn" onClick={() => navigate('/')}>
+            Back to learning home
+          </button>
+        )}
       </footer>
 
       {sheetOpen && (

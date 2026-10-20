@@ -160,6 +160,7 @@ export const AllLearningPathsPage = () => {
             title="Could not load learning paths"
             message="Please try again."
             onRetry={() => { refetch(); }}
+            embedded
           />
         </div>
       )}

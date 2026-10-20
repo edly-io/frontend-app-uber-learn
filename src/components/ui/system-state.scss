@@ -6,6 +6,13 @@
   background: var(--u-background-primary);
 }
 
+/* Embedded inside a page with its own nav — fills available space without overflow */
+.ss-page--embedded {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+}
+
 /* ── Content area ────────────────────────────────────────────────── */
 .ss-content {
   flex: 1;

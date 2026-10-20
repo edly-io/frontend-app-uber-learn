@@ -242,7 +242,7 @@ export const ThirtyDayChecksPage = () => {
           <ErrorView
             title="Could not load checks"
             message="Please try again."
-            onRetry={() => refetch()}
+            embedded
           />
         )}
 
@@ -292,9 +292,15 @@ export const ThirtyDayChecksPage = () => {
       </main>
 
       <footer className="tdc-footer">
-        <button type="button" className="btn-primary" onClick={() => navigate('/')}>
-          Back to learning home
-        </button>
+        {isError ? (
+          <button type="button" className="btn-primary" onClick={() => refetch()}>
+            Try again
+          </button>
+        ) : (
+          <button type="button" className="btn-primary" onClick={() => navigate('/')}>
+            Back to learning home
+          </button>
+        )}
       </footer>
     </div>
   );

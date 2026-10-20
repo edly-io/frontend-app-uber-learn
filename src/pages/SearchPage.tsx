@@ -246,6 +246,7 @@ export const SearchPage = () => {
                 title="Could not load results"
                 message="We couldn't search right now. Please try again."
                 onRetry={() => refetch()}
+                embedded
               />
             )}
             {!isFetching && !isError && (

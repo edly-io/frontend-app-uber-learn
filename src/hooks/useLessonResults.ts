@@ -20,13 +20,15 @@ const settleInterval = (query: Query<LessonResults, Error>): number | false => {
 };
 
 /**
- * Results of a lesson (all-time). Disabled until `sequenceId` is known.
+ * Results of a lesson for the current run. Providing `since` scopes the result
+ * to this run only (one cache entry per run, so repeat completions don't get
+ * the first run's cached data). Without `since` the query returns all-time data.
  */
-export const useLessonResults = (sequenceId: string | undefined) => useQuery<
+export const useLessonResults = (sequenceId: string | undefined, since?: string | null) => useQuery<
 LessonResults, Error
 >({
-  queryKey: qk.lessonResults(sequenceId ?? ''),
-  queryFn: () => getLessonResults(sequenceId!),
+  queryKey: qk.lessonResults(sequenceId ?? '', since ?? undefined),
+  queryFn: () => getLessonResults(sequenceId!, since ?? undefined),
   enabled: Boolean(sequenceId),
   staleTime: Infinity,
   refetchInterval: settleInterval,

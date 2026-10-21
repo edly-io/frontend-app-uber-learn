@@ -16,7 +16,7 @@ export const VideoCouldntLoadPage = () => {
   };
   const handleContinue = () => {
     if (sequenceId) {
-      navigate(`/course/${courseId}/lesson/${sequenceId}/step/0`);
+      navigate(`/course/${courseId}/lesson/${sequenceId}/step/${unitIdx + 1}`);
     } else {
       navigate(`/course/${courseId}`);
     }

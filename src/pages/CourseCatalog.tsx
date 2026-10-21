@@ -249,7 +249,12 @@ const ConnectedContinueCard = ({
   const lessonPosition = totalLessons > 0
     ? `Lesson ${nextLessonIdx + 1} of ${totalLessons}`
     : 'Start course';
-  const unitCount = firstCourse?.nextLesson?.unitCount;
+  // Only use backend step/unit data when the backend's nextLesson matches the outline's next
+  // lesson — they can diverge after an optimistic outline update or a stale learn cache.
+  const backendNextLesson = firstCourse?.nextLesson?.sequenceKey === nextLesson?.sequenceId
+    ? firstCourse.nextLesson
+    : null;
+  const unitCount = backendNextLesson?.unitCount;
   const courseMeta = firstCourse
     ? `${firstCourse.title} · ${unitCount != null && unitCount > 0 ? `${unitCount} ${unitCount === 1 ? 'step' : 'steps'}` : `${totalLessons} lessons`}`
     : '';
@@ -259,8 +264,8 @@ const ConnectedContinueCard = ({
   const handleContinue = () => {
     const seqId = nextLesson?.sequenceId ?? null;
     if (!seqId) { onContinue(firstCourse.courseId, null, 0); return; }
-    // nextLesson.nextStep is pre-computed by the backend — no sequence API call needed.
-    const stepIdx = firstCourse?.nextLesson?.nextStep ?? 0;
+    // Only use backend step when the backend's nextLesson matches the outline's next lesson.
+    const stepIdx = backendNextLesson?.nextStep ?? 0;
     onContinue(firstCourse.courseId, seqId, stepIdx);
   };
 

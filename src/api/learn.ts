@@ -11,8 +11,8 @@ export interface LearnNextLesson {
   /** Usage key of the sequential (lesson) the learner should do next. */
   sequenceKey: string;
   title: string | null;
-  /** 0-based index of the first incomplete unit within that lesson. */
-  nextStep: number;
+  /** 0-based index of the first incomplete unit within that lesson. null when not sent by an older backend. */
+  nextStep: number | null;
   /** Total number of units (verticals) in that lesson. */
   unitCount: number;
 }
@@ -46,7 +46,7 @@ export interface LearnCourse {
 interface RawNextLesson {
   sequence_key: string;
   title: string | null;
-  next_step: number;
+  next_step?: number | null;
   unit_count: number;
 }
 
@@ -88,7 +88,7 @@ function toLearnCourse(row: RawLearnCourse): LearnCourse {
       ? {
         sequenceKey: row.next_lesson.sequence_key,
         title: row.next_lesson.title ?? null,
-        nextStep: row.next_lesson.next_step ?? 0,
+        nextStep: row.next_lesson.next_step ?? null,
         unitCount: row.next_lesson.unit_count ?? 0,
       }
       : null,

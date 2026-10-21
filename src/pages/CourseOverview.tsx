@@ -415,8 +415,10 @@ export const CourseOverview = () => {
     // first lesson the outline reports as incomplete instead.
     if ((fraction > 0 || completedLessons > 0) && nextLessonIdx >= 0) {
       const targetLesson = lessons[nextLessonIdx];
-      // nextStep is pre-computed by the backend batch API — no sequence API call needed.
-      const backendStep = learnCourse?.nextLesson?.nextStep;
+      // Only use backend step when the backend's nextLesson matches the outline's target lesson.
+      const backendStep = learnCourse?.nextLesson?.sequenceKey === targetLesson.sequenceId
+        ? learnCourse.nextLesson.nextStep
+        : null;
       const stepIdx = backendStep != null ? backendStep : getStepIdxFromMeta(targetLesson.sequenceId);
       navigate(`/course/${courseId}/lesson/${targetLesson.sequenceId}/step/${stepIdx}`, { state: lessonState });
       return;
@@ -444,7 +446,7 @@ export const CourseOverview = () => {
   };
 
   let ctaLabel = 'Start course';
-  if (courseComplete) { ctaLabel = 'Review course'; } else if (learnCourse?.status !== 'not_started' || fraction > 0 || resumeSequenceId) { ctaLabel = 'Continue course'; }
+  if (courseComplete) { ctaLabel = 'Review course'; } else if ((learnCourse != null && learnCourse.status !== 'not_started') || fraction > 0 || resumeSequenceId) { ctaLabel = 'Continue course'; }
 
   const showProgress = true;
   const isKnowledgeCheckCourse = parentCurriculum?.knowledge_check?.course_id === courseId;

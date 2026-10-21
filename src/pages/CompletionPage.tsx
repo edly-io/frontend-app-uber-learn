@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { BadgeSlot, LearnerCurriculum, BadgesResponse } from '../api/curriculum';
 import type { QuickCheckResult, FinalCheckResult } from '../api/gamification';
@@ -228,7 +228,9 @@ export const LessonCompletePage = () => {
   const outlineQuery = useCourseOutline(courseId);
   const { data: gamificationData } = useGamification();
 
-  const resultsQuery = useLessonResults(sequenceId);
+  const location = useLocation();
+  const since = (location.state as { since?: string } | null)?.since ?? null;
+  const resultsQuery = useLessonResults(sequenceId, since);
 
   const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
   const currentLessonIdx = allLessons.findIndex((l) => l.sequenceId === sequenceId);

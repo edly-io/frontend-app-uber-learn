@@ -195,7 +195,7 @@ export const ActivityView = () => {
           );
         } else {
           // Regular lesson: navigate to lesson-complete screen.
-          navigate(`/course/${courseId}/lesson-complete/${sequenceId}`);
+          navigate(`/course/${courseId}/lesson-complete/${sequenceId}`, { state: { since: new Date().toISOString() } });
         }
       }
     } finally {
@@ -297,14 +297,28 @@ export const ActivityView = () => {
     );
   }
 
-  // Content load failure: navigate to the video-error screen (Figma: "This video could not load")
+  // Content load failure: route to the dedicated video-error screen for video units,
+  // and show an in-place error for all other content types so copy matches the unit.
   if (isContentError) {
+    if (currentUnit?.contentType === 'video') {
+      return (
+        <Navigate
+          to={`/course/${courseId}/lesson/${sequenceId}/video-error`}
+          state={{ unitIdx }}
+          replace
+        />
+      );
+    }
     return (
-      <Navigate
-        to={`/course/${courseId}/lesson/${sequenceId}/video-error`}
-        state={{ unitIdx }}
-        replace
-      />
+      <div className="activity-view">
+        <NavHeader title={lessonNavTitle} onBack={handleBack} onClose={handleClose} />
+        <ErrorView
+          title="Content could not load"
+          message="Check your connection and try again. Your progress is saved."
+          embedded
+          onRetry={() => window.location.reload()}
+        />
+      </div>
     );
   }
 

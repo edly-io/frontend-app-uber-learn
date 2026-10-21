@@ -12,6 +12,7 @@ import { useSequence } from '../hooks/useSequence';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { useLearnCourses } from '../hooks/useLearnCourses';
 import { useCurriculums } from '../hooks/useCurriculums';
+import { useGamification } from '../hooks/useGamification';
 import { mapOutlineToLessons, markSequenceComplete } from '../lib/outline-mapper';
 import type { CourseOutline } from '../api/courseware';
 import { getLmsOrigin } from '../lib/lms';
@@ -105,8 +106,16 @@ export const ActivityView = () => {
 
   // Each visit to a step gets its own number, so coming back to a step (A → B → A before B
   // showed) still shows the spinner while that step's iframe reloads.
-  // Captured once at mount so `since` marks the start of this run, not its end.
-  const runSinceRef = useRef(new Date().toISOString());
+  // Capture server_time from the gamification summary once at lesson mount so `since`
+  // uses the server clock (not the device clock, which may drift) to scope this_run.
+  const { data: gamificationData } = useGamification();
+  const serverTime = gamificationData?.server_time;
+  const runSinceRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (runSinceRef.current === null && serverTime) {
+      runSinceRef.current = serverTime;
+    }
+  }, [serverTime]);
 
   const visitRef = useRef<{ unitId: string | null; visit: number }>({ unitId: null, visit: 0 });
   if (visitRef.current.unitId !== currentUnitId) {
@@ -198,7 +207,7 @@ export const ActivityView = () => {
           );
         } else {
           // Regular lesson: navigate to lesson-complete screen.
-          navigate(`/course/${courseId}/lesson-complete/${sequenceId}`, { state: { since: runSinceRef.current } });
+          navigate(`/course/${courseId}/lesson-complete/${sequenceId}`, { state: { since: runSinceRef.current ?? undefined } });
         }
       }
     } finally {

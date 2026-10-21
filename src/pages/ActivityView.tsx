@@ -108,6 +108,9 @@ export const ActivityView = () => {
   // showed) still shows the spinner while that step's iframe reloads.
   // Capture server_time from the gamification summary once at lesson mount so `since`
   // uses the server clock (not the device clock, which may drift) to scope this_run.
+  // mountedAtRef is a device-clock fallback for the rare case when the summary call
+  // fails — without it, no `since` is sent and a replay looks like a first run.
+  const mountedAtRef = useRef(new Date().toISOString());
   const { data: gamificationData } = useGamification();
   const serverTime = gamificationData?.server_time;
   const runSinceRef = useRef<string | null>(null);
@@ -207,7 +210,7 @@ export const ActivityView = () => {
           );
         } else {
           // Regular lesson: navigate to lesson-complete screen.
-          navigate(`/course/${courseId}/lesson-complete/${sequenceId}`, { state: { since: runSinceRef.current ?? undefined } });
+          navigate(`/course/${courseId}/lesson-complete/${sequenceId}`, { state: { since: runSinceRef.current ?? mountedAtRef.current } });
         }
       }
     } finally {

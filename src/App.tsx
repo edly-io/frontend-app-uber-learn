@@ -1,4 +1,6 @@
-import React, { Component, useEffect } from 'react';
+import React, {
+  Component, Suspense, useEffect,
+} from 'react';
 import {
   Routes, Route, Navigate, useParams, useNavigate,
 } from 'react-router-dom';
@@ -9,22 +11,13 @@ import { SessionEndedView } from './components/ui/SessionEndedView';
 import { UnsupportedVersionView } from './components/ui/UnsupportedVersionView';
 import { CourseCatalog } from './pages/CourseCatalog';
 import { CourseLibrary } from './pages/CourseLibrary';
-import { LearningProgress } from './pages/LearningProgress';
 import { CourseOverview } from './pages/CourseOverview';
 import { ActivityView } from './pages/ActivityView';
-import {
-  LessonCompletePage,
-  CourseCompletePage,
-  RetentionInvitePage,
-  RetentionCheckResultPage,
-} from './pages/CompletionPage';
 import { SaveAndResumePage } from './pages/CourseIntroductionPage';
-import { LearningPathView } from './pages/LearningPathView';
-import { AllLearningPathsPage } from './pages/AllLearningPathsPage';
 import { SearchPage } from './pages/SearchPage';
 import { NoRequiredCoursesPage } from './pages/NoRequiredCoursesPage';
 import { VideoCouldntLoadPage } from './pages/VideoCouldntLoadPage';
-import { ThirtyDayChecksPage } from './pages/ThirtyDayChecksPage';
+import { CourseNotAvailablePage } from './pages/CourseNotAvailablePage';
 
 import { useSequence } from './hooks/useSequence';
 import { LoadingSkeleton } from './components/ui/LoadingSkeleton';
@@ -32,6 +25,16 @@ import { LoadingSkeleton } from './components/ui/LoadingSkeleton';
 import './styles/tokens.scss';
 import './styles/typography.scss';
 import './styles/global.scss';
+
+// Heavy pages — code-split so they don't inflate the initial bundle
+const LearningProgress = React.lazy(() => import('./pages/LearningProgress').then((m) => ({ default: m.LearningProgress })));
+const AllLearningPathsPage = React.lazy(() => import('./pages/AllLearningPathsPage').then((m) => ({ default: m.AllLearningPathsPage })));
+const LearningPathView = React.lazy(() => import('./pages/LearningPathView').then((m) => ({ default: m.LearningPathView })));
+const ThirtyDayChecksPage = React.lazy(() => import('./pages/ThirtyDayChecksPage').then((m) => ({ default: m.ThirtyDayChecksPage })));
+const LessonCompletePage = React.lazy(() => import('./pages/CompletionPage').then((m) => ({ default: m.LessonCompletePage })));
+const CourseCompletePage = React.lazy(() => import('./pages/CompletionPage').then((m) => ({ default: m.CourseCompletePage })));
+const RetentionInvitePage = React.lazy(() => import('./pages/CompletionPage').then((m) => ({ default: m.RetentionInvitePage })));
+const RetentionCheckResultPage = React.lazy(() => import('./pages/CompletionPage').then((m) => ({ default: m.RetentionCheckResultPage })));
 
 // Forces ActivityView to remount when the lesson changes so all state
 // (completion, iframe, step progress) resets cleanly for the new sequence.
@@ -41,32 +44,6 @@ const ActivityViewRoute = () => {
 };
 
 interface ErrorBoundaryState { hasError: boolean }
-
-const errorWrapStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  height: '100dvh',
-  gap: '16px',
-  padding: '24px',
-  textAlign: 'center',
-  fontFamily: 'var(--u-font-body, system-ui, sans-serif)',
-  background: 'var(--u-background-primary, #fff)',
-  color: 'var(--u-content-primary, #000)',
-};
-
-const errorBtnStyle: React.CSSProperties = {
-  padding: '14px 24px',
-  borderRadius: '999px',
-  border: 'none',
-  background: 'var(--u-background-always-dark, #000)',
-  color: 'var(--u-content-on-color, #fff)',
-  fontFamily: 'inherit',
-  fontSize: '16px',
-  fontWeight: 500,
-  cursor: 'pointer',
-};
 
 class AppErrorBoundary extends Component<{ children: React.ReactNode }, ErrorBoundaryState> {
   constructor(props: { children: React.ReactNode }) {
@@ -85,12 +62,12 @@ class AppErrorBoundary extends Component<{ children: React.ReactNode }, ErrorBou
   render() {
     if (this.state.hasError) {
       return (
-        <div style={errorWrapStyle}>
-          <p style={{ fontSize: '16px', fontWeight: 500 }}>Something went wrong.</p>
+        <div className="app-error-wrap">
+          <p className="app-error-message">Something went wrong.</p>
           <button
             type="button"
             onClick={() => window.location.reload()}
-            style={errorBtnStyle}
+            className="app-error-btn"
           >
             Reload
           </button>
@@ -186,23 +163,24 @@ export const App = () => (
       <Routes>
         <Route path="/" element={<CourseCatalog />} />
         <Route path="/courses" element={<CourseLibrary />} />
-        <Route path="/progress" element={<LearningProgress />} />
+        <Route path="/progress" element={<Suspense fallback={<LoadingSkeleton />}><LearningProgress /></Suspense>} />
         <Route path="/course/:courseId" element={<CourseOverview />} />
         <Route
           path="/course/:courseId/lesson/:sequenceId/step/:unitIdx"
           element={<ActivityViewRoute />}
         />
-        <Route path="/course/:courseId/lesson-complete/:sequenceId" element={<LessonCompletePage />} />
-        <Route path="/course/:courseId/complete" element={<CourseCompletePage />} />
-        <Route path="/course/:courseId/retention" element={<RetentionInvitePage />} />
-        <Route path="/course/:courseId/retention-result/:sequenceId" element={<RetentionCheckResultPage />} />
+        <Route path="/course/:courseId/lesson-complete/:sequenceId" element={<Suspense fallback={<LoadingSkeleton />}><LessonCompletePage /></Suspense>} />
+        <Route path="/course/:courseId/complete" element={<Suspense fallback={<LoadingSkeleton />}><CourseCompletePage /></Suspense>} />
+        <Route path="/course/:courseId/retention" element={<Suspense fallback={<LoadingSkeleton />}><RetentionInvitePage /></Suspense>} />
+        <Route path="/course/:courseId/retention-result/:sequenceId" element={<Suspense fallback={<LoadingSkeleton />}><RetentionCheckResultPage /></Suspense>} />
         <Route path="/course/:courseId/resume" element={<SaveAndResumePage />} />
 
-        <Route path="/learning-paths" element={<AllLearningPathsPage />} />
-        <Route path="/learning-path/:curriculumId" element={<LearningPathView />} />
-        <Route path="/30-day-checks" element={<ThirtyDayChecksPage />} />
+        <Route path="/learning-paths" element={<Suspense fallback={<LoadingSkeleton />}><AllLearningPathsPage /></Suspense>} />
+        <Route path="/learning-path/:curriculumId" element={<Suspense fallback={<LoadingSkeleton />}><LearningPathView /></Suspense>} />
+        <Route path="/30-day-checks" element={<Suspense fallback={<LoadingSkeleton />}><ThirtyDayChecksPage /></Suspense>} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/no-courses" element={<NoRequiredCoursesPage />} />
+        <Route path="/course/:courseId/unavailable" element={<CourseNotAvailablePage />} />
         <Route path="/course/:courseId/lesson/:sequenceId/video-error" element={<VideoCouldntLoadPage />} />
         <Route path="/session-ended" element={<SessionEndedRoute />} />
         <Route path="/unsupported-version" element={<UnsupportedVersionRoute />} />

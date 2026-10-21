@@ -1,12 +1,14 @@
 import React from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getResumeBlock } from '../api/courseware';
 import { qk } from '../api/queries';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { useCurriculums } from '../hooks/useCurriculums';
 import { useCourseProgressSummary } from '../hooks/useCourseProgressSummary';
 import { mapOutlineToLessons, countLessons } from '../lib/outline-mapper';
+import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
+import { ErrorView } from '../components/ui/ErrorView';
 import iconArrowLeft from '../assets/icons/icon-arrow-left.svg';
 import scenePhoto from '../assets/images/scene-safety-education.png';
 import './course-page.scss';
@@ -33,83 +35,13 @@ const ArtPanel = ({
   );
 };
 
-// ── CourseIntroductionPage ─────────────────────────────────────────────────
-
-export const CourseIntroductionPage = () => {
-  const { courseId = '' } = useParams<{ courseId: string }>();
-  const navigate = useNavigate();
-  const outlineQuery = useCourseOutline(courseId);
-  const { data: curriculums } = useCurriculums();
-
-  // Derive course metadata from the curriculum API
-  const parentCurriculum = curriculums?.find((c) => c.courses.some((course) => course.course_id === courseId));
-  const courseInCurriculum = parentCurriculum?.courses.find((course) => course.course_id === courseId);
-
-  const courseTitle = outlineQuery.data?.title ?? courseInCurriculum?.display_name ?? '';
-  const description = courseInCurriculum?.description ?? null;
-  const imageUrl = courseInCurriculum?.image_url || null;
-
-  // Prerequisite: the course at position - 1 in the same curriculum
-  const prerequisiteCourse = courseInCurriculum && courseInCurriculum.position > 1
-    ? (parentCurriculum?.courses.find((c) => c.position === courseInCurriculum.position - 1) ?? null)
-    : null;
-
-  const handleBack = () => navigate(`/course/${courseId}`);
-
-  const handleBegin = () => {
-    const lessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
-    const firstLesson = lessons[0];
-    if (firstLesson) {
-      navigate(`/course/${courseId}/lesson/${firstLesson.sequenceId}/step/0`);
-    } else {
-      navigate(`/course/${courseId}`);
-    }
-  };
-
-  return (
-    <div className="course-page">
-      <ArtPanel art={scenePhoto} imageUrl={imageUrl} onBack={handleBack} />
-
-      <div className="course-scroll">
-        <main className="course-content">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <p className="ci-kicker">Before you begin</p>
-            <h1 className="ci-title">{courseTitle}</h1>
-            {description && <p className="ci-lead">{description}</p>}
-          </div>
-
-          {prerequisiteCourse && (
-            <div className="ci-prerequisite">
-              <p className="ci-prerequisite__label">Prerequisite</p>
-              <p className="ci-prerequisite__name">{prerequisiteCourse.display_name ?? prerequisiteCourse.course_id}</p>
-            </div>
-          )}
-        </main>
-      </div>
-
-      <footer className="course-footer">
-        <button
-          type="button"
-          className="course-footer__primary"
-          onClick={handleBegin}
-          disabled={outlineQuery.isLoading}
-        >
-          Start course
-        </button>
-        <button type="button" className="course-footer__secondary" onClick={handleBack}>
-          Back to course
-        </button>
-      </footer>
-    </div>
-  );
-};
-
 // ── SaveAndResumePage ──────────────────────────────────────────────────────
 
 export const SaveAndResumePage = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
 
   const { data: curriculums } = useCurriculums();
   const courseInCurriculum = curriculums
@@ -156,18 +88,40 @@ export const SaveAndResumePage = () => {
   };
 
   const handleHome = () => navigate('/');
+  const handleBack = () => (location.key === 'default' ? navigate(`/course/${courseId}`) : navigate(-1));
+
+  if (outlineQuery.isLoading) {
+    return (
+      <div className="course-page">
+        <ArtPanel art={scenePhoto} imageUrl={imageUrl} onBack={handleBack} />
+        <div className="course-scroll"><LoadingSkeleton /></div>
+      </div>
+    );
+  }
+
+  if (outlineQuery.isError) {
+    return (
+      <ErrorView
+        onRetry={() => {
+          queryClient.invalidateQueries({ queryKey: qk.outline(courseId) });
+          queryClient.invalidateQueries({ queryKey: qk.resume(courseId) });
+        }}
+        onBack={handleBack}
+      />
+    );
+  }
 
   return (
     <div className="course-page">
       <ArtPanel
         art={scenePhoto}
         imageUrl={imageUrl}
-        onBack={() => (location.key === 'default' ? navigate(`/course/${courseId}`) : navigate(-1))}
+        onBack={handleBack}
       />
 
       <div className="course-scroll">
         <main className="course-content">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="course-heading">
             <p className="sr-kicker">{outlineQuery.data?.title ?? ''}</p>
             <h1 className="sr-title">Progress saved</h1>
             <p className="sr-lead">

@@ -35,6 +35,10 @@ export interface KnowledgeCheck {
   exists: boolean;
   unlocks_at: string | null;
   is_open: boolean;
+  /** Number of questions in the check — returned by backend when available */
+  question_count?: number | null;
+  /** Minimum correct answers required to pass — returned by backend when available */
+  pass_threshold?: number | null;
 }
 
 export interface LearnerCurriculum {
@@ -123,6 +127,10 @@ export interface SearchCourseResult {
   display_name: string;
   org: string;
   image_url: string | null;
+  /** Short description — returned by backend when available */
+  short_description?: string | null;
+  /** Course type label e.g. "Required" — returned by backend when available */
+  course_type?: string | null;
 }
 
 export interface SearchResponse {

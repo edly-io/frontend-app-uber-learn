@@ -3,7 +3,7 @@
 .bds-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--u-overlay-black-40);
   z-index: 200;
 }
 
@@ -50,9 +50,10 @@
 .bds-title {
   margin: 0 0 8px;
   font-family: var(--u-font-display);
-  font-size: 22px;
+  font-size: 1.25rem;
   font-weight: 700;
-  line-height: 1.27;
+  line-height: 1.4;
+  letter-spacing: 0.015625rem;
   color: var(--u-content-primary);
 }
 
@@ -165,16 +166,16 @@
   font-family: var(--u-font-body);
   font-size: 14px;
   font-weight: 500;
-  line-height: 1.43;
+  line-height: 1.14;
   color: var(--u-content-primary);
   margin: 0 0 4px;
 }
 
 .bds-thirty-card__desc {
   font-family: var(--u-font-body);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
-  line-height: 1.54;
+  line-height: 1.43;
   color: var(--u-content-secondary);
   margin: 0;
 }

@@ -10,6 +10,17 @@
   overflow-y: auto;
 }
 
+.cp-page--fixed {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.cp-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
 /* ── Simple nav bar (back arrow only) ───────────────────────────────────── */
 .cp-simple-nav {
   display: flex;
@@ -32,9 +43,11 @@
   transition: opacity var(--u-duration-fast);
 }
 
-.cp-simple-nav__back:hover {
-  opacity: 0.7;
+@media (hover: hover) and (pointer: fine) {
+  .cp-simple-nav__back:hover { opacity: 0.7; }
 }
+
+.cp-simple-nav__back:active { opacity: 0.6; }
 
 .cp-simple-nav__back:focus-visible {
   outline: 2px solid var(--u-content-primary);
@@ -43,7 +56,7 @@
 
 /* ── White art panel (badge seal ring) ───────────────────────────────────── */
 .cp-white-panel {
-  height: 340px;
+  height: 280px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -52,11 +65,11 @@
   overflow: hidden;
 }
 
-/* Badge ring composite: 240×240 with ring overlays and centered seal */
+/* Badge ring composite: 200×200 with ring overlays and centered seal */
 .cp-badge-ring {
   position: relative;
-  width: 240px;
-  height: 240px;
+  width: 200px;
+  height: 200px;
   flex-shrink: 0;
 }
 
@@ -64,24 +77,28 @@
 .cp-badge-ring__fill {
   position: absolute;
   inset: 0;
-  width: 240px;
-  height: 240px;
+  width: 200px;
+  height: 200px;
   display: block;
 }
 
-/* Seal: centered 190px circle with colored bg + art */
+/* Seal: centered 158px circle with colored bg + art */
 .cp-badge-seal {
   position: absolute;
-  top: 25px;
-  left: 25px;
-  width: 190px;
-  height: 190px;
-  border-radius: 95px;
-  border: 10px solid var(--u-background-primary);
+  top: 21px;
+  left: 21px;
+  width: 158px;
+  height: 158px;
+  border-radius: 79px;
+  border: 8px solid var(--u-background-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+}
+
+.cp-badge-seal--blue {
+  background: var(--u-learning-course-tint-blue);
 }
 
 .cp-badge-seal--green {
@@ -93,8 +110,8 @@
 }
 
 .cp-badge-seal__art {
-  width: 137px;
-  height: 137px;
+  width: 114px;
+  height: 114px;
   object-fit: contain;
   display: block;
 }
@@ -178,7 +195,7 @@
   margin: 0;
 }
 
-/* ── Points earned section ───────────────────────────────────────────────── */
+/* ── Points — centered inline (Figma: ⚡ +25 / points earned, no card bg) ─── */
 .cpl-points {
   display: flex;
   flex-direction: column;
@@ -190,32 +207,86 @@
 .cpl-points__figure {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .cpl-points__icon {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: block;
   flex-shrink: 0;
-  filter: brightness(0);
 }
 
 .cpl-points__value {
   font-family: var(--u-font-display);
-  font-size: 2.75rem; /* 44px */
+  font-size: 2rem;
   font-weight: 700;
   color: var(--u-content-primary);
-  line-height: 1.18;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
 
 .cpl-points__label {
   font-family: var(--u-font-body);
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--u-content-secondary);
-  line-height: 1.14;
+  line-height: 1.43;
+  margin: 0;
+}
+
+/* ── Stat grid — 2-up colored cards (kept for legacy, replaced by cpl-points) ─ */
+.cpl-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+}
+
+.cpl-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.cpl-stat-card--points {
+  background: var(--u-background-warning-light);
+}
+
+.cpl-stat-card--correct {
+  background: var(--u-background-positive-light);
+}
+
+.cpl-stat-card__figure {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cpl-stat-card__icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+  flex-shrink: 0;
+}
+
+.cpl-stat-card__value {
+  font-family: var(--u-font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.cpl-stat-card__label {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
   margin: 0;
 }
 
@@ -223,7 +294,7 @@
 .cp-stats-card {
   background: var(--u-background-secondary);
   border-radius: 16px;
-  padding: 0 16px;
+  padding: 4px 16px 0;
   width: 100%;
 }
 
@@ -435,6 +506,65 @@
   text-align: center;
 }
 
+/* ── Course Complete: Quick/Final check grid ─────────────────────────────── */
+.cpc-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.cpc-check-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  background: var(--u-background-secondary);
+  border-radius: 16px;
+}
+
+.cpc-check-card__label {
+  font-family: var(--u-font-body);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.38;
+  margin: 0;
+}
+
+.cpc-check-card__score {
+  font-family: var(--u-font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--u-content-primary);
+  line-height: 1.2;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.cpc-check-card__improvement {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  background: var(--u-background-positive-light);
+  border-radius: 6px;
+  font-family: var(--u-font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--u-content-positive);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.cpc-check-card__sub {
+  font-family: var(--u-font-body);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.38;
+  margin: 0;
+}
+
 /* ── Course Complete: path progress card head ────────────────────────────── */
 .cpc-path-head {
   display: flex;
@@ -502,7 +632,7 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 12px;
   padding: 12px 16px;
   padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   background: var(--u-background-primary);
@@ -517,7 +647,7 @@
   background: var(--u-background-always-dark);
   color: var(--u-content-on-color);
   border: none;
-  border-radius: 8px;
+  border-radius: 14px;
   cursor: pointer;
   font-family: var(--u-font-body);
   font-size: 1.125rem;
@@ -526,16 +656,14 @@
   transition: opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
-.cp-footer__primary:hover,
+@media (hover: hover) and (pointer: fine) {
+  .cp-footer__primary:hover { opacity: 0.85; }
+}
+
+.cp-footer__primary:active { opacity: 0.7; }
+
 .cp-footer__primary:focus-visible {
   opacity: 0.85;
-}
-
-.cp-footer__primary:active {
-  opacity: 0.7;
-}
-
-.cp-footer__primary:focus-visible {
   outline: 2px solid var(--u-content-primary);
   outline-offset: 2px;
 }
@@ -557,12 +685,69 @@
   transition: opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
-.cp-footer__secondary:hover,
-.cp-footer__secondary:focus-visible {
-  opacity: 0.7;
+@media (hover: hover) and (pointer: fine) {
+  .cp-footer__secondary:hover { opacity: 0.7; }
 }
 
+.cp-footer__secondary:active { opacity: 0.6; }
+
 .cp-footer__secondary:focus-visible {
+  opacity: 0.7;
   outline: 2px solid var(--u-content-primary);
   outline-offset: 2px;
+}
+
+/* ── Retention score breakdown (2-col: X right / Y to review) ───────────── */
+.cpc-score-breakdown {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--u-background-secondary);
+  border-radius: 16px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.cpc-score-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 20px 16px;
+}
+
+.cpc-score-col + .cpc-score-col {
+  border-left: 1px solid var(--u-border-opaque);
+}
+
+.cpc-score-col__value {
+  font-family: var(--u-font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.cpc-score-col__value--right  { color: var(--u-content-positive); }
+.cpc-score-col__value--review { color: var(--u-content-warning); }
+
+.cpc-score-col__label {
+  font-family: var(--u-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  line-height: 1.43;
+  margin: 0;
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .cp-simple-nav__back,
+  .cp-footer__primary,
+  .cp-footer__secondary {
+    transition: none;
+  }
+  .cp-stats-bar__fill {
+    transition: none;
+  }
 }

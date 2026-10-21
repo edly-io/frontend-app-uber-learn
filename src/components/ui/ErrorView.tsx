@@ -11,6 +11,7 @@ interface ErrorViewProps {
   onAction?: () => void;
   navTitle?: string;
   onBack?: () => void;
+  embedded?: boolean;
 }
 
 export const ErrorView = ({
@@ -22,6 +23,7 @@ export const ErrorView = ({
   onAction,
   navTitle,
   onBack,
+  embedded = false,
 }: ErrorViewProps) => (
   <SystemStateView
     art={art}
@@ -31,5 +33,6 @@ export const ErrorView = ({
     onAction={onAction ?? onRetry}
     navTitle={navTitle}
     onBack={onBack}
+    embedded={embedded}
   />
 );

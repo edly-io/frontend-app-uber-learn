@@ -36,6 +36,10 @@ jest.mock('react-router-dom', () => ({
   useLocation: () => ({
     key: 'test-key', pathname: '/course/course-v1:Uber+L2024', search: '', hash: '', state: null,
   }),
+  Navigate: ({ to, replace }: { to: string; replace?: boolean }) => {
+    mockNavigate(to, replace ? { replace: true } : undefined);
+    return null;
+  },
 }));
 
 jest.mock('../hooks/useCurriculums', () => ({
@@ -352,6 +356,20 @@ describe('CourseOverview', () => {
         expect(screen.getByText(/this is taking longer than expected/i)).toBeInTheDocument();
       });
       expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+    });
+
+    it('AC-EDGE-03: 404 outline error navigates to /course/:id/unavailable', async () => {
+      const err = Object.assign(new Error('Not found'), { response: { status: 404 } });
+      jest.mocked(coursewareApi.getCourseOutline).mockRejectedValue(err);
+
+      renderComponent();
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith(
+          '/course/course-v1:Uber+L2024/unavailable',
+          { replace: true },
+        );
+      });
     });
 
     it('AC-EDGE-02: shows empty-state message when outline has no sequences', async () => {

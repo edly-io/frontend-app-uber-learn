@@ -30,18 +30,19 @@
 
 /* ── Page-level bones ───────────────────────────────── */
 
-/* Art panel — matches .cd-hero { height: 180px } in course-page.scss */
-.skel-art { height: 180px; width: 100%; border-radius: 16px; }
+/* Art panel — Figma: height 140px */
+.skel-art { height: 140px; width: 100%; border-radius: 16px; }
 
-/* Kicker — 0.75rem font × 1.33 line-height ≈ 16px; bone sits inside that */
-.skel-kicker { height: 14px; width: 80px; }
+/* Kicker — Figma: 12px tall, 96px wide */
+.skel-kicker { height: 12px; width: 96px; }
 
-/* H1 — 2rem font × 1.25 line-height = 40px single-line visual height */
-.skel-h1 { height: 40px; width: 210px; border-radius: 8px; max-width: 100%; }
+/* Heading — Figma: two bones, 28px tall each */
+.skel-h1 { height: 28px; width: 300px; border-radius: 8px; max-width: 100%; }
+.skel-h1b { height: 28px; width: 220px; border-radius: 8px; max-width: 100%; }
 
-/* Body text lines — 1rem font × 1.5 line-height = 24px; bone at 20px */
-.skel-b1 { height: 20px; width: 100%; border-radius: 7px; max-width: 100%; }
-.skel-b2 { height: 20px; width: 70%; border-radius: 7px; max-width: 100%; }
+/* Body text lines — Figma: 14px tall */
+.skel-b1 { height: 14px; width: 95%; border-radius: 7px; max-width: 100%; }
+.skel-b2 { height: 14px; width: 78%; border-radius: 7px; max-width: 100%; }
 
 /* ── Card-body bones (variant="card") ───────────────── */
 
@@ -51,20 +52,35 @@
 /* Course card subtitle — 14px font × 1.43 line-height ≈ 20px */
 .skel-card-sub { height: 16px; width: 55%; max-width: 100%; border-radius: 6px; }
 
+/* ── Leaderboard row bones ──────────────────────────── */
+
+/* Rank number bone — 24px wide × 16px tall */
+.skel-bone--w24 { width: 24px; height: 16px; }
+
+/* Name bone — fills remaining space × 16px tall */
+.skel-bone--flex { flex: 1; height: 16px; }
+
+/* Points bone — 32px wide × 16px tall */
+.skel-bone--w32 { width: 32px; height: 16px; }
+
+/* This-week-card skeleton bones */
+.skel-bone--line-title { width: 60%; height: 20px; border-radius: 6px; }
+.skel-bone--line-body  { width: 80%; height: 14px; border-radius: 6px; }
+
 /* ── Lesson row bones ───────────────────────────────── */
 
 .skel-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   padding-top: 4px;
   flex-shrink: 0;
 }
 
-/* Icon/indicator — matches 20px icons used in lesson rows */
+/* Icon/indicator — Figma: 32px circles */
 .skel-circle {
-  width: 20px;
-  height: 20px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: var(--u-background-secondary);
   flex-shrink: 0;
@@ -84,8 +100,8 @@
   gap: 6px;
 }
 
-/* Lesson title — 1rem font × 1.5 ≈ 24px; bone at 18px */
-.skel-line-title { height: 18px; width: 180px; border-radius: 6px; max-width: 100%; }
+/* Lesson title — Figma: 12px */
+.skel-line-title { height: 12px; width: 200px; border-radius: 6px; max-width: 100%; }
 
-/* Lesson detail — 0.875rem font × 1.43 ≈ 20px; bone at 14px */
-.skel-line-sub { height: 14px; width: 110px; border-radius: 6px; max-width: 100%; }
+/* Lesson detail — Figma: 12px */
+.skel-line-sub { height: 12px; width: 120px; border-radius: 6px; max-width: 100%; }

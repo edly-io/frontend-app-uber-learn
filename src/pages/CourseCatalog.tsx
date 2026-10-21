@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { useLearnCourses, type LearnCourse } from '../hooks/useLearnCourses';
 import { mapOutlineToLessons } from '../lib/outline-mapper';
-import { useSequence } from '../hooks/useSequence';
 import { qk } from '../api/queries';
 import { getLastActivity } from '../api/curriculum';
 import { selectContinueCourse } from '../lib/selectContinueCourse';
@@ -44,11 +43,16 @@ const SearchIcon = () => (
   </svg>
 );
 
-function getGreeting(): string {
+function getGreetingBase(): string {
   const hour = new Date().getHours();
   if (hour < 12) { return 'Good morning'; }
   if (hour < 18) { return 'Good afternoon'; }
   return 'Good evening';
+}
+
+function getGreeting(firstName?: string | null): string {
+  const base = getGreetingBase();
+  return firstName ? `${base}, ${firstName}` : base;
 }
 
 // ── Discovery header ─────────────────────────────────────
@@ -226,7 +230,7 @@ const ConnectedContinueCard = ({
   course: firstCourse, onContinue, variant = 'lesson', finalCheckMeta = null, imageUrl = null,
 }: ConnectedContinueCardProps) => {
   const courseId = firstCourse?.courseId ?? '';
-
+  const queryClient = useQueryClient();
   const outlineQuery = useCourseOutline(courseId);
 
   const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
@@ -238,23 +242,43 @@ const ConnectedContinueCard = ({
   const completedLessons = allLessons.filter((l) => l.complete).length;
   const nextLesson = allLessons.find((l) => !l.complete) ?? allLessons[0];
 
-  // Fetch units for the next lesson: used for step count in subtitle and to
-  // find the first incomplete unit so Continue resumes at the right step.
-  const { units: nextUnits, isLoading: unitsLoading } = useSequence(nextLesson?.sequenceId ?? '');
-  const hasStarted = completedLessons > 0 || nextUnits.some((u) => u.complete);
-  const stepCount = nextUnits.length;
-  const resumeStepIdx = Math.max(0, nextUnits.findIndex((u) => !u.complete));
+  // status from the batched learn API is immediately available (staleTime 5min) — no jerk.
+  const hasStarted = firstCourse?.status !== 'not_started';
 
   const nextLessonIdx = nextLesson ? allLessons.indexOf(nextLesson) : 0;
   const lessonTitle = nextLesson?.lessonTitle ?? firstCourse?.title ?? 'Start learning';
   const lessonPosition = totalLessons > 0
     ? `Lesson ${nextLessonIdx + 1} of ${totalLessons}`
     : 'Start course';
+  // Only use backend step/unit data when the backend's nextLesson matches the outline's next
+  // lesson — they can diverge after an optimistic outline update or a stale learn cache.
+  const backendNextLesson = firstCourse?.nextLesson?.sequenceKey === nextLesson?.sequenceId
+    ? firstCourse.nextLesson
+    : null;
+  const unitCount = backendNextLesson?.unitCount;
   const courseMeta = firstCourse
-    ? `${firstCourse.title}${stepCount > 0 ? ` · ${stepCount} step${stepCount !== 1 ? 's' : ''}` : ` · ${totalLessons} lessons`}`
+    ? `${firstCourse.title} · ${unitCount != null && unitCount > 0 ? `${unitCount} ${unitCount === 1 ? 'step' : 'steps'}` : `${totalLessons} lessons`}`
     : '';
 
   if (!firstCourse) { return null; }
+
+  const getStepIdxFromMeta = (seqId: string): number => {
+    const cached = queryClient.getQueryData<{ units: { complete: boolean }[] }>(qk.sequence(seqId));
+    const units = cached?.units ?? [];
+    const firstIncomplete = units.findIndex((u) => !u.complete);
+    return Math.max(0, firstIncomplete);
+  };
+
+  const handleContinue = () => {
+    const seqId = nextLesson?.sequenceId ?? null;
+    if (!seqId) { onContinue(firstCourse.courseId, null, 0); return; }
+    // Prefer the backend step when it matches the outline's next lesson; fall back to the
+    // first incomplete unit from the cached sequence (same behaviour as CourseOverview).
+    const stepIdx = backendNextLesson?.nextStep != null
+      ? backendNextLesson.nextStep
+      : getStepIdxFromMeta(seqId);
+    onContinue(firstCourse.courseId, seqId, stepIdx);
+  };
 
   return (
     <ContinueCard
@@ -264,9 +288,7 @@ const ConnectedContinueCard = ({
       completedLessons={completedLessons}
       totalLessons={totalLessons}
       hasStarted={hasStarted}
-      onContinue={() => onContinue(firstCourse.courseId, nextLesson?.sequenceId ?? null, resumeStepIdx)}
-      disabled={unitsLoading}
-      loading={unitsLoading}
+      onContinue={handleContinue}
       variant={variant}
       finalCheckMeta={finalCheckMeta}
       imageUrl={imageUrl}
@@ -684,7 +706,7 @@ export const CourseCatalog = () => {
     if (celebration) { goToBadgeCelebration(navigate, celebration); }
   }, [celebration, navigate]);
 
-  const greeting = `${getGreeting()}.`;
+  const greeting = `${getGreeting(gamification?.first_name)}.`;
   const enrolledCourses = courses ?? [];
 
   const kcCourseIds = new Set(
@@ -822,6 +844,17 @@ export const CourseCatalog = () => {
     ...completedPathsForHome,
   ].slice(0, HOME_PATHS_LIMIT);
 
+  // Courses are critical — take over the full screen if they fail to load
+  if (isError) {
+    return (
+      <ErrorView
+        title="Could not load courses"
+        message="We could not retrieve your enrolled courses. Please try again."
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
   return (
     <div className="home-page">
       {/* Discovery header */}
@@ -865,16 +898,8 @@ export const CourseCatalog = () => {
 
         {isLoading && <LoadingSkeleton />}
 
-        {isError && (
-          <ErrorView
-            title="Could not load courses"
-            message="We could not retrieve your enrolled courses. Please try again."
-            onRetry={() => refetch()}
-          />
-        )}
-
         {/* Top card — every-path-done, new-path, or normal continue */}
-        {!isLoading && !isError && enrolledCourses.length > 0 && (
+        {!isLoading && enrolledCourses.length > 0 && (
           <>
             {allPathsDone && curriculums && (
               <EveryPathDoneCard
@@ -961,24 +986,21 @@ export const CourseCatalog = () => {
             aria-busy="true"
             aria-label="Loading…"
           >
-            <div
-              className="skel-bone"
-              style={{ width: '60%', height: 20, borderRadius: 4 }}
-            />
-            <div
-              className="skel-bone"
-              style={{
-                width: '80%', height: 14, borderRadius: 4, marginTop: 8,
-              }}
-            />
+            <div className="skel-bone skel-bone--line-title" />
+            <div className="skel-bone skel-bone--line-body" />
           </div>
         )}
         {gamificationError && !gamificationLoading && (
-          <ErrorView
-            title="Could not load streak"
-            message="We could not retrieve your streak data. Please try again."
-            onRetry={() => queryClient.invalidateQueries({ queryKey: qk.gamification() })}
-          />
+          <div className="home-section-error">
+            <span className="home-section-error__text">Could not load streak data.</span>
+            <button
+              type="button"
+              className="home-section-error__retry"
+              onClick={() => queryClient.invalidateQueries({ queryKey: qk.gamification() })}
+            >
+              Try again
+            </button>
+          </div>
         )}
         {!gamificationLoading && !gamificationError && (
           <ThisWeekCard

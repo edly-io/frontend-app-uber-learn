@@ -73,6 +73,15 @@ beforeEach(() => {
   jest.mocked(coursewareApi.getResumeBlock).mockResolvedValue({
     blockId: 'vertical5', sectionId: 'sequential3', unitId: 'vertical5', resumeBlock: true,
   });
+  // Default: sequential3 has one unit, not complete — Continue lands on step/0.
+  jest.mocked(coursewareApi.getSequenceMetadata).mockResolvedValue({
+    sequence: {
+      id: 'sequential3', title: 'Raising Concerns', unitIds: ['u1'], activeUnitIndex: 0,
+    },
+    units: [{
+      id: 'u1', sequenceId: 'sequential3', title: 'Step', complete: false, contentType: 'html', graded: false,
+    }],
+  });
   // Progress API: 5 of 8 UNITS complete (fraction 0.625).
   jest.mocked(useCourseProgressSummary).mockReturnValue({
     data: { completedUnits: 5, totalUnits: 8, fraction: 0.625 },
@@ -89,10 +98,12 @@ describe('CourseOverview lesson progress (CON101 regression)', () => {
   it('"Continue course" opens the first incomplete lesson, not a unit-fraction index', async () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Continue course' }));
-    expect(mockNavigate).toHaveBeenCalledWith(
-      `/course/${COURSE_ID}/lesson/sequential3/step/0`,
-      { state: undefined },
-    );
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(
+        `/course/${COURSE_ID}/lesson/sequential3/step/0`,
+        { state: undefined },
+      );
+    });
   });
 
   it('"Continue course" skips a completed lesson the resume API still points at', async () => {
@@ -102,10 +113,12 @@ describe('CourseOverview lesson progress (CON101 regression)', () => {
     });
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Continue course' }));
-    expect(mockNavigate).toHaveBeenCalledWith(
-      `/course/${COURSE_ID}/lesson/sequential3/step/0`,
-      { state: undefined },
-    );
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(
+        `/course/${COURSE_ID}/lesson/sequential3/step/0`,
+        { state: undefined },
+      );
+    });
   });
 
   it('"Continue course" opens at the first incomplete unit, not always step/0 (continueStepIdx)', async () => {
@@ -128,10 +141,12 @@ describe('CourseOverview lesson progress (CON101 regression)', () => {
     });
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Continue course' }));
-    expect(mockNavigate).toHaveBeenCalledWith(
-      `/course/${COURSE_ID}/lesson/sequential3/step/2`,
-      { state: undefined },
-    );
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(
+        `/course/${COURSE_ID}/lesson/sequential3/step/2`,
+        { state: undefined },
+      );
+    });
   });
 
   it('Continue button is disabled while units are loading (race guard)', async () => {

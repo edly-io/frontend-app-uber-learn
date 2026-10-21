@@ -35,8 +35,11 @@ function getSubtitles(c: LearnerCurriculum, state: CheckState): [string | null, 
   }
 
   if (state === 'open') {
-    // Score data is not available from the curriculums API — no subtitle for open checks.
-    return [null, null];
+    const qCount = kc.question_count ?? null;
+    const threshold = kc.pass_threshold ?? null;
+    const sub1 = qCount != null ? `${qCount} question${qCount !== 1 ? 's' : ''}` : null;
+    const sub2 = threshold != null ? `Get ${threshold} right to earn the trophy` : null;
+    return [sub1, sub2];
   }
 
   // Coming up — path not fully done yet
@@ -239,7 +242,7 @@ export const ThirtyDayChecksPage = () => {
           <ErrorView
             title="Could not load checks"
             message="Please try again."
-            onRetry={() => refetch()}
+            embedded
           />
         )}
 
@@ -289,9 +292,15 @@ export const ThirtyDayChecksPage = () => {
       </main>
 
       <footer className="tdc-footer">
-        <button type="button" className="btn-primary" onClick={() => navigate('/')}>
-          Back to learning home
-        </button>
+        {isError ? (
+          <button type="button" className="btn-primary" onClick={() => refetch()}>
+            Try again
+          </button>
+        ) : (
+          <button type="button" className="btn-primary" onClick={() => navigate('/')}>
+            Back to learning home
+          </button>
+        )}
       </footer>
     </div>
   );

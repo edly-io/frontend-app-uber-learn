@@ -32,9 +32,23 @@ export interface GamificationRecentWeek {
   learning_days: number;
 }
 
+export interface QuickCheckResult {
+  correct: number;
+  total: number;
+  at: string;
+}
+
+export interface FinalCheckResult {
+  correct: number;
+  total: number;
+  passed_at: string;
+}
+
 export interface GamificationCoursePoints {
   course_key: string;
   points: number;
+  quick_check: QuickCheckResult | null;
+  final_check: FinalCheckResult | null;
 }
 
 export interface GamificationSummary {
@@ -48,6 +62,8 @@ export interface GamificationSummary {
   this_week: GamificationThisWeek;
   recent_weeks: GamificationRecentWeek[];
   server_time: string;
+  /** Driver's first name for the personalised greeting — returned by backend when available */
+  first_name?: string | null;
 }
 
 export interface LeaderboardRow {
@@ -115,11 +131,11 @@ export async function getLeaderboard(above: number, below: number): Promise<Lead
 
 export async function getLessonResults(
   sequenceKey: string,
-  since: string,
+  since?: string,
 ): Promise<LessonResults> {
   const { data } = await getAuthenticatedHttpClient().get(
     `${getConfig().LMS_BASE_URL}/api/uber/gamification/v1/lessons/${encodeURIComponent(sequenceKey)}/results/`,
-    { params: { since } },
+    since ? { params: { since } } : undefined,
   );
   return data as LessonResults;
 }

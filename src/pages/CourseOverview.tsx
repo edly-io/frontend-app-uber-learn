@@ -1,11 +1,12 @@
 import React from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { getResumeBlock } from '../api/courseware';
+import {
+  useParams, useNavigate, useLocation, Navigate,
+} from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getResumeBlock, getSequenceMetadata } from '../api/courseware';
 import { getCourseMaxPoints } from '../api/gamification';
 import { qk } from '../api/queries';
 import { useCourseOutline } from '../hooks/useCourseOutline';
-import { useSequence } from '../hooks/useSequence';
 import { mapOutlineToLessons, findNextLessonIndex } from '../lib/outline-mapper';
 import type { LessonDescriptor } from '../lib/outline-mapper';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
@@ -237,8 +238,10 @@ export const CourseOverview = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
 
   const { data: enrolledCourses, isLoading: enrolledLoading } = useLearnCourses();
+  const learnCourse = enrolledCourses?.find((c) => c.courseId === courseId);
   const isEnrolled = enrolledLoading || (enrolledCourses?.some((c) => c.courseId === courseId) ?? true);
   const isOffline = useOffline();
 
@@ -280,24 +283,35 @@ export const CourseOverview = () => {
   const outlineQuery = useCourseOutline(courseId);
   const isSlowLoad = useSlowLoad(outlineQuery.isLoading || resumeQuery.isLoading);
 
-  // Resolve the continue target sequence BEFORE early returns so useSequence can be called
-  // unconditionally (hooks cannot follow conditional returns). During loading, outlineQuery.data
-  // is undefined → earlyLessons is [] → continueSeqId is '' → useSequence is disabled.
   const earlyLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
   const earlyNextIdx = findNextLessonIndex(earlyLessons);
   const continueSeqId = earlyNextIdx >= 0
     ? earlyLessons[earlyNextIdx].sequenceId
     : (resumeQuery.data?.sectionId ?? earlyLessons[0]?.sequenceId ?? '');
-  const { units: continueUnits, isLoading: continueUnitsLoading } = useSequence(continueSeqId);
-  const continueStepIdx = Math.max(0, continueUnits.findIndex((u) => !u.complete));
+
+  // Pre-fetch the continue sequence's unit list so handleContinue can jump to the first
+  // incomplete step without an extra round-trip on click. The button shows "Loading…" while
+  // this is in-flight, acting as a race guard against tapping before units are ready.
+  const continueSeqMetaQuery = useQuery({
+    queryKey: qk.sequence(continueSeqId),
+    queryFn: () => getSequenceMetadata(continueSeqId),
+    enabled: Boolean(continueSeqId),
+    staleTime: 5 * 60_000,
+  });
+  const isSequenceMetaLoading = continueSeqMetaQuery.isLoading && Boolean(continueSeqId);
 
   const stateRaw = location.state as { origin?: string; parentOrigin?: string } | null;
   const origin = stateRaw?.origin ?? null;
   const parentOrigin = stateRaw?.parentOrigin ?? null;
 
+  // Validate that origin and parentOrigin are internal paths (start with '/') before
+  // passing them to navigate(). Defense-in-depth against a tampered location.state.
+  const safeOrigin = typeof origin === 'string' && origin.startsWith('/') ? origin : null;
+  const safeParentOrigin = typeof parentOrigin === 'string' && parentOrigin.startsWith('/') ? parentOrigin : null;
+
   const handleBack = () => {
-    if (origin) {
-      navigate(origin, parentOrigin ? { state: { origin: parentOrigin } } : undefined);
+    if (safeOrigin) {
+      navigate(safeOrigin, safeParentOrigin ? { state: { origin: safeParentOrigin } } : undefined);
     } else {
       navigate('/');
     }
@@ -336,7 +350,7 @@ export const CourseOverview = () => {
           <LoadingSkeleton />
         </div>
         <footer className="course-footer">
-          <button type="button" className="course-footer__primary" disabled style={{ opacity: 0.4 }}>
+          <button type="button" className="course-footer__primary course-footer__primary--loading" disabled>
             Loading…
           </button>
         </footer>
@@ -345,6 +359,11 @@ export const CourseOverview = () => {
   }
 
   if (outlineQuery.isError) {
+    const status = (outlineQuery.error as { response?: { status?: number } } | null)
+      ?.response?.status;
+    if (status === 404) {
+      return <Navigate to={`/course/${courseId}/unavailable`} replace />;
+    }
     const courseDisplayName = outlineQuery.data?.title
       ?? parentCurriculum?.courses.find((c) => c.course_id === courseId)?.display_name
       ?? '';
@@ -378,6 +397,14 @@ export const CourseOverview = () => {
 
   const lessonState = origin ? { origin } : undefined;
 
+  const getStepIdxFromMeta = (seqId: string): number => {
+    // Use pre-fetched data when available (same query key); fall back to 0.
+    const cached = queryClient.getQueryData<{ units: { complete: boolean }[] }>(qk.sequence(seqId));
+    const units = cached?.units ?? [];
+    const firstIncomplete = units.findIndex((u) => !u.complete);
+    return Math.max(0, firstIncomplete);
+  };
+
   const handleContinue = () => {
     if (courseComplete) {
       navigate(`/course/${courseId}/complete`);
@@ -386,14 +413,19 @@ export const CourseOverview = () => {
     // When the learner has progress, the LMS resume block may still point to an already-completed
     // lesson because BlockCompletion is only written when a unit's Continue is clicked. Jump to the
     // first lesson the outline reports as incomplete instead.
-    // continueStepIdx is the first incomplete unit in that lesson (computed above via useSequence).
     if ((fraction > 0 || completedLessons > 0) && nextLessonIdx >= 0) {
       const targetLesson = lessons[nextLessonIdx];
-      navigate(`/course/${courseId}/lesson/${targetLesson.sequenceId}/step/${continueStepIdx}`, { state: lessonState });
+      // Only use backend step when the backend's nextLesson matches the outline's target lesson.
+      const backendStep = learnCourse?.nextLesson?.sequenceKey === targetLesson.sequenceId
+        ? learnCourse.nextLesson.nextStep
+        : null;
+      const stepIdx = backendStep != null ? backendStep : getStepIdxFromMeta(targetLesson.sequenceId);
+      navigate(`/course/${courseId}/lesson/${targetLesson.sequenceId}/step/${stepIdx}`, { state: lessonState });
       return;
     }
     if (resumeSequenceId) {
-      navigate(`/course/${courseId}/lesson/${resumeSequenceId}/step/${continueStepIdx}`, { state: lessonState });
+      const stepIdx = getStepIdxFromMeta(resumeSequenceId);
+      navigate(`/course/${courseId}/lesson/${resumeSequenceId}/step/${stepIdx}`, { state: lessonState });
       return;
     }
     const firstLesson = lessons[0];
@@ -414,7 +446,7 @@ export const CourseOverview = () => {
   };
 
   let ctaLabel = 'Start course';
-  if (courseComplete) { ctaLabel = 'Review course'; } else if (fraction > 0 || resumeSequenceId) { ctaLabel = 'Continue course'; }
+  if (courseComplete) { ctaLabel = 'Review course'; } else if ((learnCourse != null && learnCourse.status !== 'not_started') || fraction > 0 || resumeSequenceId) { ctaLabel = 'Continue course'; }
 
   const showProgress = true;
   const isKnowledgeCheckCourse = parentCurriculum?.knowledge_check?.course_id === courseId;
@@ -429,7 +461,7 @@ export const CourseOverview = () => {
       <div className="course-scroll">
         <main className="course-content">
           {/* Heading block */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="course-heading">
             {kicker && <p className="cd-kicker">{kicker}</p>}
             <h1 className="cd-title">{outlineQuery.data?.title ?? 'Course'}</h1>
             {courseDescription && <p className="cd-lead">{courseDescription}</p>}
@@ -511,7 +543,7 @@ export const CourseOverview = () => {
           })}
 
           {lessons.length === 0 && (
-            <p style={{ color: 'var(--u-content-secondary)', textAlign: 'center', padding: '2rem 0' }}>
+            <p className="course-page__empty-note">
               No lessons are available yet.
             </p>
           )}
@@ -527,11 +559,11 @@ export const CourseOverview = () => {
           ) : (
             <button
               type="button"
-              className="course-footer__primary"
+              className={`course-footer__primary${isSequenceMetaLoading ? ' course-footer__primary--loading' : ''}`}
               onClick={handleContinue}
-              disabled={!courseComplete && continueUnitsLoading}
+              disabled={isSequenceMetaLoading}
             >
-              {!courseComplete && continueUnitsLoading ? 'Loading…' : ctaLabel}
+              {isSequenceMetaLoading ? 'Loading…' : ctaLabel}
             </button>
           )}
         </footer>

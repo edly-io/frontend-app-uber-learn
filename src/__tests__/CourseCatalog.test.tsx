@@ -19,6 +19,8 @@
  *   - CC-PATHS-SHOWN:   "Your learning paths" section visible when curriculums is non-empty
  *   - CC-PATHS-HIDDEN:  "Your learning paths" section absent when curriculums is empty
  *   - CC-THIS-WEEK:     "This week" section always visible
+ *   - CC-STEP-BACKEND:  uses backend nextStep when sequenceKey matches outline
+ *   - CC-STEP-META:     falls back to first incomplete unit from sequence cache
  */
 import React from 'react';
 import {
@@ -28,6 +30,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CourseCatalog } from '../pages/CourseCatalog';
 import type { LearnerCurriculum } from '../api/curriculum';
 import type { LearnCourse } from '../api/learn';
+import type { CourseOutline } from '../api/courseware';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -394,6 +397,58 @@ describe('CourseCatalog', () => {
         expect(btn).toBeInTheDocument();
       });
       expect(screen.getByText('This week')).toBeInTheDocument();
+    });
+  });
+
+  describe('CC-STEP: step index selection in ConnectedContinueCard', () => {
+    const SEQ_ID = 'block-v1:Uber+Safety+2026+type@sequential+block@seq1';
+    const OUTLINE: CourseOutline = {
+      courseId: COURSE.courseId,
+      title: 'Road Safety',
+      sections: {
+        'sec-1': { id: 'sec-1', title: 'Module 1', sequenceIds: [SEQ_ID] },
+      },
+      sequences: {
+        [SEQ_ID]: {
+          id: SEQ_ID, title: 'Lesson 1', sectionId: 'sec-1', complete: false,
+        },
+      },
+    };
+
+    it('CC-STEP-BACKEND: uses backend nextStep when sequenceKey matches outline next lesson', async () => {
+      const course: LearnCourse = {
+        ...COURSE,
+        status: 'in_progress',
+        nextLesson: {
+          sequenceKey: SEQ_ID, title: null, nextStep: 2, unitCount: 5,
+        },
+      };
+      getLearnMock().getLearnCourses.mockResolvedValue([course]);
+      mockUseCourseOutline.mockReturnValue({ data: OUTLINE });
+      renderComponent();
+      await clickContinueCard();
+      expect(mockNavigate).toHaveBeenCalledWith(
+        `/course/${COURSE.courseId}/lesson/${SEQ_ID}/step/2`,
+        { state: { origin: '/' } },
+      );
+    });
+
+    it('CC-STEP-META: falls back to first incomplete unit from sequence cache when backend step is absent', async () => {
+      const course: LearnCourse = { ...COURSE, status: 'in_progress', nextLesson: null };
+      getLearnMock().getLearnCourses.mockResolvedValue([course]);
+      mockUseCourseOutline.mockReturnValue({ data: OUTLINE });
+      // Use a high gcTime so sequence data we seed is not evicted before handleContinue reads it.
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
+      // unit 0 complete, unit 1 incomplete → meta fallback should land on step 1
+      qc.setQueryData(['sequence', SEQ_ID], {
+        units: [{ complete: true }, { complete: false }, { complete: false }],
+      });
+      renderComponent(qc);
+      await clickContinueCard();
+      expect(mockNavigate).toHaveBeenCalledWith(
+        `/course/${COURSE.courseId}/lesson/${SEQ_ID}/step/1`,
+        { state: { origin: '/' } },
+      );
     });
   });
 });

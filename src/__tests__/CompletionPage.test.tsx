@@ -18,12 +18,15 @@
  *   LCP-NAVIGATE-NEXT:  clicking primary CTA navigates to next lesson route
  *   LCP-REPEAT:         already_completed_before (last lesson) → heading says "Course refreshed"
  *
- *   CCP-RENDERS:        "Course complete" kicker always present
- *   CCP-BADGE-VISIBLE:  earned date shown when complete milestone reached_at is set
- *   CCP-BADGE-HIDDEN:   badge row absent when no badge image_url
- *   CCP-BADGE-RING:     earned course badge item gets --earned class (blue ring via CSS)
- *   CCP-POINTS:         course points > 0 → points chip renders
- *   CCP-NAV-PROGRESS:   "See your badges" navigates to /progress with Badges tab
+ *   CCP-RENDERS:         "Course complete" kicker always present
+ *   CCP-BADGE-VISIBLE:   earned date shown when complete milestone reached_at is set
+ *   CCP-BADGE-HIDDEN:    badge row absent when no badge image_url
+ *   CCP-BADGE-RING:      earned course badge item gets --earned class (blue ring via CSS)
+ *   CCP-POINTS:          course points > 0 → points chip renders
+ *   CCP-NAV-PROGRESS:    "See your badges" navigates to /progress with Badges tab
+ *   CCP-CHECK-BOTH:      quick_check + final_check both present → both score cards render
+ *   CCP-CHECK-IMPROVEMENT: final > quick → improvement chip shows positive delta
+ *   CCP-CHECK-NULL:      both null → check grid absent
  *
  *   RIP-CHECK-OPEN:     check is open → "Still with you?" heading + "Start 30-day check" button
  *   RIP-CHECK-NOT-OPEN: check not open → "Come back in 30 days" heading shown
@@ -37,7 +40,7 @@
  *   RCRP-FAIL:          correct_percent < 80 → "Worth another look" heading
  *   RCRP-SCORE-LABEL:   score label "N of M" rendered in lead paragraph
  *   RCRP-NAV-BADGE:     PASS state: clicking "See your badges" navigates to /progress with tab
- *   RCRP-NAV-RETRY:     FAIL state: clicking "Try again" navigates to /course/:id/retention
+ *   RCRP-NAV-RETRY:     FAIL state: clicking "Try again now" navigates to /course/:id/retention
  */
 import React from 'react';
 import {
@@ -246,12 +249,13 @@ describe('LessonCompletePage', () => {
     expect(screen.getByLabelText('Loading…')).toBeInTheDocument();
   });
 
-  it('LCP-DATA: renders course title and lesson position from outline', async () => {
+  it('LCP-DATA: renders lesson title (not course title) and lesson position from outline', async () => {
     mockUseCourseOutline.mockReturnValue({ data: OUTLINE_TWO_LESSONS, isLoading: false });
     mockUseParams.mockReturnValue({ courseId: COURSE_ID, sequenceId: SEQ_ID_1 });
     wrap(<LessonCompletePage />);
+    // Subtitle should show the lesson/sequence title, not the course title (Figma 1121:11166)
     await waitFor(() => {
-      expect(screen.getByText('Road Safety · Lesson 1 of 2')).toBeInTheDocument();
+      expect(screen.getByText('Lesson One · Lesson 1 of 2')).toBeInTheDocument();
     });
   });
 
@@ -322,24 +326,17 @@ describe('LessonCompletePage', () => {
     expect(mockNavigate).toHaveBeenCalledWith(`/course/${COURSE_ID}`);
   });
 
-  it('LCP-NO-SINCE: without router state since, points/score stats are hidden and page still renders', async () => {
-    // since is absent (no router state) — the resultsQuery should be disabled and
-    // the points chip and correct-count row must not appear.
+  it('LCP-RENDERS: page renders when router state has no sequenceId override', async () => {
+    // Router state is absent — the page still renders correctly using the sequenceId from params.
     mockUseLocation.mockReturnValue({ state: null, pathname: '/completion' });
     mockUseCourseOutline.mockReturnValue({ data: OUTLINE_TWO_LESSONS, isLoading: false });
-    // getLessonResults must NOT be called when since is absent.
-    getLessonResultsMock().getLessonResults.mockClear();
     wrap(<LessonCompletePage />);
-    // Page renders without loading state (query is disabled, not in-flight).
+    // Page renders.
     await waitFor(() => {
       expect(screen.getByText('Lesson complete')).toBeInTheDocument();
     });
-    // Points chip absent.
-    expect(screen.queryByText(/\+\d/)).not.toBeInTheDocument();
-    // "Right first time" row absent (only shown when since is provided).
-    expect(screen.queryByText(/right first time/i)).not.toBeInTheDocument();
-    // The results API was never called.
-    expect(getLessonResultsMock().getLessonResults).not.toHaveBeenCalled();
+    // Results are always fetched regardless of router state (since removal).
+    expect(getLessonResultsMock().getLessonResults).toHaveBeenCalled();
   });
 
   it('LCP-POINTS-SETTLE: re-reads results so points awarded after the first read are shown', async () => {
@@ -480,6 +477,88 @@ describe('CourseCompletePage', () => {
     wrap(<CourseCompletePage />);
     fireEvent.click(screen.getByRole('button', { name: /see your badges/i }));
     expect(mockNavigate).toHaveBeenCalledWith('/progress', { state: { tab: 'Badges' } });
+  });
+
+  it('CCP-CHECK-BOTH: quick check and final check cards render with correct scores', () => {
+    mockUseGamification.mockReturnValue({
+      data: {
+        lifetime_points: 100,
+        month_points: 50,
+        month: '2026-10',
+        current_streak_weeks: 0,
+        longest_streak_weeks: 0,
+        last_learning_date: null,
+        courses: [{
+          course_key: COURSE_ID,
+          points: 0,
+          quick_check: { correct: 6, total: 10, at: '2026-10-01T00:00:00Z' },
+          final_check: { correct: 9, total: 10, passed_at: '2026-10-15T00:00:00Z' },
+        }],
+        this_week: null,
+        recent_weeks: [],
+        server_time: '2026-10-20T00:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+    });
+    wrap(<CourseCompletePage />);
+    expect(screen.getByText('Quick check')).toBeInTheDocument();
+    expect(screen.getByText('Final check')).toBeInTheDocument();
+    expect(screen.getByText(/6\s+of\s+10/)).toBeInTheDocument();
+    expect(screen.getByText(/9\s+of\s+10/)).toBeInTheDocument();
+  });
+
+  it('CCP-CHECK-IMPROVEMENT: improvement chip shows positive delta when final > quick', () => {
+    mockUseGamification.mockReturnValue({
+      data: {
+        lifetime_points: 0,
+        month_points: 0,
+        month: '2026-10',
+        current_streak_weeks: 0,
+        longest_streak_weeks: 0,
+        last_learning_date: null,
+        courses: [{
+          course_key: COURSE_ID,
+          points: 0,
+          quick_check: { correct: 6, total: 10, at: '2026-10-01T00:00:00Z' },
+          final_check: { correct: 9, total: 10, passed_at: '2026-10-15T00:00:00Z' },
+        }],
+        this_week: null,
+        recent_weeks: [],
+        server_time: '2026-10-20T00:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+    });
+    wrap(<CourseCompletePage />);
+    expect(screen.getByText('+3')).toBeInTheDocument();
+  });
+
+  it('CCP-CHECK-NULL: check grid absent when both quick_check and final_check are null', () => {
+    mockUseGamification.mockReturnValue({
+      data: {
+        lifetime_points: 0,
+        month_points: 0,
+        month: '2026-10',
+        current_streak_weeks: 0,
+        longest_streak_weeks: 0,
+        last_learning_date: null,
+        courses: [{
+          course_key: COURSE_ID,
+          points: 0,
+          quick_check: null,
+          final_check: null,
+        }],
+        this_week: null,
+        recent_weeks: [],
+        server_time: '2026-10-20T00:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+    });
+    wrap(<CourseCompletePage />);
+    expect(screen.queryByText('Quick check')).not.toBeInTheDocument();
+    expect(screen.queryByText('Final check')).not.toBeInTheDocument();
   });
 });
 
@@ -765,7 +844,7 @@ describe('RetentionCheckResultPage', () => {
     jest.useRealTimers();
   });
 
-  it('RCRP-NULL-PERCENT: correct_percent null + poll expired → score label shows dash "—" in fail lead', async () => {
+  it('RCRP-NULL-PERCENT: correct_percent null + poll expired → fallback lead shown (no score)', async () => {
     jest.useFakeTimers();
     getGamificationMock().getLessonResults.mockResolvedValue({
       sequence_key: SEQ_ID_1,
@@ -783,8 +862,8 @@ describe('RetentionCheckResultPage', () => {
     // Advance past poll timeout so the fail state renders.
     act(() => { jest.advanceTimersByTime(11000); });
     expect(screen.getByText(/worth another look/i)).toBeInTheDocument();
-    const lead = screen.getByText(/you got/i);
-    expect(lead.textContent).toContain('—');
+    // When score is unavailable, the lead shows the fallback copy (no "X of Y right").
+    expect(screen.getByText(/review the missed topics/i)).toBeInTheDocument();
     jest.useRealTimers();
   });
 });

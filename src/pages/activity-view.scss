@@ -1,0 +1,27 @@
+/* ── ActivityView — lesson player shell layout ───────────────────────────── */
+
+.activity-view {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.activity-view__main {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.activity-view__spinner-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--u-background-primary);
+  z-index: 1;
+}

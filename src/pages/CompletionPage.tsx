@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { BadgeSlot, LearnerCurriculum, BadgesResponse } from '../api/curriculum';
+import type { QuickCheckResult, FinalCheckResult } from '../api/gamification';
 import { useBadgeCelebration, goToBadgeCelebration } from '../hooks/useBadgeCelebration';
 import { useBadges } from '../hooks/useBadges';
 import { useCourseOutline } from '../hooks/useCourseOutline';
@@ -223,18 +224,19 @@ const StatsRow = ({
 export const LessonCompletePage = () => {
   const { courseId = '', sequenceId = '' } = useParams<{ courseId: string; sequenceId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
-  const since = (location.state as { since?: string } | null)?.since as string | undefined;
 
   const outlineQuery = useCourseOutline(courseId);
   const { data: gamificationData } = useGamification();
 
+  const location = useLocation();
+  const since = (location.state as { since?: string } | null)?.since ?? null;
   const resultsQuery = useLessonResults(sequenceId, since);
 
   const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
   const currentLessonIdx = allLessons.findIndex((l) => l.sequenceId === sequenceId);
   const lessonNumber = currentLessonIdx >= 0 ? currentLessonIdx + 1 : 1;
   const courseTitle = outlineQuery.data?.title ?? '';
+  const currentLessonTitle = currentLessonIdx >= 0 ? (allLessons[currentLessonIdx]?.lessonTitle ?? '') : '';
   const lessonCount = allLessons.length;
   const nextLesson = currentLessonIdx >= 0 ? (allLessons[currentLessonIdx + 1] ?? null) : null;
   const nextSequenceId = nextLesson?.sequenceId ?? null;
@@ -250,9 +252,6 @@ export const LessonCompletePage = () => {
   const pointsEarned = resultsQuery.data?.points_earned ?? 0;
   const correctPercent = resultsQuery.data?.correct_percent ?? null;
   const questions = resultsQuery.data?.questions ?? 0;
-  const correctCount = correctPercent !== null && questions > 0
-    ? Math.round((correctPercent / 100) * questions)
-    : null;
 
   // Use outline-based lesson counts (sequences) rather than the progress API's unit (step) counts,
   // which would overcount steps within a lesson as separate "lessons".
@@ -285,10 +284,7 @@ export const LessonCompletePage = () => {
   // Course/curriculum badges only make sense after the last lesson — don't show mid-course.
   const showCelebration = isLastLesson && celebration !== null;
 
-  // Guard against heading flash: "Lesson complete" → "Course refreshed" on repeat completion.
-  // Only wait for results when `since` is provided — without it the query is disabled and
-  // we show the page immediately with default (non-repeat) state.
-  if (since && resultsQuery.isLoading) {
+  if (resultsQuery.isLoading) {
     return <LoadingSkeleton />;
   }
 
@@ -331,7 +327,7 @@ export const LessonCompletePage = () => {
   const headingText = isCourseRefreshed ? 'Course refreshed' : 'Lesson complete';
   const subtitleText = isCourseRefreshed
     ? `${courseTitle} · all ${lessonCount} lessons`
-    : `${courseTitle} · Lesson ${lessonNumber} of ${lessonCount}`;
+    : `${currentLessonTitle || courseTitle} · Lesson ${lessonNumber} of ${lessonCount}`;
   const pointsLabel = isCourseRefreshed ? 'points earned again' : 'points earned';
   const progressRowLabel = isCourseRefreshed ? 'Lessons refreshed' : 'Course progress';
   const progressRowValue = isCourseRefreshed
@@ -352,8 +348,8 @@ export const LessonCompletePage = () => {
           )}
         </div>
 
-        {/* Points — only shown when `since` was provided (results are scoped to this attempt) */}
-        {since && pointsEarned > 0 && (
+        {/* Points — centered inline display */}
+        {pointsEarned > 0 && (
           <div className="cpl-points">
             <div className="cpl-points__figure">
               <img src={iconLightning} alt="" aria-hidden="true" className="cpl-points__icon" />
@@ -368,18 +364,19 @@ export const LessonCompletePage = () => {
 
         {/* Stats card */}
         <div className="cp-stats-card">
+          {!isRepeat && correctPercent !== null && questions > 0 && (
+            <StatsRow
+              icon={iconCircleCheck}
+              iconAlt="Right first time"
+              label="Right first time"
+              value={`${Math.round((questions * correctPercent) / 100)} of ${questions}`}
+            />
+          )}
           {isRepeat && (
             <StatsRow
               icon={iconLightning}
               label="Points"
               value="Already earned"
-            />
-          )}
-          {since && correctCount !== null && questions > 0 && (
-            <StatsRow
-              icon={iconCircleCheck}
-              label="Right first time"
-              value={`${correctCount} of ${questions}`}
             />
           )}
           {weekLabel && (
@@ -443,34 +440,43 @@ export const LessonCompletePage = () => {
 export const CourseCompletePage = () => {
   const { courseId = '' } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const { finalCheckSequenceId, since } = (
-    location.state as { finalCheckSequenceId?: string; since?: string } | null
-  ) ?? {};
 
   const courseOutlineQuery = useCourseOutline(courseId);
   const gamificationQuery = useGamification();
   const { data: curriculums } = useCurriculums();
   const { data: badgesData } = useBadges();
 
-  // Fetch final check results when we came from a final check sequence.
-  const finalCheckResultsQuery = useLessonResults(finalCheckSequenceId, since);
-
   const courseTitle = courseOutlineQuery.data?.title ?? '';
-  const totalPoints = gamificationQuery.data?.courses?.find(
-    (c) => c.course_key === courseId,
-  )?.points ?? 0;
+  const courseDescription = courseOutlineQuery.data?.shortDescription ?? null;
 
-  const finalCheckCorrectPct = finalCheckResultsQuery.data?.correct_percent ?? null;
-  const finalCheckQuestions = finalCheckResultsQuery.data?.questions ?? 0;
-  const finalCheckScore = finalCheckCorrectPct !== null && finalCheckQuestions > 0
-    ? Math.round((finalCheckCorrectPct / 100) * finalCheckQuestions)
+  const courseGamification = gamificationQuery.data?.courses?.find(
+    (c) => c.course_key === courseId,
+  ) ?? null;
+  const totalPoints = courseGamification?.points ?? 0;
+
+  // Use the summary API's quick_check / final_check directly — more reliable than
+  // deriving the sequence IDs from navigation state and hitting the lesson results API.
+  const rawFinalCheck: FinalCheckResult | null = courseGamification?.final_check ?? null;
+  const rawQuickCheck: QuickCheckResult | null = courseGamification?.quick_check ?? null;
+
+  const finalCheckScore = rawFinalCheck !== null ? rawFinalCheck.correct : null;
+  const finalCheckTotal = rawFinalCheck !== null ? rawFinalCheck.total : 0;
+
+  const quickCheckScore = rawQuickCheck !== null ? rawQuickCheck.correct : null;
+  const quickCheckTotal = rawQuickCheck !== null ? rawQuickCheck.total : 0;
+
+  const improvementDelta = quickCheckScore !== null && finalCheckScore !== null
+    ? finalCheckScore - quickCheckScore
     : null;
 
   const parentCurriculum = curriculums?.find((c) => c.courses.some((course) => course.course_id === courseId));
   const completeMilestone = parentCurriculum?.milestones.complete ?? null;
-  const earnedAt = completeMilestone?.reached_at ?? null;
+  // For curriculum courses use the path milestone date; for standalone courses use the course badge date.
+  const earnedAt = completeMilestone?.reached_at
+    ?? badgesData?.course_badges.find(
+      (b) => b.source.type === 'course' && b.source.course_id === courseId,
+    )?.awarded_at
+    ?? null;
   const earnedDate = earnedAt
     ? new Date(earnedAt).toLocaleDateString('en-GB', {
       day: 'numeric', month: 'long', year: 'numeric',
@@ -501,62 +507,114 @@ export const CourseCompletePage = () => {
   const handleContinue = () => navigate('/');
   const handleSeeBadges = () => navigate('/progress', { state: { tab: 'Badges' } });
 
-  return (
-    <div className="cp-page cp-page--scrollable">
-      <WhiteArtPanel artSrc={courseArtBook} earned tintClass="cp-badge-seal--blue" />
+  if (gamificationQuery.isLoading || courseOutlineQuery.isLoading) {
+    return (
+      <div className="cp-page">
+        <LoadingSkeleton />
+      </div>
+    );
+  }
 
-      <main className="cp-content cp-content--centered">
-        {/* Heading */}
-        <div className="cpc-words">
-          <p className="cpl-kicker">Course complete</p>
-          <h1 className="cpl-title">{courseTitle}</h1>
-          {earnedDate && (
+  if (gamificationQuery.isError) {
+    return (
+      <div className="cp-page">
+        <ErrorView
+          title="Could not load results"
+          message="Please try again."
+          embedded
+          onRetry={() => gamificationQuery.refetch()}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="cp-page cp-page--fixed">
+      <div className="cp-scroll-area">
+        <WhiteArtPanel artSrc={courseArtBook} earned tintClass="cp-badge-seal--blue" />
+
+        <main className="cp-content cp-content--centered">
+          {/* Heading */}
+          <div className="cpc-words">
+            <p className="cpl-kicker">Course complete</p>
+            <h1 className="cpl-title">{courseTitle}</h1>
+            {earnedDate && (
             <p className="cpl-date">
               Earned
               {' '}
               {earnedDate}
             </p>
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* Curriculum progress card (only when in a path) */}
-        {parentCurriculum && coursesTotal > 0 && (
+          {/* Quick check / Final check grid */}
+          {(quickCheckScore !== null || finalCheckScore !== null) && (
+          <div className="cpc-check-grid">
+            {quickCheckScore !== null && quickCheckTotal > 0 && (
+              <div className="cpc-check-card">
+                <p className="cpc-check-card__label">Quick check</p>
+                <p className="cpc-check-card__score">
+                  {quickCheckScore}
+                  {' '}
+                  of
+                  {' '}
+                  {quickCheckTotal}
+                </p>
+                <p className="cpc-check-card__sub">Before the lessons</p>
+              </div>
+            )}
+            {finalCheckScore !== null && finalCheckTotal > 0 && (
+              <div className="cpc-check-card">
+                <p className="cpc-check-card__label">Final check</p>
+                <p className="cpc-check-card__score">
+                  {finalCheckScore}
+                  {' '}
+                  of
+                  {' '}
+                  {finalCheckTotal}
+                  {improvementDelta !== null && improvementDelta > 0 && (
+                    <span className="cpc-check-card__improvement">
+                      +
+                      {improvementDelta}
+                    </span>
+                  )}
+                </p>
+                <p className="cpc-check-card__sub">After the lessons</p>
+              </div>
+            )}
+          </div>
+          )}
+
+          {/* Curriculum progress card */}
+          {parentCurriculum && coursesTotal > 0 && (
           <div className="cp-stats-card">
             <div className="cpc-path-head">
               <p className="cpc-path-name">{parentCurriculum.title}</p>
               <p className="cpc-path-count">
-                {coursesFinished}
-                {' '}
-                of
-                {' '}
-                {coursesTotal}
-                {' '}
-                courses
+                {`${coursesFinished} of ${coursesTotal} courses`}
               </p>
             </div>
             <CourseBadgeRow curriculum={parentCurriculum} badges={badgesData} />
           </div>
-        )}
-
-        {/* Results stats card */}
-        <div className="cp-stats-card">
-          {finalCheckScore !== null && finalCheckQuestions > 0 && (
-            <StatsRow
-              icon={iconCircleCheck}
-              label="Final check"
-              value={`${finalCheckScore} of ${finalCheckQuestions}`}
-            />
           )}
+
+          {/* Points */}
           {totalPoints > 0 && (
-            <StatsRow
-              icon={iconLightning}
-              label="Points"
-              value={`+${totalPoints}`}
-            />
+          <div className="cp-stats-card">
+            <StatsRow icon={iconLightning} label="Points" value={`+${totalPoints}`} />
+          </div>
           )}
-        </div>
 
-      </main>
+          {/* Commitment card — shown when the course provides a short description */}
+          {courseDescription && (
+          <div className="cpc-commitment">
+            <p className="cpc-commitment__title">Your commitment</p>
+            <p className="cpc-commitment__body">{courseDescription}</p>
+          </div>
+          )}
+
+        </main>
+      </div>
 
       <Footer
         primaryLabel="Continue"
@@ -652,6 +710,56 @@ export const RetentionInvitePage = () => {
   );
 };
 
+// ── Retention score ring (amber arc + black circle + white checkmark) ─────
+
+interface RetentionScoreRingProps { score: number; total: number; }
+
+const RetentionScoreRing = ({ score, total }: RetentionScoreRingProps) => {
+  const size = 72;
+  const sw = 4;
+  const r = (size - sw) / 2;
+  const c = size / 2;
+  const circ = 2 * Math.PI * r;
+  const fraction = total > 0 ? Math.min(score / total, 1) : 0;
+  const offset = circ * (1 - fraction);
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      aria-hidden="true"
+      className="cpl-done-mark"
+    >
+      <circle cx={c} cy={c} r={r} stroke="var(--u-border-opaque)" strokeWidth={sw} fill="none" />
+      {score > 0 && (
+        <circle
+          cx={c}
+          cy={c}
+          r={r}
+          stroke="var(--u-background-warning)"
+          strokeWidth={sw}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${c} ${c})`}
+        />
+      )}
+      {/* Inner filled circle: r = c * 0.75 stays proportional to size */}
+      <circle cx={c} cy={c} r={Math.round(c * 0.75)} style={{ fill: 'var(--u-background-always-dark)' }} />
+      {/* Checkmark path: coordinates derived from c = size/2 = 36 */}
+      <path
+        d={`M${c - 7} ${c} L${c - 2} ${c + 5} L${c + 7} ${c - 7}`}
+        style={{ stroke: 'var(--u-content-on-color)' }}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+};
+
 // ── Retention Check Result Page ────────────────────────────────────────────
 
 const POLL_INTERVAL_MS = 2000;
@@ -660,15 +768,13 @@ const POLL_TIMEOUT_MS = 10000;
 export const RetentionCheckResultPage = () => {
   const { courseId = '', sequenceId = '' } = useParams<{ courseId: string; sequenceId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
-  const since = (location.state as { since?: string } | null)?.since as string | undefined;
-
-  const resultsQuery = useLessonResults(sequenceId, since);
+  const resultsQuery = useLessonResults(sequenceId);
 
   const curriculumsQuery = useCurriculums();
   const parentCurriculum = curriculumsQuery.data?.find(
     (c) => c.knowledge_check.course_id === courseId,
   );
+  const pathTitle = parentCurriculum?.title ?? null;
 
   const correctPercent = resultsQuery.data?.correct_percent ?? null;
   const total = resultsQuery.data?.questions ?? 0;
@@ -722,9 +828,8 @@ export const RetentionCheckResultPage = () => {
   const handleReviewCourse = () => navigate(`/course/${courseId}`);
   const handleTryAgain = () => navigate(`/course/${courseId}/retention`);
 
-  // Wait for lesson results when `since` is provided.
-  // On error, fall through with score = null so the result page still shows pass/fail.
-  if (since && resultsQuery.isLoading) {
+  // Wait for lesson results before showing pass/fail — on error, fall through with score = null.
+  if (resultsQuery.isLoading) {
     return <LoadingSkeleton />;
   }
 
@@ -761,13 +866,7 @@ export const RetentionCheckResultPage = () => {
             <p className="cpl-kicker">Badge earned</p>
             <h1 className="cpl-title">30-day check</h1>
             <p className="cpl-lead">
-              You got
-              {' '}
-              {scoreLabel}
-              {' '}
-              right.
-              {' '}
-              What you learned stayed with you.
+              {`You got ${scoreLabel} right${pathTitle ? ` on the ${pathTitle} check` : ''}. What you learned stayed with you.`}
             </p>
             {earnedDate && (
               <p className="cpl-date">
@@ -789,30 +888,44 @@ export const RetentionCheckResultPage = () => {
     );
   }
 
+  const scoreForRing = score ?? 0;
+  const totalForRing = total > 0 ? total : 5;
+  const passThreshold = parentCurriculum?.knowledge_check?.pass_threshold ?? (totalForRing - 1);
+
   return (
     <div className="cp-page cp-page--scrollable">
-      <WhiteArtPanel artSrc={badgeArtRetained} earned={false} tintClass="cp-badge-seal--blue" />
+      <SimpleNavBar onBack={handleReviewCourse} />
 
       <main className="cp-content cp-content--centered">
-        <div className="cpc-words">
-          <p className="cpl-kicker">30-day check</p>
+        <div className="cpl-top">
+          <RetentionScoreRing score={scoreForRing} total={totalForRing} />
           <h1 className="cpl-title">Worth another look</h1>
           <p className="cpl-lead">
-            You got
-            {' '}
-            {scoreLabel}
-            {' '}
-            right. Review the missed topics, then try again, as often as you need.
+            {score !== null && total > 0
+              ? `${scoreLabel} right. You need ${passThreshold} to earn the badge.`
+              : 'Review the missed topics, then try again.'}
           </p>
         </div>
+
+        {score !== null && total > 0 && (
+          <div className="cpc-score-breakdown">
+            <div className="cpc-score-col">
+              <span className="cpc-score-col__value cpc-score-col__value--right">{score}</span>
+              <span className="cpc-score-col__label">right</span>
+            </div>
+            <div className="cpc-score-col">
+              <span className="cpc-score-col__value cpc-score-col__value--review">{total - score}</span>
+              <span className="cpc-score-col__label">to review</span>
+            </div>
+          </div>
+        )}
       </main>
 
-      <Footer
-        primaryLabel="Review course"
-        secondaryLabel="Try again"
-        onPrimary={handleReviewCourse}
-        onSecondary={handleTryAgain}
-      />
+      <footer className="cp-footer">
+        <button type="button" className="cp-footer__primary" onClick={handleTryAgain}>
+          Try again now
+        </button>
+      </footer>
     </div>
   );
 };

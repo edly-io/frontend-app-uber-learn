@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { NavHeader } from '../components/nav-header/NavHeader';
 import iconAlert from '../assets/icons/icon-alert.svg';
 import './video-step.scss';
@@ -7,12 +7,18 @@ import './video-step.scss';
 export const VideoCouldntLoadPage = () => {
   const { courseId = '', sequenceId = '' } = useParams<{ courseId: string; sequenceId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const state = location.state as { unitIdx?: number; unitCount?: number } | null;
+  const unitIdx = state?.unitIdx ?? 0;
+  const unitCount = state?.unitCount ?? null;
 
   const handleBack = () => navigate(`/course/${courseId}`);
-  const handleTryAgain = () => window.location.reload();
+  const handleTryAgain = () => {
+    navigate(`/course/${courseId}/lesson/${sequenceId}/step/${unitIdx}`, { replace: true });
+  };
   const handleContinue = () => {
-    if (sequenceId) {
-      navigate(`/course/${courseId}/lesson/${sequenceId}/step/0`);
+    if (sequenceId && (unitCount === null || unitIdx + 1 < unitCount)) {
+      navigate(`/course/${courseId}/lesson/${sequenceId}/step/${unitIdx + 1}`);
     } else {
       navigate(`/course/${courseId}`);
     }

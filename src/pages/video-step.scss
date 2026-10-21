@@ -33,7 +33,7 @@
   height: 202px;
   width: 100%;
   background: var(--u-background-always-dark);
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 16px 16px 4px;
   flex-shrink: 0;
   overflow: hidden;
@@ -73,7 +73,7 @@
   font-family: var(--u-font-body);
   font-size: 0.875rem;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--u-overlay-white-70);
   line-height: 1.43;
   margin: 0;
   text-align: center;
@@ -90,7 +90,7 @@
 .vs-player__timeline {
   height: 4px;
   width: 100%;
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--u-overlay-white-18);
   border-radius: 2px;
   overflow: hidden;
   flex-shrink: 0;
@@ -245,24 +245,65 @@
 /* ── Footer ───────────────────────────────────────────────────────────────── */
 .vs-footer {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   padding: 12px 16px;
   padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   background: var(--u-background-primary);
+}
+
+/* Row variant: two buttons side by side */
+.vs-footer--row {
+  flex-direction: row;
+  gap: 12px;
 }
 
 .vs-footer__btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  flex: 1;
   padding: 16px 20px;
-  background: var(--u-background-state-disabled);
-  color: var(--u-content-state-disabled);
+  background: var(--u-background-always-dark);
+  color: var(--u-content-on-color);
   border: none;
   border-radius: 8px;
   font-family: var(--u-font-body);
   font-size: 1.125rem;
   font-weight: 500;
   line-height: 1.33;
+  cursor: pointer;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+.vs-footer__btn:hover,
+.vs-footer__btn:focus-visible {
+  opacity: 0.85;
+}
+
+.vs-footer__btn:active {
+  opacity: 0.7;
+}
+
+.vs-footer__btn:disabled {
+  background: var(--u-background-state-disabled);
+  color: var(--u-content-state-disabled);
   cursor: not-allowed;
+  opacity: 1;
+}
+
+.vs-footer__btn:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
+
+/* Secondary variant: ghost / outline */
+.vs-footer__btn--secondary {
+  background: var(--u-background-secondary);
+  color: var(--u-content-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vs-footer__btn { transition: none; }
 }

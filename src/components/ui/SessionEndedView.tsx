@@ -15,5 +15,6 @@ export const SessionEndedView = ({ onClose, onBack }: SessionEndedViewProps) => 
     buttonLabel="Close"
     onAction={onClose}
     onBack={onBack}
+    dark
   />
 );

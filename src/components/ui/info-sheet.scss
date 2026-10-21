@@ -4,9 +4,10 @@
   &__title {
     margin: 8px 0 20px;
     font-family: var(--u-font-display);
-    font-size: 22px;
+    font-size: 1.25rem;
     font-weight: 700;
-    line-height: 1.27;
+    line-height: 1.4;
+    letter-spacing: 0.015625rem;
     color: var(--u-content-primary);
   }
 
@@ -23,8 +24,8 @@
     position: relative;
     padding-left: 16px;
     font-family: var(--u-font-body);
-    font-size: 15px;
-    line-height: 1.47;
+    font-size: 16px;
+    line-height: 1.5;
     color: var(--u-content-primary);
 
     &::before {

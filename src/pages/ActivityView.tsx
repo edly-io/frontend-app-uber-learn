@@ -1,7 +1,9 @@
 import React, {
   useState, useCallback, useEffect, useRef, useMemo,
 } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import {
+  useParams, useNavigate, useLocation, Navigate,
+} from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { getConfig } from '@edx/frontend-platform';
 import { useBlockCompletion } from '../hooks/useBlockCompletion';
@@ -10,11 +12,11 @@ import { useSequence } from '../hooks/useSequence';
 import { useCourseOutline } from '../hooks/useCourseOutline';
 import { useLearnCourses } from '../hooks/useLearnCourses';
 import { useCurriculums } from '../hooks/useCurriculums';
+import { useGamification } from '../hooks/useGamification';
 import { mapOutlineToLessons, markSequenceComplete } from '../lib/outline-mapper';
 import type { CourseOutline } from '../api/courseware';
 import { getLmsOrigin } from '../lib/lms';
 import { saveSequencePosition } from '../api/progress';
-import { getGamificationSummary } from '../api/gamification';
 import { qk } from '../api/queries';
 import { ContentIFrame } from '../components/content-iframe/ContentIFrame';
 import { TranscriptSheet } from '../components/transcript-sheet/TranscriptSheet';
@@ -27,6 +29,7 @@ import { OfflineView } from '../components/offline-view/OfflineView';
 import { SlowLoadView } from '../components/slow-load-view/SlowLoadView';
 import { NotEnrolledPage } from './NotEnrolledPage';
 import { useSlowLoad } from '../hooks/useSlowLoad';
+import './activity-view.scss';
 
 export const ActivityView = () => {
   const {
@@ -46,27 +49,6 @@ export const ActivityView = () => {
 
   // shownVisit: visit number of the step whose iframe content is currently on screen.
   const [shownVisit, setShownVisit] = useState<number | null>(null);
-
-  // Capture server_time once when the lesson mounts (not on every window focus) so the
-  // `since` value for the lesson results endpoint stays stable for the duration of the lesson.
-  // Using server_time (not device clock) prevents a fast device clock from making a first run
-  // look like a repeat.
-  const serverTimeRef = useRef<string | null>(null);
-  useEffect(() => {
-    serverTimeRef.current = null; // reset on new lesson
-    queryClient.fetchQuery({
-      queryKey: qk.gamification(),
-      queryFn: getGamificationSummary,
-      staleTime: 0,
-    }).then((data) => {
-      if (serverTimeRef.current === null && data?.server_time) {
-        serverTimeRef.current = data.server_time;
-      }
-    }).catch(() => {
-      // Falls back to device clock — serverTimeRef stays null,
-      // CompletionPage will skip the results query when since is absent.
-    });
-  }, [sequenceId, queryClient]); // re-fetch when a new lesson loads
 
   // Content load failure (iframe onError — 4xx/5xx from LMS, broken XBlock, etc.)
   const [isContentError, setIsContentError] = useState(false);
@@ -118,17 +100,26 @@ export const ActivityView = () => {
     setIsContentError(false);
   }, [sequenceId, unitIdx]);
 
-  const [retryKey, setRetryKey] = useState(0);
   const handleContentError = useCallback(() => {
     setIsContentError(true);
-  }, []);
-  const handleContentRetry = useCallback(() => {
-    setIsContentError(false);
-    setRetryKey((k) => k + 1);
   }, []);
 
   // Each visit to a step gets its own number, so coming back to a step (A → B → A before B
   // showed) still shows the spinner while that step's iframe reloads.
+  // Capture server_time from the gamification summary once at lesson mount so `since`
+  // uses the server clock (not the device clock, which may drift) to scope this_run.
+  // mountedAtRef is a device-clock fallback for the rare case when the summary call
+  // fails — without it, no `since` is sent and a replay looks like a first run.
+  const mountedAtRef = useRef(new Date().toISOString());
+  const { data: gamificationData } = useGamification();
+  const serverTime = gamificationData?.server_time;
+  const runSinceRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (runSinceRef.current === null && serverTime) {
+      runSinceRef.current = serverTime;
+    }
+  }, [serverTime]);
+
   const visitRef = useRef<{ unitId: string | null; visit: number }>({ unitId: null, visit: 0 });
   if (visitRef.current.unitId !== currentUnitId) {
     visitRef.current = { unitId: currentUnitId, visit: visitRef.current.visit + 1 };
@@ -210,29 +201,16 @@ export const ActivityView = () => {
 
         if (isRetentionCourse && !nextLesson) {
           // Last lesson of a retention check course: go to the result page.
-          navigate(
-            `/course/${courseId}/retention-result/${sequenceId}`,
-            serverTimeRef.current ? { state: { since: serverTimeRef.current } } : undefined,
-          );
+          navigate(`/course/${courseId}/retention-result/${sequenceId}`);
         } else if (isFinalCheckSequence) {
-          // Final check complete: go to course-complete screen, passing the sequence
-          // id and timestamp so results can be scoped to this attempt.
+          // Final check complete: go to course-complete screen.
           navigate(
             `/course/${courseId}/complete`,
-            {
-              state: {
-                finalCheckSequenceId: sequenceId,
-                since: serverTimeRef.current ?? undefined,
-              },
-            },
+            { state: { finalCheckSequenceId: sequenceId } },
           );
         } else {
-          // Regular lesson: navigate to lesson-complete and pass `since` so results
-          // are scoped to this attempt (not a previous one by the same learner).
-          navigate(
-            `/course/${courseId}/lesson-complete/${sequenceId}`,
-            serverTimeRef.current ? { state: { since: serverTimeRef.current } } : undefined,
-          );
+          // Regular lesson: navigate to lesson-complete screen.
+          navigate(`/course/${courseId}/lesson-complete/${sequenceId}`, { state: { since: runSinceRef.current ?? mountedAtRef.current } });
         }
       }
     } finally {
@@ -292,10 +270,7 @@ export const ActivityView = () => {
       );
     }
     return (
-      <div style={{
-        display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden',
-      }}
-      >
+      <div className="activity-view">
         <NavHeader title="Loading…" onBack={handleBack} onClose={handleClose} />
         <LoadingSkeleton />
       </div>
@@ -326,33 +301,46 @@ export const ActivityView = () => {
     ? `Lesson ${currentLessonIdx + 1} of ${allLessons.length}`
     : lessonTitle;
 
-  // Show the Figma offline screen when the device loses connectivity or content fails to load
-  if (isOffline || isContentError) {
+  // Offline: show the "You're offline" screen
+  if (isOffline) {
     return (
       <OfflineView
         title={lessonTitle}
         onBack={handleBack}
-        onRetry={() => {
-          if (isContentError) {
-            handleContentRetry();
-          } else {
-            window.location.reload();
-          }
-        }}
+        onRetry={() => window.location.reload()}
       />
+    );
+  }
+
+  // Content load failure: route to the dedicated video-error screen for video units,
+  // and show an in-place error for all other content types so copy matches the unit.
+  if (isContentError) {
+    if (currentUnit?.contentType === 'video') {
+      return (
+        <Navigate
+          to={`/course/${courseId}/lesson/${sequenceId}/video-error`}
+          state={{ unitIdx, unitCount: units.length }}
+          replace
+        />
+      );
+    }
+    return (
+      <div className="activity-view">
+        <NavHeader title={lessonNavTitle} onBack={handleBack} onClose={handleClose} />
+        <ErrorView
+          title="Content could not load"
+          message="Check your connection and try again. Your progress is saved."
+          embedded
+          onRetry={() => window.location.reload()}
+        />
+      </div>
     );
   }
 
   const buttonLabel = unitIdx < units.length - 1 ? 'Continue' : 'Finish';
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100dvh',
-      overflow: 'hidden',
-    }}
-    >
+    <div className="activity-view">
       <NavHeader
         title={lessonNavTitle}
         onBack={handleBack}
@@ -361,26 +349,10 @@ export const ActivityView = () => {
 
       <StepIndicator current={unitIdx} total={units.length} />
 
-      <main style={{
-        flex: 1,
-        minHeight: 0,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-      }}
-      >
+      <main className="activity-view__main">
         {!isIframeLoaded && (
           <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'var(--u-background-primary)',
-              zIndex: 1,
-            }}
+            className="activity-view__spinner-overlay"
             aria-hidden="true"
           >
             <div className="content-iframe-spinner" />
@@ -388,7 +360,7 @@ export const ActivityView = () => {
         )}
 
         <ContentIFrame
-          key={`${currentUnit.id}-${retryKey}`}
+          key={currentUnit.id}
           usageKey={currentUnit.id}
           onContentReady={isLightweightMode ? handleContentShown : undefined}
           onLoad={handleContentShown}

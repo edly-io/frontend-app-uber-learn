@@ -32,3 +32,64 @@ a,
   outline-offset: 2px;
   border-radius: 2px;
 }
+
+/* Honour reduced-motion across the whole app.
+   Individual files may still set animation: none for specific elements,
+   but this single rule stops all transitions/animations by default when
+   the OS setting is active. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ── App-level error boundary ──────────────────────────────────────────────── */
+.app-error-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+  font-family: var(--u-font-body);
+  background: var(--u-background-primary);
+  color: var(--u-content-primary);
+}
+
+.app-error-message {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--u-content-primary);
+  margin: 0;
+}
+
+.app-error-btn {
+  padding: 14px 24px;
+  border-radius: 999px;
+  border: none;
+  background: var(--u-background-always-dark);
+  color: var(--u-content-on-color);
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity var(--u-duration-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-error-btn:hover { opacity: 0.85; }
+}
+
+.app-error-btn:active { opacity: 0.7; }
+
+.app-error-btn:focus-visible {
+  outline: 2px solid var(--u-content-on-color);
+  outline-offset: 2px;
+}

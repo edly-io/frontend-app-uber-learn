@@ -11,6 +11,8 @@ interface SystemStateViewProps {
   onAction?: () => void;
   navTitle?: string;
   onBack?: () => void;
+  dark?: boolean;
+  embedded?: boolean;
 }
 
 export const SystemStateView = ({
@@ -22,8 +24,10 @@ export const SystemStateView = ({
   onAction,
   navTitle,
   onBack,
+  dark = false,
+  embedded = false,
 }: SystemStateViewProps) => (
-  <div className="ss-page">
+  <div className={`ss-page${dark ? ' ss-page--dark' : ''}${embedded ? ' ss-page--embedded' : ''}`}>
     {onBack && <NavHeader title={navTitle ?? ''} onBack={onBack} />}
 
     <main className="ss-content" role={onBack ? undefined : 'alert'} aria-live={onBack ? undefined : 'assertive'}>

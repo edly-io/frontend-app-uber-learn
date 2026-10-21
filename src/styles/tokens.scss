@@ -37,6 +37,9 @@
 
   /* Borders */
   --u-border-opaque:             #e8e8e8;
+  --u-border-positive:           #0e8345;
+  --u-border-accent:             #276ef1;
+  --u-border-selected:           #000000;
 
   /* Course hero */
   --u-background-course-hero:     #002661;   /* dark navy blue safety hero panel */
@@ -46,6 +49,8 @@
   --u-background-tertiary:       #e8e8e8;
   --u-background-positive:       #0e8345;   /* green art panel, positive content */
   --u-background-positive-light: #eaf6ed;
+  --u-background-negative:       #de1135;
+  --u-background-negative-light: #fff0ee;
   --u-background-accent-light:   #eff4fe;   /* notice card background */
   --u-background-warning-light:  #fdf2dc;
   --u-background-warning:        #f6bc2f;
@@ -53,7 +58,23 @@
   /* Extended content */
   --u-content-tertiary:          #5e5e5e;
   --u-content-positive:          #0e8345;   /* "Complete · Carried over" etc */
+  --u-content-negative:          #de1135;
+  --u-content-accent:            #276ef1;
+  --u-content-warning:           #92400e;   /* amber text on warning-light bg */
   --u-content-state-disabled:    #a6a6a6;   /* disabled button label */
+
+  /* Inverse content (on dark/black backgrounds) */
+  --u-content-inverse-secondary: #dddddd;
+  --u-content-inverse-tertiary:  #a6a6a6;
+
+  /* Overlays */
+  --u-overlay-white-18:          rgba(255, 255, 255, 0.18);
+  --u-overlay-white-40:          rgba(255, 255, 255, 0.40);
+  --u-overlay-white-70:          rgba(255, 255, 255, 0.70);
+  --u-overlay-black-12:          rgba(0, 0, 0, 0.12);
+  --u-overlay-black-40:          rgba(0, 0, 0, 0.40);
+  --u-overlay-black-50:          rgba(0, 0, 0, 0.50);
+  --u-overlay-black-60:          rgba(0, 0, 0, 0.60);
 
   /* Learning course tints */
   --u-learning-course-tint-blue:    #dee9fe;
@@ -78,6 +99,7 @@
   --u-font-mono:                 'Uber Move Mono', ui-monospace, monospace;
 
   /* Spacing — 4-px base scale */
+  --u-space-0-5: 2px;
   --u-space-1:   4px;
   --u-space-2:   8px;
   --u-space-3:   12px;

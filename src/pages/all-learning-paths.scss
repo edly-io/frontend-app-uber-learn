@@ -3,7 +3,8 @@
 .alp-page {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--u-background-primary);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -29,46 +30,61 @@
   border: none;
   cursor: pointer;
   color: var(--u-content-primary);
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .alp-nav__back:hover { opacity: 0.7; }
+}
+
+.alp-nav__back:active { opacity: 0.6; }
+
+.alp-nav__back:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
 }
 
 /* ── Content ─────────────────────────────────────────────── */
 
 .alp-content {
   flex: 1;
-  padding: 0 16px 24px;
+  padding: 16px 16px 24px;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .alp-heading {
   font-family: var(--u-font-display);
   font-size: 32px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.25;
   color: var(--u-content-primary);
-  margin: 0 0 4px;
+  margin: 0 0 8px;
 }
 
 .alp-subheading {
   font-family: var(--u-font-body);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 400;
+  line-height: 1.5;
   color: var(--u-content-secondary);
-  margin: 0 0 24px;
+  margin: 0 0 8px;
 }
 
 .alp-section-header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  padding-top: 8px;
   margin-bottom: 12px;
 }
 
 .alp-section-title {
   font-family: var(--u-font-display);
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.33;
   color: var(--u-content-primary);
   margin: 0;
 }
@@ -118,16 +134,16 @@
 
 .alp-empty__title {
   font-family: var(--u-font-display);
-  font-size: 26px;
+  font-size: 2rem;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.25;
   color: var(--u-content-primary);
   margin: 0;
 }
 
 .alp-empty__desc {
   font-family: var(--u-font-body);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 400;
   line-height: 1.5;
   color: var(--u-content-secondary);
@@ -162,6 +178,18 @@
   border-radius: 20px;
   cursor: pointer;
   text-align: left;
+  transition: opacity var(--u-duration-fast) var(--u-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .alp-page .path-card:hover { opacity: 0.85; }
+}
+
+.alp-page .path-card:active { opacity: 0.7; }
+
+.alp-page .path-card:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
 }
 
 .alp-page .path-card__seal {

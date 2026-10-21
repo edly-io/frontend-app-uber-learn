@@ -25,12 +25,19 @@
   padding-bottom: 32px;
 }
 
+/* ── Heading block (kicker + title + lead) ────────────────────────────────── */
+.course-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u-space-2);
+}
+
 /* ── Shared footer ────────────────────────────────────────────────────────── */
 .course-footer {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 12px;
   padding: 12px 16px;
   padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   background: var(--u-background-primary);
@@ -54,16 +61,22 @@
   transition: opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
-.course-footer__primary:hover,
-.course-footer__primary:focus-visible {
-  opacity: 0.85;
+@media (hover: hover) and (pointer: fine) {
+  .course-footer__primary:not(:disabled):hover { opacity: 0.85; }
 }
 
 .course-footer__primary:active {
   opacity: 0.7;
 }
 
+.course-footer__primary--loading {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
 .course-footer__primary:focus-visible {
+  opacity: 0.85;
   outline: 2px solid var(--u-content-primary);
   outline-offset: 2px;
 }
@@ -85,12 +98,16 @@
   transition: opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
-.course-footer__secondary:hover,
-.course-footer__secondary:focus-visible {
-  opacity: 0.7;
+@media (hover: hover) and (pointer: fine) {
+  .course-footer__secondary:hover { opacity: 0.7; }
+}
+
+.course-footer__secondary:active {
+  opacity: 0.6;
 }
 
 .course-footer__secondary:focus-visible {
+  opacity: 0.7;
   outline: 2px solid var(--u-content-primary);
   outline-offset: 2px;
 }
@@ -121,7 +138,7 @@
   font-family: var(--u-font-body);
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--u-content-primary);
+  color: var(--u-content-secondary);
   line-height: 1.33;
   margin: 0;
 }
@@ -160,7 +177,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .cd-progress-points {
@@ -262,8 +279,15 @@
   transition: opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
-.cd-record-card:hover {
-  opacity: 0.85;
+@media (hover: hover) and (pointer: fine) {
+  .cd-record-card:hover { opacity: 0.85; }
+}
+
+.cd-record-card:active { opacity: 0.7; }
+
+.cd-record-card:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
 }
 
 .cd-record-card__body {
@@ -301,6 +325,17 @@
   line-height: 1.43;
   margin: 0;
   white-space: nowrap;
+}
+
+/* ── Empty lesson note ────────────────────────────────────────────────────── */
+.course-page__empty-note {
+  font-family: var(--u-font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--u-content-secondary);
+  text-align: center;
+  padding: 2rem 0;
+  margin: 0;
 }
 
 /* ── Lesson section group ─────────────────────────────────────────────────── */
@@ -487,26 +522,6 @@
   margin: 0;
 }
 
-/* ── Prerequisite card ────────────────────────────────────────────────────── */
-.ci-prerequisite {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 16px;
-  background: var(--u-background-accent-light);
-  border-radius: 8px;
-  width: 100%;
-}
-
-.ci-prerequisite__label {
-  font-family: var(--u-font-body);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--u-background-accent);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin: 0;
-}
 
 .ci-prerequisite__name {
   font-family: var(--u-font-body);
@@ -638,7 +653,7 @@
 .cp-scene-header__photo {
   position: absolute;
   left: 0;
-  top: -75px;
+  top: -48px;
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
@@ -718,10 +733,17 @@
   transition: opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
-.cp-back-btn:hover,
-.cp-back-btn:focus-visible { opacity: 0.8; }
-.cp-back-btn:active         { opacity: 0.6; }
-.cp-back-btn:focus-visible  { outline: 2px solid var(--u-content-primary); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .cp-back-btn:hover { opacity: 0.8; }
+}
+
+.cp-back-btn:active { opacity: 0.6; }
+
+.cp-back-btn:focus-visible {
+  opacity: 0.8;
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
 
 .cp-back-btn__icon {
   width: 24px;
@@ -973,7 +995,16 @@ button.cp-path-step {
   transition: opacity var(--u-duration-fast) var(--u-ease-out);
 }
 
-.cp-up-next-card:hover { opacity: 0.85; }
+@media (hover: hover) and (pointer: fine) {
+  .cp-up-next-card:hover { opacity: 0.85; }
+}
+
+.cp-up-next-card:active { opacity: 0.7; }
+
+.cp-up-next-card:focus-visible {
+  outline: 2px solid var(--u-content-primary);
+  outline-offset: 2px;
+}
 
 .cp-up-next-card__body {
   flex: 1;

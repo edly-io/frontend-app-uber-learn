@@ -1,0 +1,49 @@
+/* ── Button — primary and secondary variants ─────────────────────────────── */
+
+.u-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 16px 20px;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--u-font-body);
+  font-weight: 500;
+  font-size: 1.125rem;
+  line-height: 1.33;
+  cursor: pointer;
+  transition: opacity var(--u-duration-fast);
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:not(:disabled):hover { opacity: 0.85; }
+  }
+
+  &:not(:disabled):active { opacity: 0.7; }
+
+  &:not(:disabled):focus-visible {
+    outline: 2px solid var(--u-content-primary);
+    outline-offset: 2px;
+  }
+
+  &--primary {
+    background: var(--u-background-always-dark);
+    color: var(--u-content-on-color);
+  }
+
+  &--secondary {
+    background: var(--u-background-state-disabled);
+    color: var(--u-content-primary);
+  }
+
+  &--full {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-btn { transition: none; }
+}

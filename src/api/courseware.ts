@@ -53,6 +53,8 @@ export interface OutlineSequence {
 export interface CourseOutline {
   courseId: string;
   title: string;
+  /** Short commitment/description text from the course, when the platform exposes it. */
+  shortDescription?: string | null;
   sections: Record<string, OutlineSection>;
   sequences: Record<string, OutlineSequence>;
 }
@@ -124,9 +126,19 @@ export async function getCourseOutline(courseId: string): Promise<CourseOutline>
   // Title: prefer the course block's display_name, fall back to top-level title.
   const courseTitle: string = courseBlock?.display_name ?? (data.title as string | undefined) ?? courseId;
 
+  // Short description / commitment text — field name varies by platform version.
+  const rawBlock = courseBlock as Record<string, unknown> | undefined;
+  const shortDescription: string | null = (
+    (rawBlock?.short_description as string | undefined)
+    ?? (rawBlock?.description as string | undefined)
+    ?? (data.short_description as string | undefined)
+    ?? null
+  ) || null;
+
   return {
     courseId,
     title: courseTitle,
+    shortDescription,
     sections,
     sequences,
   };

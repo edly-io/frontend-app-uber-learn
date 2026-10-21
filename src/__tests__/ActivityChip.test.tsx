@@ -14,6 +14,10 @@ describe('getChipType', () => {
   it('returns learn for non-graded other content', () => {
     expect(getChipType('other', false)).toBe('learn');
   });
+
+  it('returns watch for video content type', () => {
+    expect(getChipType('video', false)).toBe('watch');
+  });
 });
 
 describe('ActivityChip', () => {
@@ -35,5 +39,15 @@ describe('ActivityChip', () => {
   it('applies practice modifier class for practice type', () => {
     const { container } = render(<ActivityChip type="practice" />);
     expect(container.firstChild).toHaveClass('activity-chip--practice');
+  });
+
+  it('renders Watch chip with correct label', () => {
+    render(<ActivityChip type="watch" />);
+    expect(screen.getByText('Watch')).toBeInTheDocument();
+  });
+
+  it('applies watch modifier class for watch type', () => {
+    const { container } = render(<ActivityChip type="watch" />);
+    expect(container.firstChild).toHaveClass('activity-chip--watch');
   });
 });

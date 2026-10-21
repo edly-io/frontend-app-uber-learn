@@ -6,6 +6,13 @@
   background: var(--u-background-primary);
 }
 
+/* Embedded inside a page with its own nav — fills available space without overflow */
+.ss-page--embedded {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+}
+
 /* ── Content area ────────────────────────────────────────────────── */
 .ss-content {
   flex: 1;
@@ -59,7 +66,7 @@
   font-size: 1rem;
   font-weight: 400;
   color: var(--u-content-secondary);
-  line-height: 1.5;
+  line-height: 24px;
   margin: 0;
 }
 
@@ -101,4 +108,38 @@
 .ss-footer__btn:focus-visible {
   outline: 2px solid var(--u-content-primary);
   outline-offset: 2px;
+}
+
+/* ── Dark variant (session ended) ────────────────────────────────── */
+.ss-page--dark {
+  background: var(--u-background-always-dark);
+
+  .ss-tile {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .ss-heading {
+    color: var(--u-content-on-color);
+  }
+
+  .ss-body {
+    color: var(--u-content-inverse-secondary);
+  }
+
+  .ss-footer {
+    background: var(--u-background-always-dark);
+  }
+
+  .ss-footer__btn {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--u-content-on-color);
+
+    &:focus-visible {
+      outline-color: var(--u-content-on-color);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ss-footer__btn { transition: none; }
 }

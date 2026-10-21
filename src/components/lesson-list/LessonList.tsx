@@ -1,6 +1,7 @@
 import React from 'react';
 import type { LessonDescriptor } from '../../lib/outline-mapper';
 import { LessonCard } from './LessonCard';
+import './lesson-list.scss';
 
 interface LessonListProps {
   lessons: LessonDescriptor[];
@@ -16,21 +17,11 @@ export const LessonList = ({
   onLessonClick,
 }: LessonListProps) => {
   if (lessons.length === 0) {
-    return (
-      <p
-        style={{
-          padding: 'var(--u-page-gutter)',
-          color: 'var(--u-content-secondary)',
-          textAlign: 'center',
-        }}
-      >
-        No lessons available.
-      </p>
-    );
+    return <p className="lesson-list__empty">No lessons available.</p>;
   }
 
   return (
-    <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+    <ul className="lesson-list">
       {lessons.map((lesson) => (
         <LessonCard
           key={lesson.sequenceId}

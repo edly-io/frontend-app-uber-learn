@@ -230,6 +230,7 @@ const ConnectedContinueCard = ({
   course: firstCourse, onContinue, variant = 'lesson', finalCheckMeta = null, imageUrl = null,
 }: ConnectedContinueCardProps) => {
   const courseId = firstCourse?.courseId ?? '';
+  const queryClient = useQueryClient();
   const outlineQuery = useCourseOutline(courseId);
 
   const allLessons = outlineQuery.data ? mapOutlineToLessons(outlineQuery.data) : [];
@@ -261,11 +262,21 @@ const ConnectedContinueCard = ({
 
   if (!firstCourse) { return null; }
 
+  const getStepIdxFromMeta = (seqId: string): number => {
+    const cached = queryClient.getQueryData<{ units: { complete: boolean }[] }>(qk.sequence(seqId));
+    const units = cached?.units ?? [];
+    const firstIncomplete = units.findIndex((u) => !u.complete);
+    return Math.max(0, firstIncomplete);
+  };
+
   const handleContinue = () => {
     const seqId = nextLesson?.sequenceId ?? null;
     if (!seqId) { onContinue(firstCourse.courseId, null, 0); return; }
-    // Only use backend step when the backend's nextLesson matches the outline's next lesson.
-    const stepIdx = backendNextLesson?.nextStep ?? 0;
+    // Prefer the backend step when it matches the outline's next lesson; fall back to the
+    // first incomplete unit from the cached sequence (same behaviour as CourseOverview).
+    const stepIdx = backendNextLesson?.nextStep != null
+      ? backendNextLesson.nextStep
+      : getStepIdxFromMeta(seqId);
     onContinue(firstCourse.courseId, seqId, stepIdx);
   };
 

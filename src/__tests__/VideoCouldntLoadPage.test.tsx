@@ -7,8 +7,9 @@
  *   VCLP-RETRY:        "Try again" navigates to the failed step
  *   VCLP-RETRY-IDX:    "Try again" with unitIdx in state navigates to that step
  *   VCLP-CONTINUE-SEQ: "Continue" with sequenceId navigates to next lesson step
- *   VCLP-CONTINUE-IDX: "Continue" with unitIdx in state navigates to unitIdx+1
- *   VCLP-CONTINUE-NO:  "Continue" without sequenceId navigates to course overview
+ *   VCLP-CONTINUE-IDX:  "Continue" with unitIdx in state navigates to unitIdx+1
+ *   VCLP-CONTINUE-LAST: "Continue" when unitIdx is the last unit navigates to course overview
+ *   VCLP-CONTINUE-NO:   "Continue" without sequenceId navigates to course overview
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -81,6 +82,15 @@ test('VCLP-CONTINUE-IDX: "Continue" with unitIdx=3 in state navigates to step/4'
   expect(mockNavigate).toHaveBeenCalledWith(
     '/course/course-v1:Uber+Safety+2026/lesson/block-v1:seq1/step/4',
   );
+});
+
+test('VCLP-CONTINUE-LAST: "Continue" when unitIdx is the last unit navigates to course overview', () => {
+  mockUseLocation.mockReturnValue({
+    state: { unitIdx: 2, unitCount: 3 }, key: 'test', pathname: '/', search: '', hash: '',
+  });
+  render(<VideoCouldntLoadPage />);
+  fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+  expect(mockNavigate).toHaveBeenCalledWith('/course/course-v1:Uber+Safety+2026');
 });
 
 test('VCLP-CONTINUE-NO: "Continue" without sequenceId navigates to course overview', () => {

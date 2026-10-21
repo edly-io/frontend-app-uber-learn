@@ -105,6 +105,9 @@ export const ActivityView = () => {
 
   // Each visit to a step gets its own number, so coming back to a step (A → B → A before B
   // showed) still shows the spinner while that step's iframe reloads.
+  // Captured once at mount so `since` marks the start of this run, not its end.
+  const runSinceRef = useRef(new Date().toISOString());
+
   const visitRef = useRef<{ unitId: string | null; visit: number }>({ unitId: null, visit: 0 });
   if (visitRef.current.unitId !== currentUnitId) {
     visitRef.current = { unitId: currentUnitId, visit: visitRef.current.visit + 1 };
@@ -195,7 +198,7 @@ export const ActivityView = () => {
           );
         } else {
           // Regular lesson: navigate to lesson-complete screen.
-          navigate(`/course/${courseId}/lesson-complete/${sequenceId}`, { state: { since: new Date().toISOString() } });
+          navigate(`/course/${courseId}/lesson-complete/${sequenceId}`, { state: { since: runSinceRef.current } });
         }
       }
     } finally {
@@ -304,7 +307,7 @@ export const ActivityView = () => {
       return (
         <Navigate
           to={`/course/${courseId}/lesson/${sequenceId}/video-error`}
-          state={{ unitIdx }}
+          state={{ unitIdx, unitCount: units.length }}
           replace
         />
       );

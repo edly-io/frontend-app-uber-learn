@@ -8,14 +8,16 @@ export const VideoCouldntLoadPage = () => {
   const { courseId = '', sequenceId = '' } = useParams<{ courseId: string; sequenceId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const unitIdx = (location.state as { unitIdx?: number } | null)?.unitIdx ?? 0;
+  const state = location.state as { unitIdx?: number; unitCount?: number } | null;
+  const unitIdx = state?.unitIdx ?? 0;
+  const unitCount = state?.unitCount ?? null;
 
   const handleBack = () => navigate(`/course/${courseId}`);
   const handleTryAgain = () => {
     navigate(`/course/${courseId}/lesson/${sequenceId}/step/${unitIdx}`, { replace: true });
   };
   const handleContinue = () => {
-    if (sequenceId) {
+    if (sequenceId && (unitCount === null || unitIdx + 1 < unitCount)) {
       navigate(`/course/${courseId}/lesson/${sequenceId}/step/${unitIdx + 1}`);
     } else {
       navigate(`/course/${courseId}`);

@@ -10,6 +10,7 @@
  *   SAR-PROGRESS:    renders lesson progress when hasProgress and totalLessons > 0
  *   SAR-RESUME-BTN:  "Resume lesson N" navigates to the lesson step URL
  *   SAR-HOME-BTN:    "Back to learning home" navigates to /
+ *   SAR-BACK:        back arrow always navigates to course outline
  */
 import React from 'react';
 import {
@@ -134,6 +135,15 @@ test('SAR-HOME-BTN: "Back to learning home" navigates to /', async () => {
   await waitFor(() => screen.getByRole('button', { name: /back to learning home/i }));
   fireEvent.click(screen.getByRole('button', { name: /back to learning home/i }));
   expect(mockNavigate).toHaveBeenCalledWith('/');
+});
+
+test('SAR-BACK: back arrow navigates to course outline regardless of history state', async () => {
+  // Non-default location key simulates navigating from ActivityView (the bug case).
+  mockUseLocation.mockReturnValue({ state: null, key: 'abc', pathname: '/course/resume' });
+  wrap(<SaveAndResumePage />);
+  await waitFor(() => screen.getByRole('button', { name: /^back$/i }));
+  fireEvent.click(screen.getByRole('button', { name: /^back$/i }));
+  expect(mockNavigate).toHaveBeenCalledWith(`/course/${COURSE_ID}`);
 });
 
 test('SAR-ERROR: shows error view when outline fails', () => {

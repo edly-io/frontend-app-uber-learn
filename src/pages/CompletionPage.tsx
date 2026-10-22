@@ -242,6 +242,8 @@ export const LessonCompletePage = () => {
   const nextSequenceId = nextLesson?.sequenceId ?? null;
   const isLastLesson = currentLessonIdx >= 0 && currentLessonIdx === allLessons.length - 1;
 
+  // Fetch current lesson's units so the back button can return to the last step the learner saw.
+  const { units: currentUnits } = useSequence(sequenceId);
   // Fetch next lesson's units to show step count in the "Next lesson" card
   // and to detect if the next lesson is the final check (all units are assessment type).
   const { units: nextUnits } = useSequence(nextSequenceId ?? '');
@@ -291,7 +293,10 @@ export const LessonCompletePage = () => {
   const isCourseRefreshed = isRepeat && isLastLesson;
   const doneMark = (isRepeat && isLastLesson) ? resultRefreshed : resultDone;
 
-  const handleBack = () => navigate(`/course/${courseId}`);
+  const handleBack = () => {
+    const lastIdx = Math.max(0, currentUnits.length - 1);
+    navigate(`/course/${courseId}/lesson/${sequenceId}/step/${lastIdx}`);
+  };
   const handleStartNext = () => {
     if (nextSequenceId) {
       navigate(`/course/${courseId}/lesson/${nextSequenceId}/step/0`);

@@ -7,6 +7,7 @@ import {
 import { logError } from '@edx/frontend-platform/logging';
 import { getAuthenticatedHttpClient } from '@edx/frontend-platform/auth';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { endsSession, isSessionEndedPath } from './lib/session';
 import { SessionEndedView } from './components/ui/SessionEndedView';
 import { UnsupportedVersionView } from './components/ui/UnsupportedVersionView';
 import { CourseCatalog } from './pages/CourseCatalog';
@@ -93,7 +94,8 @@ const UnsupportedVersionRoute = () => {
 // ── Global 401 interceptor ──────────────────────────────────────────────────
 // Adds an axios response interceptor to the platform's authenticated client.
 // On a persistent 401 (after the platform's own JWT-refresh attempt), navigates
-// to /session-ended so the user sees a clear "session ended" message.
+// to /session-ended so the user sees a clear "session ended" message. A 401
+// that only says the learner isn't enrolled is left to the page (see endsSession).
 
 const AuthInterceptor = () => {
   const navigate = useNavigate();
@@ -102,10 +104,7 @@ const AuthInterceptor = () => {
     const interceptorId = client.interceptors.response.use(
       (response) => response,
       (err) => {
-        if (
-          err?.response?.status === 401
-          && window.location.pathname !== '/session-ended'
-        ) {
+        if (endsSession(err) && !isSessionEndedPath(window.location.pathname)) {
           navigate('/session-ended', { replace: true });
         }
         return Promise.reject(err);

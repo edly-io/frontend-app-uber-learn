@@ -197,7 +197,7 @@ const UnitBanner = ({
   return (
     <div className={`cp-unit-banner cp-unit-banner--${state}`}>
       <div className="cp-unit-banner__words">
-        <p className="cp-unit-banner__label">Unit {index + 1}</p>
+        <p className="cp-unit-banner__label">Module {index + 1}</p>
         <p className="cp-unit-banner__name">{title}</p>
       </div>
       <p className="cp-unit-banner__status">{statusText}</p>

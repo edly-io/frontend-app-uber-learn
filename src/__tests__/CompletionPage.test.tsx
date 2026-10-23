@@ -102,6 +102,11 @@ jest.mock('../hooks/useBadges', () => ({
   useBadges: (...args: unknown[]) => mockUseBadges(...args),
 }));
 
+const mockUseSequence = jest.fn();
+jest.mock('../hooks/useSequence', () => ({
+  useSequence: (...args: unknown[]) => mockUseSequence(...args),
+}));
+
 // ---------------------------------------------------------------------------
 // API mocks — getLessonResults (used directly via useQuery in RCRP)
 // ---------------------------------------------------------------------------
@@ -227,6 +232,13 @@ function setDefaultMocks() {
   mockUseGamification.mockReturnValue({ data: null, isLoading: false, isError: false });
   mockUseCurriculums.mockReturnValue({ data: undefined, isLoading: false, isError: false });
   mockUseBadges.mockReturnValue({ data: undefined });
+  // SEQ_ID_1 = current lesson (3 units); anything else = next lesson placeholder (empty).
+  mockUseSequence.mockImplementation((seqId: string) => {
+    if (seqId === SEQ_ID_1) {
+      return { units: [{ id: 'u1', graded: false }, { id: 'u2', graded: false }, { id: 'u3', graded: false }] };
+    }
+    return { units: [] };
+  });
   // Provide a default resolved value so LessonCompletePage clears its loading guard.
   getLessonResultsMock().getLessonResults.mockResolvedValue(DEFAULT_LESSON_RESULTS);
 }
@@ -319,11 +331,12 @@ describe('LessonCompletePage', () => {
     });
   });
 
-  it('LCP-BACK: clicking Back button navigates to course overview', async () => {
+  it('LCP-BACK: clicking Back button navigates to last step of completed lesson', async () => {
     wrap(<LessonCompletePage />);
     await waitFor(() => screen.getByRole('button', { name: /^back$/i }));
     fireEvent.click(screen.getByRole('button', { name: /^back$/i }));
-    expect(mockNavigate).toHaveBeenCalledWith(`/course/${COURSE_ID}`);
+    // SEQ_ID_1 has 3 units in the mock → lastIdx = 2
+    expect(mockNavigate).toHaveBeenCalledWith(`/course/${COURSE_ID}/lesson/${SEQ_ID_1}/step/2`);
   });
 
   it('LCP-RENDERS: page renders when router state has no sequenceId override', async () => {

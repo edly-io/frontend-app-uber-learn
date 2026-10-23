@@ -88,7 +88,7 @@ export const SaveAndResumePage = () => {
   };
 
   const handleHome = () => navigate('/');
-  const handleBack = () => (location.key === 'default' ? navigate(`/course/${courseId}`) : navigate(-1));
+  const handleBack = () => navigate(`/course/${courseId}`);
 
   if (outlineQuery.isLoading) {
     return (
